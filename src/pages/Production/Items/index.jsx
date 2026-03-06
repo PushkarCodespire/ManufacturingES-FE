@@ -16,6 +16,7 @@ import {
 import dayjs from 'dayjs';
 import { itemApi } from '../../../api/item.api';
 import AppLayout   from '../../../components/AppLayout';
+import usePermissions from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -50,7 +51,7 @@ const CATEGORY_COLORS = {
 // ══════════════════════════════════════════════════════════════════════════════
 //  LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-const ListView = ({ items, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete }) => {
+const ListView = ({ items, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete, canWrite }) => {
 
   const columns = [
     {
@@ -140,7 +141,7 @@ const ListView = ({ items, loading, search, onSearchChange, onRefresh, onNew, on
         </div>
       ),
     },
-    {
+    ...(canWrite ? [{
       title:  'Actions',
       key:    'actions',
       width:  170,
@@ -154,7 +155,7 @@ const ListView = ({ items, loading, search, onSearchChange, onRefresh, onNew, on
           </Tooltip>
         </div>
       ),
-    },
+    }] : []),
   ];
 
   return (
@@ -183,9 +184,11 @@ const ListView = ({ items, loading, search, onSearchChange, onRefresh, onNew, on
           />
           <div style={{ flex: 1 }} />
           <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>Refresh</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
-            Add New Item
-          </Button>
+          {canWrite && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
+              Add New Item
+            </Button>
+          )}
         </div>
 
         <Table
@@ -202,8 +205,12 @@ const ListView = ({ items, loading, search, onSearchChange, onRefresh, onNew, on
               <div style={{ padding: 40 }}>
                 <AppstoreOutlined style={{ fontSize: 32, color: '#d1d5db', display: 'block', marginBottom: 12 }} />
                 <Text style={{ color: '#9ca3af' }}>No items added yet</Text>
-                <br />
-                <Button type="primary" size="small" onClick={onNew} style={{ marginTop: 10 }}>Add Your First Item</Button>
+                {canWrite && (
+                  <>
+                    <br />
+                    <Button type="primary" size="small" onClick={onNew} style={{ marginTop: 10 }}>Add Your First Item</Button>
+                  </>
+                )}
               </div>
             ),
           }}
@@ -297,7 +304,7 @@ const ItemForm = ({ item, onSave, onCancel, saving }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 //  DETAIL VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-const DetailView = ({ item, onBack, onEdit }) => (
+const DetailView = ({ item, onBack, onEdit, canWrite }) => (
   <>
     {/* Breadcrumb */}
     <div style={{ marginBottom: 20 }}>
@@ -360,11 +367,13 @@ const DetailView = ({ item, onBack, onEdit }) => (
         </div>
       </div>
 
-      <div style={{ marginTop: 24 }}>
-        <Button type="primary" icon={<SettingOutlined />} onClick={onEdit} style={{ borderRadius: 8, fontWeight: 600 }}>
-          Edit Item
-        </Button>
-      </div>
+      {canWrite && (
+        <div style={{ marginTop: 24 }}>
+          <Button type="primary" icon={<SettingOutlined />} onClick={onEdit} style={{ borderRadius: 8, fontWeight: 600 }}>
+            Edit Item
+          </Button>
+        </div>
+      )}
     </div>
   </>
 );
@@ -379,6 +388,8 @@ const ItemsPage = () => {
   const [saving,   setSaving]   = useState(false);
   const [search,   setSearch]   = useState('');
   const [selected, setSelected] = useState(null);
+  const { can }  = usePermissions();
+  const canWrite = can('production-items-create_edit_delete');
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -455,9 +466,10 @@ const ItemsPage = () => {
           onNew={() => { setSelected(null); setView('add'); }}
           onDetail={handleDetail}
           onDelete={handleDelete}
+          canWrite={canWrite}
         />
       )}
-      {view === 'add' && (
+      {view === 'add' && canWrite && (
         <ItemForm item={null} onSave={handleCreate} onCancel={() => setView('list')} saving={saving} />
       )}
       {view === 'detail' && selected && (
@@ -465,9 +477,10 @@ const ItemsPage = () => {
           item={selected}
           onBack={() => { setView('list'); setSelected(null); }}
           onEdit={() => setView('edit')}
+          canWrite={canWrite}
         />
       )}
-      {view === 'edit' && selected && (
+      {view === 'edit' && selected && canWrite && (
         <ItemForm item={selected} onSave={handleUpdate} onCancel={() => setView('detail')} saving={saving} />
       )}
     </AppLayout>
