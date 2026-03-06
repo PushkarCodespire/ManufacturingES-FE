@@ -36,6 +36,32 @@ body {
   color: #1d4ed8 !important;
 }
 
+/* ── Nested SubMenu titles (sub-groups under Masters) ──────────────────────── */
+/* Level-3 SubMenu titles: smaller, uppercase, compact */
+.ant-menu-submenu .ant-menu-submenu .ant-menu-submenu-title {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #6b7280 !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  margin-block: 1px !important;
+}
+.ant-menu-submenu .ant-menu-submenu .ant-menu-submenu-title:hover {
+  color: #1d4ed8 !important;
+}
+/* Leaf items inside sub-groups */
+.ant-menu-submenu .ant-menu-submenu .ant-menu-item {
+  font-size: 13px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  margin-block: 1px !important;
+}
+
+/* ── Disabled (coming-soon) items ───────────────────────────────────────────── */
+.ant-menu-light .ant-menu-item-disabled {
+  opacity: 0.45 !important;
+}
+
 /* Input light theme */
 .ant-input,
 .ant-input-affix-wrapper {

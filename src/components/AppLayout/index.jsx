@@ -5,7 +5,7 @@ import AppSidebar from './AppSidebar';
 
 const { Content } = Layout;
 
-const SIDEBAR_W           = 220;
+const SIDEBAR_W           = 248;
 const SIDEBAR_COLLAPSED_W = 64;
 
 /**

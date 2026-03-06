@@ -48,6 +48,10 @@ const theme = {
       colorItemTextHover:   '#1d4ed8',
       colorItemBgHover:     '#f8fafc',
       borderRadius:          6,
+      itemHeight:            34,
+      itemMarginBlock:       2,
+      groupTitleFontSize:    11,
+      groupTitleColor:       '#9ca3af',
     },
     Layout: {
       siderBg:  '#ffffff',
@@ -111,7 +115,7 @@ function App() {
               <Route
                 path="/masters/employees"
                 element={
-                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                  <ProtectedRoute roles={['it_admin', 'plant_head']} permission="sites-employees___access-read">
                     <EmployeesPage />
                   </ProtectedRoute>
                 }
@@ -119,25 +123,27 @@ function App() {
               <Route
                 path="/masters/employees/:id"
                 element={
-                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                  <ProtectedRoute roles={['it_admin', 'plant_head']} permission="sites-employees___access-read">
                     <EmployeeDetailPage />
                   </ProtectedRoute>
                 }
               />
 
               {/* Masters — Configuration (Sites) */}
+              {/* Any role with sites-configuration-read permission can view the list */}
               <Route
                 path="/masters/configuration"
                 element={
-                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                  <ProtectedRoute permission="sites-configuration-read">
                     <ConfigurationPage />
                   </ProtectedRoute>
                 }
               />
+              {/* Add/Edit pages require write permission OR admin role */}
               <Route
                 path="/masters/configuration/sites/add"
                 element={
-                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                  <ProtectedRoute roles={['it_admin', 'plant_head']} permission="sites-configuration-create_edit_delete">
                     <AddSitePage />
                   </ProtectedRoute>
                 }
@@ -145,7 +151,7 @@ function App() {
               <Route
                 path="/masters/configuration/sites/:id"
                 element={
-                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                  <ProtectedRoute permission="sites-configuration-read">
                     <EditSitePage />
                   </ProtectedRoute>
                 }
@@ -155,7 +161,7 @@ function App() {
               <Route
                 path="/masters/shifts"
                 element={
-                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                  <ProtectedRoute permission="sites-shifts___leaves-read">
                     <ShiftsPage />
                   </ProtectedRoute>
                 }
@@ -165,7 +171,7 @@ function App() {
               <Route
                 path="/masters/inventory/warehouses"
                 element={
-                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                  <ProtectedRoute permission="inventory-warehouses-read">
                     <WarehousesPage />
                   </ProtectedRoute>
                 }
@@ -175,7 +181,7 @@ function App() {
               <Route
                 path="/masters/production/machines"
                 element={
-                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                  <ProtectedRoute permission="production-machines-read">
                     <MachinesPage />
                   </ProtectedRoute>
                 }
@@ -185,7 +191,7 @@ function App() {
               <Route
                 path="/masters/production/items"
                 element={
-                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                  <ProtectedRoute permission="production-items-read">
                     <ItemsPage />
                   </ProtectedRoute>
                 }

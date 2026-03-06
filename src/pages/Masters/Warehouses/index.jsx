@@ -19,6 +19,7 @@ import {
 import dayjs from 'dayjs';
 import { warehouseApi } from '../../../api/warehouse.api';
 import AppLayout        from '../../../components/AppLayout';
+import usePermissions   from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
 
@@ -31,7 +32,7 @@ const fmtDateTime = (iso) => {
 // ══════════════════════════════════════════════════════════════════════════════
 //  LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-const ListView = ({ warehouses, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete }) => {
+const ListView = ({ warehouses, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete, canWrite }) => {
   const totalActive = warehouses.filter((w) => w.is_active).length;
 
   const columns = [
@@ -90,7 +91,7 @@ const ListView = ({ warehouses, loading, search, onSearchChange, onRefresh, onNe
         </div>
       ),
     },
-    {
+    ...(canWrite ? [{
       title:  'Actions',
       key:    'actions',
       width:  170,
@@ -115,7 +116,7 @@ const ListView = ({ warehouses, loading, search, onSearchChange, onRefresh, onNe
           </Tooltip>
         </div>
       ),
-    },
+    }] : []),
   ];
 
   return (
@@ -179,14 +180,16 @@ const ListView = ({ warehouses, loading, search, onSearchChange, onRefresh, onNe
           <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={onNew}
-            style={{ borderRadius: 8, fontWeight: 600 }}
-          >
-            Add New Warehouse
-          </Button>
+          {canWrite && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={onNew}
+              style={{ borderRadius: 8, fontWeight: 600 }}
+            >
+              Add New Warehouse
+            </Button>
+          )}
         </div>
 
         {/* Table */}
@@ -204,15 +207,19 @@ const ListView = ({ warehouses, loading, search, onSearchChange, onRefresh, onNe
               <div style={{ padding: 40 }}>
                 <DatabaseOutlined style={{ fontSize: 32, color: '#d1d5db', display: 'block', marginBottom: 12 }} />
                 <Text style={{ color: '#9ca3af' }}>No warehouses configured yet</Text>
-                <br />
-                <Button
-                  type="primary"
-                  size="small"
-                  onClick={onNew}
-                  style={{ marginTop: 10 }}
-                >
-                  Add Your First Warehouse
-                </Button>
+                {canWrite && (
+                  <>
+                    <br />
+                    <Button
+                      type="primary"
+                      size="small"
+                      onClick={onNew}
+                      style={{ marginTop: 10 }}
+                    >
+                      Add Your First Warehouse
+                    </Button>
+                  </>
+                )}
               </div>
             ),
           }}
@@ -628,7 +635,7 @@ const AddWarehouseView = ({ onBack, onSaved }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 //  DETAIL / EDIT VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-const DetailView = ({ warehouse, onBack, onSaved }) => {
+const DetailView = ({ warehouse, onBack, onSaved, canWrite }) => {
   const [editing, setEditing]   = useState(false);
   const [saving, setSaving]     = useState(false);
   const [form]                  = Form.useForm();
@@ -719,13 +726,15 @@ const DetailView = ({ warehouse, onBack, onSaved }) => {
             </Title>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Button
-              type="primary"
-              icon={<BarChartOutlined />}
-              style={{ borderRadius: 8, fontWeight: 600, background: '#1d4ed8' }}
-            >
-              Set Levels
-            </Button>
+            {canWrite && (
+              <Button
+                type="primary"
+                icon={<BarChartOutlined />}
+                style={{ borderRadius: 8, fontWeight: 600, background: '#1d4ed8' }}
+              >
+                Set Levels
+              </Button>
+            )}
             <Tooltip title="History">
               <Button
                 type="text"
@@ -748,20 +757,22 @@ const DetailView = ({ warehouse, onBack, onSaved }) => {
         </div>
 
         {/* Edit button */}
-        <div style={{ marginTop: 28 }}>
-          <Button
-            type="primary"
-            onClick={handleEdit}
-            style={{
-              borderRadius:  8,
-              fontWeight:    600,
-              background:    '#1d4ed8',
-              paddingInline: 28,
-            }}
-          >
-            Edit
-          </Button>
-        </div>
+        {canWrite && (
+          <div style={{ marginTop: 28 }}>
+            <Button
+              type="primary"
+              onClick={handleEdit}
+              style={{
+                borderRadius:  8,
+                fontWeight:    600,
+                background:    '#1d4ed8',
+                paddingInline: 28,
+              }}
+            >
+              Edit
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -910,6 +921,8 @@ const WarehousesPage = () => {
   const [view,             setView]             = useState('list');   // 'list' | 'add' | 'detail'
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
   const [search,           setSearch]           = useState('');
+  const { can }  = usePermissions();
+  const canWrite = can('inventory-warehouses-create_edit_delete');
 
   const fetchWarehouses = useCallback(async () => {
     setLoading(true);
@@ -981,10 +994,11 @@ const WarehousesPage = () => {
           onNew={handleNew}
           onDetail={handleDetail}
           onDelete={handleDelete}
+          canWrite={canWrite}
         />
       )}
 
-      {view === 'add' && (
+      {view === 'add' && canWrite && (
         <AddWarehouseView
           onBack={handleBack}
           onSaved={handleSaved}
@@ -996,6 +1010,7 @@ const WarehousesPage = () => {
           warehouse={selectedWarehouse}
           onBack={handleBack}
           onSaved={handleSaved}
+          canWrite={canWrite}
         />
       )}
     </AppLayout>

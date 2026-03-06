@@ -12,6 +12,7 @@ import dayjs from 'dayjs';
 import { machineApi } from '../../../api/machine.api';
 import { productionParameterApi } from '../../../api/productionParameter.api';
 import AppLayout from '../../../components/AppLayout';
+import usePermissions from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -31,7 +32,7 @@ const PARAM_TYPE_OPTIONS = [
 // ══════════════════════════════════════════════════════════════════════════════
 //  LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete }) => {
+const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete, canWrite }) => {
   const columns = [
     {
       title: 'Name',
@@ -100,7 +101,7 @@ const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew,
         </div>
       ),
     },
-    {
+    ...(canWrite ? [{
       title: 'Actions',
       key: 'actions',
       width: 170,
@@ -114,7 +115,7 @@ const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew,
           </Tooltip>
         </div>
       ),
-    },
+    }] : []),
   ];
 
   return (
@@ -141,9 +142,11 @@ const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew,
           />
           <div style={{ flex: 1 }} />
           <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>Refresh</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
-            Add New Machine
-          </Button>
+          {canWrite && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
+              Add New Machine
+            </Button>
+          )}
         </div>
 
         <Table
@@ -160,8 +163,12 @@ const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew,
               <div style={{ padding: 40 }}>
                 <ToolOutlined style={{ fontSize: 32, color: '#d1d5db', display: 'block', marginBottom: 12 }} />
                 <Text style={{ color: '#9ca3af' }}>No machines added yet</Text>
-                <br />
-                <Button type="primary" size="small" onClick={onNew} style={{ marginTop: 10 }}>Add Your First Machine</Button>
+                {canWrite && (
+                  <>
+                    <br />
+                    <Button type="primary" size="small" onClick={onNew} style={{ marginTop: 10 }}>Add Your First Machine</Button>
+                  </>
+                )}
               </div>
             ),
           }}
@@ -834,7 +841,7 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
 // ══════════════════════════════════════════════════════════════════════════════
 //  EDIT / VIEW PAGE (3-column layout matching reference)
 // ══════════════════════════════════════════════════════════════════════════════
-const EditViewPage = ({ machine, parameters, onBack, onRefresh, onRefreshParams }) => {
+const EditViewPage = ({ machine, parameters, onBack, onRefresh, onRefreshParams, canWrite }) => {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
@@ -1167,31 +1174,33 @@ const EditViewPage = ({ machine, parameters, onBack, onRefresh, onRefreshParams 
       </div>
 
       {/* Edit Button (fixed bottom-left like reference) */}
-      <div style={{ position: 'fixed', bottom: 24, left: 280 }}>
-        {!editing ? (
-          <Button
-            type="primary"
-            onClick={() => setEditing(true)}
-            style={{ borderRadius: 8, fontWeight: 600, height: 36, paddingInline: 24 }}
-          >
-            Edit
-          </Button>
-        ) : (
-          <div style={{ display: 'flex', gap: 8 }}>
+      {canWrite && (
+        <div style={{ position: 'fixed', bottom: 24, left: 280 }}>
+          {!editing ? (
             <Button
               type="primary"
-              onClick={handleSave}
-              loading={saving}
-              style={{ borderRadius: 8, fontWeight: 600 }}
+              onClick={() => setEditing(true)}
+              style={{ borderRadius: 8, fontWeight: 600, height: 36, paddingInline: 24 }}
             >
-              Save
+              Edit
             </Button>
-            <Button onClick={() => setEditing(false)} style={{ borderRadius: 8 }}>
-              Cancel
-            </Button>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button
+                type="primary"
+                onClick={handleSave}
+                loading={saving}
+                style={{ borderRadius: 8, fontWeight: 600 }}
+              >
+                Save
+              </Button>
+              <Button onClick={() => setEditing(false)} style={{ borderRadius: 8 }}>
+                Cancel
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       <AddParameterDrawer
         open={drawerOpen}
@@ -1212,6 +1221,8 @@ const MachinesPage = () => {
   const [loading, setLoading]       = useState(false);
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState(null);
+  const { can }  = usePermissions();
+  const canWrite = can('production-machines-create_edit_delete');
 
   const fetchMachines = useCallback(async () => {
     setLoading(true);
@@ -1287,9 +1298,10 @@ const MachinesPage = () => {
           onNew={() => setView('add')}
           onDetail={handleDetail}
           onDelete={handleDelete}
+          canWrite={canWrite}
         />
       )}
-      {view === 'add' && (
+      {view === 'add' && canWrite && (
         <CreateMachineStepper
           existingMachines={machines}
           parameters={parameters}
@@ -1305,6 +1317,7 @@ const MachinesPage = () => {
           onBack={() => { setView('list'); setSelected(null); }}
           onRefresh={refreshSelected}
           onRefreshParams={fetchParameters}
+          canWrite={canWrite}
         />
       )}
     </AppLayout>

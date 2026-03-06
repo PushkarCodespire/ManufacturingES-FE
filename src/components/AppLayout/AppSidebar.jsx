@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Layout, Menu, Avatar, Tag, Typography, Button, Tooltip,
+  Layout, Menu, Avatar, Typography, Button, Tooltip,
 } from 'antd';
 import {
   AppstoreOutlined,
@@ -8,24 +8,18 @@ import {
   ShoppingCartOutlined,
   ToolOutlined,
   CarOutlined,
-  BarChartOutlined,
   DatabaseOutlined,
   TeamOutlined,
   DollarOutlined,
-  UserOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   KeyOutlined,
   ControlOutlined,
-  UsergroupAddOutlined,
-  CalendarOutlined,
-  ApiOutlined,
-  DollarCircleOutlined,
-  SettingOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth }        from '../../context/AuthContext';
+import usePermissions from '../../hooks/usePermissions';
 
 const { Sider } = Layout;
 const { Text }  = Typography;
@@ -36,185 +30,294 @@ const DEPT_COLORS = {
   14: '#dc2626', 15: '#0d9488', 16: '#1d4ed8', 17: '#92400e',
 };
 
-// ── Navigation items ────────────────────────────────────────────────────────
-const buildNavItems = () => [
+// ── Navigation definition ──────────────────────────────────────────────────────
+// permission  : string → visible if user has this permission key (admins always pass)
+// permission  : null   → always visible
+// adminOnly   : true   → visible only to plant_head / it_admin (disabled/coming-soon)
+//
+// Sub-categories under Masters are collapsible SubMenus (dropdowns).
+// Add new routes here as pages are built — the sidebar filters automatically.
+const NAV_ITEMS_DEF = [
   {
-    key:   'dashboard',
-    label: 'Dashboard',
-    icon:  <AppstoreOutlined />,
+    key:        'dashboard',
+    label:      'Dashboard',
+    icon:       <AppstoreOutlined />,
+    permission: null,             // always show
   },
 
-  // ── Masters (ADM module — employee & config management) ──────────────────
+  // ── Masters ──────────────────────────────────────────────────────────────────
   {
     key:   'masters',
     label: 'Masters',
     icon:  <ControlOutlined />,
     children: [
-      { key: 'configuration', label: 'Configuration',    icon: <SettingOutlined /> },
-      { key: 'employees',     label: 'Employees & Access', icon: <UsergroupAddOutlined /> },
-      { key: 'shifts',        label: 'Shifts & Leaves',  icon: <CalendarOutlined /> },
-      { key: 'integrations',  label: 'Integrations',     icon: <ApiOutlined />,         disabled: true },
-      { key: 'costing',       label: 'Costing',          icon: <DollarCircleOutlined />, disabled: true },
+      // ── Sites (SubMenu) ────────────────────────────
+      {
+        key:   'grp-sites',
+        label: 'Sites',
+        children: [
+          { key: 'configuration', label: 'Configuration',      permission: 'sites-configuration-read' },
+          { key: 'employees',     label: 'Employees & Access', permission: 'sites-employees___access-read' },
+          { key: 'shifts',        label: 'Shifts & Leaves',    permission: 'sites-shifts___leaves-read' },
+          { key: 'integrations',  label: 'Integrations',       disabled: true, adminOnly: true },
+          { key: 'costing',       label: 'Costing',            disabled: true, adminOnly: true },
+        ],
+      },
+      // ── Production (SubMenu) ───────────────────────
+      {
+        key:   'grp-production',
+        label: 'Production',
+        children: [
+          { key: 'm-machines',         label: 'Machines',            permission: 'production-machines-read' },
+          { key: 'm-items',            label: 'Items',               permission: 'production-items-read' },
+          { key: 'm-cycle-time',       label: 'Cycle Time Rules',    disabled: true, adminOnly: true },
+          { key: 'm-tools',            label: 'Tools',               disabled: true, adminOnly: true },
+          { key: 'm-downtime',         label: 'Downtime',            disabled: true, adminOnly: true },
+          { key: 'm-quality',          label: 'Quality',             disabled: true, adminOnly: true },
+          { key: 'm-production-forms', label: 'Production Forms',    disabled: true, adminOnly: true },
+          { key: 'm-set-sampling',     label: 'Set Sampling',        disabled: true, adminOnly: true },
+          { key: 'm-ctq',             label: 'Critical To Quality', disabled: true, adminOnly: true },
+        ],
+      },
+      // ── Planning (SubMenu) ─────────────────────────
+      {
+        key:   'grp-planning',
+        label: 'Planning',
+        children: [
+          { key: 'm-customers',         label: 'Customers',         disabled: true, adminOnly: true },
+          { key: 'm-vendors',           label: 'Vendors',           disabled: true, adminOnly: true },
+          { key: 'm-sticker-templates', label: 'Sticker Templates', disabled: true, adminOnly: true },
+        ],
+      },
+      // ── Inventory (SubMenu) ────────────────────────
+      {
+        key:   'grp-inventory',
+        label: 'Inventory',
+        children: [
+          { key: 'm-warehouses',    label: 'Warehouses',    permission: 'inventory-warehouses-read' },
+          { key: 'm-packages',      label: 'Packages',      disabled: true, adminOnly: true },
+          { key: 'm-custom-fields', label: 'Custom Fields', disabled: true, adminOnly: true },
+        ],
+      },
+      // ── Other (SubMenu) ────────────────────────────
+      {
+        key:   'grp-other',
+        label: 'Other',
+        children: [
+          { key: 'm-reports',        label: 'Reports',        disabled: true, adminOnly: true },
+          { key: 'm-tag-management', label: 'Tag Management', disabled: true, adminOnly: true },
+          { key: 'm-templates',      label: 'Templates',      disabled: true, adminOnly: true },
+          { key: 'm-automation',     label: 'Automation',     disabled: true, adminOnly: true },
+          { key: 'm-onboarding',     label: 'Onboarding',     disabled: true, adminOnly: true },
+        ],
+      },
     ],
   },
 
-  {
-    key:      'quality',
-    label:    'Quality',
-    icon:     <CheckCircleOutlined />,
-    disabled: true,
-    children: [
-      { key: 'iqc',  label: 'Incoming QC (IQC)'    },
-      { key: 'lqc',  label: 'Line QC (LQC)'         },
-      { key: 'pqc',  label: 'Pre-Dispatch QC (PQC)' },
-      { key: 'oqc',  label: 'Outgoing QC (OQC)'     },
-      { key: 'capa', label: 'CAPA'                   },
-    ],
-  },
-  { key: 'procurement', label: 'Procurement', icon: <ShoppingCartOutlined />, disabled: true },
-  { key: 'store',       label: 'Store',       icon: <DatabaseOutlined />,    disabled: true },
-  { key: 'production',  label: 'Production',  icon: <ToolOutlined />,        disabled: true },
-  { key: 'dispatch',    label: 'Dispatch',    icon: <CarOutlined />,         disabled: true },
-  { key: 'accounts',    label: 'Accounts',    icon: <DollarOutlined />,      disabled: true },
-  { key: 'hr',          label: 'HR',          icon: <TeamOutlined />,        disabled: true },
-  { key: 'reports',     label: 'Reports',     icon: <BarChartOutlined />,    disabled: true },
+  // ── Future top-level modules — shown disabled to admins only ────────────────
+  { key: 'quality',     label: 'Quality',     icon: <CheckCircleOutlined />,  disabled: true, adminOnly: true },
+  { key: 'procurement', label: 'Procurement', icon: <ShoppingCartOutlined />, disabled: true, adminOnly: true },
+  { key: 'store',       label: 'Store',       icon: <DatabaseOutlined />,     disabled: true, adminOnly: true },
+  { key: 'production',  label: 'Production',  icon: <ToolOutlined />,         disabled: true, adminOnly: true },
+  { key: 'dispatch',    label: 'Dispatch',    icon: <CarOutlined />,          disabled: true, adminOnly: true },
+  { key: 'accounts',    label: 'Accounts',    icon: <DollarOutlined />,       disabled: true, adminOnly: true },
+  { key: 'hr',          label: 'HR',          icon: <TeamOutlined />,         disabled: true, adminOnly: true },
 ];
 
-// ── Derive selected key + open keys from pathname ────────────────────────────
+// key → route path (for items that navigate)
+const KEY_TO_PATH = {
+  dashboard:       '/dashboard',
+  configuration:   '/masters/configuration',
+  employees:       '/masters/employees',
+  shifts:          '/masters/shifts',
+  'm-machines':    '/masters/production/machines',
+  'm-items':       '/masters/production/items',
+  'm-warehouses':  '/masters/inventory/warehouses',
+};
+
+// ── Derive selected key + open keys from current pathname ────────────────────
+// Both parent SubMenu (masters) AND child SubMenu (grp-sites etc.) are tracked
 const getNavState = (pathname) => {
-  if (pathname.startsWith('/masters/employees'))     return { selected: 'employees',     open: ['masters'] };
-  if (pathname.startsWith('/masters/configuration')) return { selected: 'configuration', open: ['masters'] };
-  if (pathname.startsWith('/masters/shifts'))        return { selected: 'shifts',        open: ['masters'] };
+  // Sites sub-group
+  if (pathname.startsWith('/masters/employees'))     return { selected: 'employees',     open: ['masters', 'grp-sites'] };
+  if (pathname.startsWith('/masters/configuration')) return { selected: 'configuration', open: ['masters', 'grp-sites'] };
+  if (pathname.startsWith('/masters/shifts'))        return { selected: 'shifts',        open: ['masters', 'grp-sites'] };
+  // Production sub-group
+  if (pathname.startsWith('/masters/production/machines')) return { selected: 'm-machines', open: ['masters', 'grp-production'] };
+  if (pathname.startsWith('/masters/production/items'))    return { selected: 'm-items',    open: ['masters', 'grp-production'] };
+  // Inventory sub-group
+  if (pathname.startsWith('/masters/inventory/warehouses')) return { selected: 'm-warehouses', open: ['masters', 'grp-inventory'] };
+  // Generic masters fallback
   if (pathname.startsWith('/masters'))               return { selected: 'masters',       open: ['masters'] };
-  if (pathname.startsWith('/dashboard'))             return { selected: 'dashboard',     open: [] };
   return { selected: 'dashboard', open: [] };
 };
 
-/**
- * AppSidebar — collapsible left sidebar.
- *
- * Expanded (220 px):  Avatar + Name + Employee ID + Role tag + Dept | Nav items | My Profile | Sign Out | Collapse btn
- * Collapsed  (64 px): Avatar icon only                              | Nav icons | Icon btns  | Expand btn
- */
+// ── Strip orphan dividers (leading, trailing, consecutive) ───────────────────
+const cleanDividers = (items) =>
+  items.filter((item, i, arr) => {
+    if (item?.type !== 'divider') return true;
+    if (i === 0 || i === arr.length - 1) return false;
+    if (arr[i - 1]?.type === 'divider') return false;
+    return true;
+  });
+
+// ── Component ────────────────────────────────────────────────────────────────
 const AppSidebar = ({ collapsed, onCollapse }) => {
   const { user, logout } = useAuth();
+  const { can, isAdmin } = usePermissions();
   const navigate         = useNavigate();
   const location         = useLocation();
 
   const { selected, open: initialOpen } = getNavState(location.pathname);
   const [openKeys, setOpenKeys] = useState(initialOpen);
 
-  // Sync open keys when route changes
+  // Sync open keys when route changes (e.g. programmatic navigation)
+  // Merge required keys so manually-opened sub-groups stay open
   useEffect(() => {
     const { open } = getNavState(location.pathname);
-    setOpenKeys(open);
+    setOpenKeys((prev) => {
+      const merged = new Set([...prev, ...open]);
+      return [...merged];
+    });
   }, [location.pathname]);
 
   const deptColor = DEPT_COLORS[user?.department?.code] || '#1d4ed8';
   const initials  = user?.name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
 
+  // ── Build filtered menu items based on current user's permissions ──────────
+  const menuItems = useMemo(() => {
+    const resolveItem = (item) => {
+      // Pass-through dividers
+      if (item.type === 'divider') return item;
+
+      const { key, label, icon, disabled, permission, adminOnly, children, type } = item;
+
+      // Permission-gated leaf
+      if (permission) {
+        return can(permission) ? { key, label, icon, type } : null;
+      }
+      // Admin-only disabled item
+      if (adminOnly) {
+        return isAdmin ? { key, label, icon, disabled: true, type } : null;
+      }
+      // Has children (SubMenu or Group) — filter recursively
+      if (children) {
+        const visible = children.map(resolveItem).filter(Boolean);
+        if (visible.length === 0) return null;
+        // Clean orphan dividers inside this group/submenu
+        const cleaned = cleanDividers(visible);
+        return cleaned.length > 0 ? { key, label, icon, children: cleaned, type } : null;
+      }
+      // Unrestricted item
+      return { key, label, icon, type };
+    };
+
+    return NAV_ITEMS_DEF.map(resolveItem).filter(Boolean);
+  }, [can, isAdmin]);
+
   const handleLogout = () => { logout(); navigate('/login'); };
 
   const handleMenuClick = ({ key }) => {
-    const routes = {
-      dashboard:     '/dashboard',
-      employees:     '/masters/employees',
-      configuration: '/masters/configuration',
-      shifts:        '/masters/shifts',
-    };
-    if (routes[key]) navigate(routes[key]);
+    const path = KEY_TO_PATH[key];
+    if (path) navigate(path);
   };
 
   return (
     <Sider
-      width={220}
+      width={248}
       collapsedWidth={64}
       collapsed={collapsed}
       style={{
-        background:   '#ffffff',
-        borderRight:  '1px solid #e8eaed',
-        position:     'fixed',
-        top:          52,    // sits below the 52px header
-        left:         0,
-        bottom:       0,
-        zIndex:       100,
-        overflow:     'hidden',
-        boxShadow:    '2px 0 8px rgba(0,0,0,0.04)',
+        background:  '#ffffff',
+        borderRight: '1px solid #e8eaed',
+        position:    'fixed',
+        top:         52,
+        left:        0,
+        bottom:      0,
+        zIndex:      100,
+        overflow:    'hidden',
+        boxShadow:   '2px 0 8px rgba(0,0,0,0.04)',
       }}
     >
-      {/* ── Full-height flex column ──────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-        {/* ── USER PANEL ─────────────────────────────────────────────────── */}
+        {/* ── COMPACT USER PANEL ──────────────────────────────────────────── */}
         <div
           style={{
-            padding:       collapsed ? '16px 0' : '20px 16px 16px',
-            borderBottom:  '1px solid #f3f4f6',
-            flexShrink:    0,
-            display:       'flex',
-            flexDirection: 'column',
-            alignItems:    collapsed ? 'center' : 'flex-start',
-            transition:    'padding 0.2s ease',
+            padding:      collapsed ? '12px 0' : '12px 14px',
+            borderBottom: '1px solid #f0f0f0',
+            flexShrink:   0,
+            display:      'flex',
+            alignItems:   'center',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            transition:   'padding 0.2s ease',
           }}
         >
-          {/* Avatar — always visible */}
-          <Tooltip title={collapsed ? user?.name : ''} placement="right">
-            <Avatar
-              size={collapsed ? 36 : 46}
+          {collapsed ? (
+            <Tooltip title={user?.name} placement="right">
+              <Avatar
+                size={32}
+                style={{
+                  background: deptColor,
+                  fontWeight: 700,
+                  fontSize:   13,
+                  cursor:     'pointer',
+                  boxShadow:  `0 2px 6px ${deptColor}30`,
+                }}
+                onClick={() => navigate('/profile')}
+              >
+                {initials}
+              </Avatar>
+            </Tooltip>
+          ) : (
+            <div
               style={{
-                background:  deptColor,
-                fontWeight:  700,
-                fontSize:    collapsed ? 14 : 18,
-                cursor:      'pointer',
-                flexShrink:  0,
-                boxShadow:   `0 2px 8px ${deptColor}40`,
-                transition:  'all 0.2s ease',
+                display:    'flex',
+                alignItems: 'center',
+                gap:        10,
+                cursor:     'pointer',
+                width:      '100%',
+                minWidth:   0,
               }}
               onClick={() => navigate('/profile')}
             >
-              {initials}
-            </Avatar>
-          </Tooltip>
-
-          {/* Expanded: name, employee ID, role tag, dept */}
-          {!collapsed && (
-            <div style={{ marginTop: 12, width: '100%' }}>
-              <Text
+              <Avatar
+                size={32}
                 style={{
-                  color:         '#111827',
-                  fontWeight:    600,
-                  fontSize:      13,
-                  display:       'block',
-                  whiteSpace:    'nowrap',
-                  overflow:      'hidden',
-                  textOverflow:  'ellipsis',
+                  background: deptColor,
+                  fontWeight: 700,
+                  fontSize:   13,
+                  flexShrink: 0,
+                  boxShadow:  `0 2px 6px ${deptColor}30`,
                 }}
               >
-                {user?.name}
-              </Text>
-
-              <Text style={{ color: '#6b7280', fontSize: 11, display: 'block', marginBottom: 8 }}>
-                {user?.employee_id}
-              </Text>
-
-              <Tag
-                style={{
-                  background:  `${deptColor}12`,
-                  border:      `1px solid ${deptColor}40`,
-                  color:       deptColor,
-                  borderRadius: 20,
-                  fontSize:    11,
-                  padding:     '1px 10px',
-                  fontWeight:  500,
-                  marginBottom: 4,
-                }}
-              >
-                {user?.role?.label}
-              </Tag>
-
-              <Text style={{ color: '#9ca3af', fontSize: 11, display: 'block' }}>
-                {user?.department?.name}
-              </Text>
+                {initials}
+              </Avatar>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <Text
+                  ellipsis
+                  style={{
+                    fontSize:   13,
+                    fontWeight: 600,
+                    color:      '#111827',
+                    display:    'block',
+                    lineHeight: '18px',
+                  }}
+                >
+                  {user?.name}
+                </Text>
+                <Text
+                  ellipsis
+                  style={{
+                    fontSize:   11,
+                    color:      '#6b7280',
+                    display:    'block',
+                    lineHeight: '16px',
+                  }}
+                >
+                  {user?.role?.label}
+                </Text>
+              </div>
             </div>
           )}
         </div>
@@ -224,44 +327,26 @@ const AppSidebar = ({ collapsed, onCollapse }) => {
           <Menu
             mode="inline"
             inlineCollapsed={collapsed}
+            inlineIndent={16}
             selectedKeys={[selected]}
             openKeys={collapsed ? [] : openKeys}
             onOpenChange={(keys) => setOpenKeys(keys)}
-            items={buildNavItems()}
-            style={{
-              border:     'none',
-              background: 'transparent',
-              paddingTop: 6,
-            }}
+            items={menuItems}
             onClick={handleMenuClick}
+            style={{ border: 'none', background: 'transparent', paddingTop: 4 }}
           />
         </div>
 
         {/* ── BOTTOM ACTIONS ─────────────────────────────────────────────── */}
-        <div
-          style={{
-            flexShrink:  0,
-            borderTop:   '1px solid #f3f4f6',
-            padding:     '8px',
-          }}
-        >
+        <div style={{ flexShrink: 0, borderTop: '1px solid #f0f0f0', padding: '6px 8px' }}>
           {collapsed ? (
-            /* ── Collapsed: icon-only buttons ── */
             <>
-              <Tooltip title="My Profile" placement="right">
-                <Button
-                  type="text"
-                  icon={<UserOutlined />}
-                  style={{ width: '100%', color: '#374151', marginBottom: 2 }}
-                  onClick={() => navigate('/profile')}
-                />
-              </Tooltip>
-              {['it_admin', 'plant_head'].includes(user?.role?.name) && (
-                <Tooltip title="Reset Password (Admin)" placement="right">
+              {isAdmin && (
+                <Tooltip title="Reset Password" placement="right">
                   <Button
                     type="text"
                     icon={<KeyOutlined />}
-                    style={{ width: '100%', color: '#dc2626', marginBottom: 2 }}
+                    style={{ width: '100%', color: '#6b7280', marginBottom: 2 }}
                     onClick={() => navigate('/admin/reset-password')}
                   />
                 </Tooltip>
@@ -275,103 +360,66 @@ const AppSidebar = ({ collapsed, onCollapse }) => {
                   onClick={handleLogout}
                 />
               </Tooltip>
+              <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 6, marginTop: 2, display: 'flex', justifyContent: 'center' }}>
+                <Tooltip title="Expand sidebar" placement="right">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<MenuUnfoldOutlined />}
+                    onClick={onCollapse}
+                    style={{ color: '#9ca3af' }}
+                  />
+                </Tooltip>
+              </div>
             </>
           ) : (
-            /* ── Expanded: full-text buttons ── */
             <>
-              <Button
-                type="text"
-                icon={<UserOutlined />}
-                block
-                style={{
-                  textAlign:     'left',
-                  justifyContent:'flex-start',
-                  color:         '#374151',
-                  fontWeight:    500,
-                  fontSize:      13,
-                  height:        36,
-                  paddingInline: 12,
-                  marginBottom:  2,
-                  borderRadius:  6,
-                  display:       'flex',
-                  alignItems:    'center',
-                }}
-                onClick={() => navigate('/profile')}
-              >
-                My Profile
-              </Button>
-
-              {['it_admin', 'plant_head'].includes(user?.role?.name) && (
+              {isAdmin && (
                 <Button
                   type="text"
                   icon={<KeyOutlined />}
                   block
                   style={{
-                    textAlign:     'left',
-                    justifyContent:'flex-start',
-                    color:         '#dc2626',
-                    fontWeight:    500,
-                    fontSize:      13,
-                    height:        36,
-                    paddingInline: 12,
-                    marginBottom:  2,
-                    borderRadius:  6,
-                    display:       'flex',
-                    alignItems:    'center',
+                    textAlign:      'left',
+                    justifyContent: 'flex-start',
+                    color:          '#6b7280',
+                    fontSize:       12,
+                    height:         32,
+                    paddingInline:  10,
+                    marginBottom:   2,
+                    borderRadius:   6,
+                    display:        'flex',
+                    alignItems:     'center',
                   }}
                   onClick={() => navigate('/admin/reset-password')}
                 >
                   Reset Password
                 </Button>
               )}
-
-              <Button
-                type="text"
-                danger
-                icon={<LogoutOutlined />}
-                block
-                style={{
-                  textAlign:     'left',
-                  justifyContent:'flex-start',
-                  fontWeight:    500,
-                  fontSize:      13,
-                  height:        36,
-                  paddingInline: 12,
-                  marginBottom:  2,
-                  borderRadius:  6,
-                  display:       'flex',
-                  alignItems:    'center',
-                }}
-                onClick={handleLogout}
-              >
-                Sign Out
-              </Button>
+              {/* Sign out + collapse toggle on same row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Button
+                  type="text"
+                  danger
+                  icon={<LogoutOutlined />}
+                  size="small"
+                  style={{ fontSize: 12, paddingInline: 10, borderRadius: 6 }}
+                  onClick={handleLogout}
+                >
+                  Sign Out
+                </Button>
+                <Tooltip title="Collapse sidebar" placement="right">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<MenuFoldOutlined />}
+                    onClick={onCollapse}
+                    style={{ color: '#9ca3af', borderRadius: 6 }}
+                  />
+                </Tooltip>
+              </div>
             </>
           )}
-
-          {/* ── Collapse / Expand toggle ── */}
-          <div
-            style={{
-              borderTop:      '1px solid #f3f4f6',
-              paddingTop:     8,
-              marginTop:      4,
-              display:        'flex',
-              justifyContent: collapsed ? 'center' : 'flex-end',
-            }}
-          >
-            <Tooltip
-              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              placement="right"
-            >
-              <Button
-                type="text"
-                size="small"
-                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                onClick={onCollapse}
-                style={{ color: '#9ca3af', borderRadius: 6 }}
-              />
-            </Tooltip>
-          </div>
         </div>
 
       </div>
