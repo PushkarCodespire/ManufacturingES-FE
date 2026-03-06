@@ -14,6 +14,9 @@ import ConfigurationPage  from './pages/Masters/Configuration';
 import AddSitePage        from './pages/Masters/Configuration/AddSite';
 import EditSitePage       from './pages/Masters/Configuration/EditSite';
 import ShiftsPage         from './pages/Masters/Shifts';
+import WarehousesPage     from './pages/Masters/Warehouses';
+import MachinesPage       from './pages/Production/Machines';
+import ItemsPage          from './pages/Production/Items';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
@@ -154,6 +157,36 @@ function App() {
                 element={
                   <ProtectedRoute roles={['it_admin', 'plant_head']}>
                     <ShiftsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Inventory — Warehouses */}
+              <Route
+                path="/masters/inventory/warehouses"
+                element={
+                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                    <WarehousesPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Production — Machines */}
+              <Route
+                path="/masters/production/machines"
+                element={
+                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                    <MachinesPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Production — Items */}
+              <Route
+                path="/masters/production/items"
+                element={
+                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                    <ItemsPage />
                   </ProtectedRoute>
                 }
               />
