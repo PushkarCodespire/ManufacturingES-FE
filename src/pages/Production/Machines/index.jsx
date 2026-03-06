@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography, Table, Button, Form, Input, Select, Steps, Radio,
-  Checkbox, Card, Modal, message, Tooltip, Badge, Tag, Drawer, Switch,
+  Checkbox, Card, Modal, message, Tooltip, Badge, Tag, Drawer, Switch, Tree,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, ArrowLeftOutlined,
@@ -174,21 +174,19 @@ const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew,
 // ══════════════════════════════════════════════════════════════════════════════
 //  ADD PARAMETER DRAWER
 // ══════════════════════════════════════════════════════════════════════════════
+const mkField = (type = 'number') => ({
+  key: Date.now() + Math.random(), label: '', type, formula: '', ctq: '', enabled: true,
+});
+
 const AddParameterDrawer = ({ open, onClose, onSave }) => {
   const [title, setTitle] = useState('');
   const [groupBy, setGroupBy] = useState('none');
-  const [fields, setFields] = useState([]);
+  // Table is always visible — start with 1 default empty row
+  const [fields, setFields] = useState([mkField('number')]);
   const [saving, setSaving] = useState(false);
 
   const addField = (defaultType = 'number') => {
-    setFields((prev) => [...prev, {
-      key: Date.now() + Math.random(),
-      label: '',
-      type: defaultType,
-      formula: '',
-      ctq: '',
-      enabled: true,
-    }]);
+    setFields((prev) => [...prev, mkField(defaultType)]);
   };
 
   const updateField = (key, prop, val) => {
@@ -233,7 +231,7 @@ const AddParameterDrawer = ({ open, onClose, onSave }) => {
   const handleClose = () => {
     setTitle('');
     setGroupBy('none');
-    setFields([]);
+    setFields([mkField('number')]); // reset to one default row
     onClose();
   };
 
@@ -295,101 +293,99 @@ const AddParameterDrawer = ({ open, onClose, onSave }) => {
           </Button>
         </div>
 
-        {/* Fields Table */}
-        {fields.length > 0 && (
-          <div style={{ border: '1px solid #e8eaed', borderRadius: 8, overflow: 'hidden' }}>
-            {/* Header */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 140px 40px 40px',
-              gap: 8,
-              padding: '10px 12px',
-              background: '#f9fafb',
-              borderBottom: '1px solid #e8eaed',
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#6b7280',
-            }}>
-              <span>Label / Key</span>
-              <span>Type</span>
-              <span></span>
-              <span></span>
-            </div>
+        {/* Fields Table — always visible */}
+        <div style={{ border: '1px solid #e8eaed', borderRadius: 8, overflow: 'hidden' }}>
+          {/* Header */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 140px 40px 40px',
+            gap: 8,
+            padding: '10px 12px',
+            background: '#f9fafb',
+            borderBottom: '1px solid #e8eaed',
+            fontSize: 12,
+            fontWeight: 600,
+            color: '#6b7280',
+          }}>
+            <span>Label / Key</span>
+            <span>Type</span>
+            <span style={{ textAlign: 'center' }}>Active</span>
+            <span></span>
+          </div>
 
-            {/* Rows */}
-            {fields.map((f) => (
-              <div key={f.key}>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 140px 40px 40px',
-                  gap: 8,
-                  padding: '8px 12px',
-                  alignItems: 'center',
-                  borderBottom: '1px solid #f0f0f0',
-                }}>
-                  <Input
+          {/* Rows */}
+          {fields.map((f) => (
+            <div key={f.key}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 140px 40px 40px',
+                gap: 8,
+                padding: '8px 12px',
+                alignItems: 'center',
+                borderBottom: '1px solid #f0f0f0',
+              }}>
+                <Input
+                  size="small"
+                  value={f.label}
+                  onChange={(e) => updateField(f.key, 'label', e.target.value)}
+                  placeholder="Field name"
+                  style={{ borderRadius: 4 }}
+                />
+                <Select
+                  size="small"
+                  value={f.type}
+                  onChange={(val) => updateField(f.key, 'type', val)}
+                  options={PARAM_TYPE_OPTIONS}
+                  style={{ width: '100%' }}
+                />
+                <div style={{ textAlign: 'center' }}>
+                  <Switch
                     size="small"
-                    value={f.label}
-                    onChange={(e) => updateField(f.key, 'label', e.target.value)}
-                    placeholder="Field name"
-                    style={{ borderRadius: 4 }}
+                    checked={f.enabled}
+                    onChange={(val) => updateField(f.key, 'enabled', val)}
                   />
-                  <Select
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <Button
+                    type="text"
+                    danger
                     size="small"
-                    value={f.type}
-                    onChange={(val) => updateField(f.key, 'type', val)}
-                    options={PARAM_TYPE_OPTIONS}
-                    style={{ width: '100%' }}
+                    icon={<DeleteOutlined />}
+                    onClick={() => removeField(f.key)}
                   />
-                  <div style={{ textAlign: 'center' }}>
-                    <Switch
+                </div>
+              </div>
+
+              {/* Derived-only fields: Formula & CTQ */}
+              {f.type === 'derived' && (
+                <div style={{ padding: '8px 12px 12px', background: '#faf5ff', borderBottom: '1px solid #f0f0f0' }}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Text style={{ fontSize: 11, color: '#7c3aed', display: 'block', marginBottom: 2 }}>Formula (Derived only)</Text>
+                    <TextArea
                       size="small"
-                      checked={f.enabled}
-                      onChange={(val) => updateField(f.key, 'enabled', val)}
+                      rows={2}
+                      value={f.formula}
+                      onChange={(e) => updateField(f.key, 'formula', e.target.value)}
+                      placeholder="Enter formula expression..."
+                      style={{ borderRadius: 4, fontSize: 12 }}
                     />
                   </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <Button
-                      type="text"
-                      danger
+                  <div>
+                    <Text style={{ fontSize: 11, color: '#7c3aed', display: 'block', marginBottom: 2 }}>CTQ (Derived only)</Text>
+                    <TextArea
                       size="small"
-                      icon={<DeleteOutlined />}
-                      onClick={() => removeField(f.key)}
+                      rows={2}
+                      value={f.ctq}
+                      onChange={(e) => updateField(f.key, 'ctq', e.target.value)}
+                      placeholder="Enter CTQ expression..."
+                      style={{ borderRadius: 4, fontSize: 12 }}
                     />
                   </div>
                 </div>
-
-                {/* Derived-only fields: Formula & CTQ */}
-                {f.type === 'derived' && (
-                  <div style={{ padding: '8px 12px 12px', background: '#faf5ff', borderBottom: '1px solid #f0f0f0' }}>
-                    <div style={{ marginBottom: 8 }}>
-                      <Text style={{ fontSize: 11, color: '#7c3aed', display: 'block', marginBottom: 2 }}>Formula (Derived only)</Text>
-                      <TextArea
-                        size="small"
-                        rows={2}
-                        value={f.formula}
-                        onChange={(e) => updateField(f.key, 'formula', e.target.value)}
-                        placeholder="Enter formula expression..."
-                        style={{ borderRadius: 4, fontSize: 12 }}
-                      />
-                    </div>
-                    <div>
-                      <Text style={{ fontSize: 11, color: '#7c3aed', display: 'block', marginBottom: 2 }}>CTQ (Derived only)</Text>
-                      <TextArea
-                        size="small"
-                        rows={2}
-                        value={f.ctq}
-                        onChange={(e) => updateField(f.key, 'ctq', e.target.value)}
-                        placeholder="Enter CTQ expression..."
-                        style={{ borderRadius: 4, fontSize: 12 }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+              )}
+            </div>
+          ))}
+        </div>
 
         {/* Submit */}
         <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
@@ -403,80 +399,108 @@ const AddParameterDrawer = ({ open, onClose, onSave }) => {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  MACHINE ROW (used in Step 1)
+//  TREE HELPERS (Step 1)
 // ══════════════════════════════════════════════════════════════════════════════
-const MachineRow = ({ node, depth, allMachines, flatMachines, onChange, onAddChild, onRemove }) => {
-  const excludeKeys = useMemo(() => {
-    const desc = new Set([node.key]);
-    const findDesc = (key) => {
-      for (const m of flatMachines) {
-        if (m.parentKey === key && !desc.has(m.key)) {
-          desc.add(m.key);
-          findDesc(m.key);
-        }
-      }
-    };
-    findDesc(node.key);
-    return desc;
-  }, [node.key, flatMachines]);
+const mkMachineNode = (isRoot = true) => ({
+  key:       `m-${Date.now()}-${Math.random()}`,
+  title:     '', // required by Ant Design Tree; actual content via titleRender
+  name:      '',
+  parent_id: null,
+  isRoot,
+  children:  [],
+});
 
-  const parentOptions = allMachines
-    .filter((m) => !excludeKeys.has(m.id))
-    .map((m) => ({ label: m.name, value: m.id }));
+const treeUpdateNode = (key, field, val, nodes) =>
+  nodes.map((n) =>
+    n.key === key
+      ? { ...n, [field]: val }
+      : { ...n, children: n.children ? treeUpdateNode(key, field, val, n.children) : [] }
+  );
 
-  return (
-    <div style={{ marginLeft: depth * 28, marginBottom: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        {depth > 0 && (
-          <div style={{ width: 16, borderLeft: '2px solid #d1d5db', borderBottom: '2px solid #d1d5db', height: 16, marginRight: -4 }} />
-        )}
-        <div style={{ flex: 1 }}>
-          <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 2 }}>Machine Name</Text>
-          <Input
-            value={node.name}
-            onChange={(e) => onChange(node.key, 'name', e.target.value)}
-            placeholder="Machine name"
-            style={{ borderRadius: 6, width: depth === 0 ? 260 : 220 }}
-          />
-        </div>
-
-        {depth === 0 && (
-          <div>
-            <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 2 }}>Parent Machine</Text>
-            <Select
-              value={node.parent_id || undefined}
-              onChange={(val) => onChange(node.key, 'parent_id', val || null)}
-              placeholder="Select parent"
-              allowClear
-              showSearch
-              filterOption={(input, opt) => opt.label.toLowerCase().includes(input.toLowerCase())}
-              options={parentOptions}
-              style={{ width: 200, borderRadius: 6 }}
-            />
-          </div>
-        )}
-
-        <div style={{ marginTop: 18, display: 'flex', gap: 6 }}>
-          <Button
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={() => onAddChild(node.key)}
-            style={{ borderRadius: 6, borderColor: '#1d4ed8', color: '#1d4ed8', fontSize: 12 }}
-          >
-            Add Child
-          </Button>
-          <Button
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => onRemove(node.key)}
-            style={{ borderRadius: 6 }}
-          />
-        </div>
-      </div>
-    </div>
+const treeAddChild = (parentKey, nodes) => {
+  const child = mkMachineNode(false);
+  return nodes.map((n) =>
+    n.key === parentKey
+      ? { ...n, children: [...(n.children || []), child] }
+      : { ...n, children: n.children ? treeAddChild(parentKey, n.children) : [] }
   );
 };
+
+const treeRemoveNode = (key, nodes) =>
+  nodes
+    .filter((n) => n.key !== key)
+    .map((n) => ({ ...n, children: n.children ? treeRemoveNode(key, n.children) : [] }));
+
+const getAllTreeKeys = (nodes) => {
+  const keys = [];
+  const walk = (list) => list.forEach((n) => { keys.push(n.key); if (n.children?.length) walk(n.children); });
+  walk(nodes);
+  return keys;
+};
+
+const flattenTreeNodes = (nodes) => {
+  const result = [];
+  const walk = (list) => list.forEach((n) => { result.push(n); if (n.children?.length) walk(n.children); });
+  walk(nodes);
+  return result;
+};
+
+// ── NodeTitle rendered inside Ant Design Tree (memoized to avoid focus loss) ─
+const MachineNodeTitle = React.memo(({
+  nodeKey, name, parent_id, isRoot, existingMachines,
+  onNameChange, onParentChange, onAddChild, onRemove,
+}) => {
+  const parentOptions = useMemo(
+    () => existingMachines.map((m) => ({ label: m.name, value: m.id })),
+    [existingMachines]
+  );
+
+  return (
+    <span
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '2px 0' }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {isRoot && (
+        <Text style={{ fontSize: 11, color: '#9ca3af', marginRight: 2 }}>Machine Name</Text>
+      )}
+      <Input
+        size="small"
+        value={name}
+        onChange={(e) => onNameChange(nodeKey, e.target.value)}
+        placeholder="Machine name"
+        style={{ width: isRoot ? 240 : 220, borderRadius: 6 }}
+      />
+      {isRoot && (
+        <Select
+          size="small"
+          value={parent_id || undefined}
+          onChange={(val) => onParentChange(nodeKey, val || null)}
+          placeholder="Parent Machine"
+          allowClear
+          showSearch
+          filterOption={(inp, opt) => opt.label.toLowerCase().includes(inp.toLowerCase())}
+          options={parentOptions}
+          style={{ width: 190 }}
+        />
+      )}
+      <Button
+        size="small"
+        icon={<PlusOutlined />}
+        onClick={() => onAddChild(nodeKey)}
+        style={{ borderRadius: 6, borderColor: '#1d4ed8', color: '#1d4ed8', fontSize: 12 }}
+      >
+        + Add Child
+      </Button>
+      <Button
+        size="small"
+        danger
+        icon={<DeleteOutlined />}
+        onClick={() => onRemove(nodeKey)}
+        style={{ borderRadius: 6 }}
+      />
+    </span>
+  );
+});
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  CREATE MACHINE STEPPER
@@ -486,10 +510,8 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
   const [saving, setSaving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Step 1: Machine hierarchy
-  const [machines, setMachines] = useState([
-    { key: Date.now(), name: '', parent_id: null, children: [] },
-  ]);
+  // Step 1: Machine hierarchy (Ant Design Tree data)
+  const [treeData, setTreeData] = useState([mkMachineNode(true)]);
 
   // Step 2: Production against per flat machine
   const [productionSettings, setProductionSettings] = useState({});
@@ -497,80 +519,54 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
   // Step 3: Parameters per flat machine
   const [parameterSettings, setParameterSettings] = useState({});
 
-  // Flatten machines for steps 2 and 3
-  const flatMachines = useMemo(() => {
-    const flat = [];
-    const walk = (list, parentKey = null) => {
-      for (const m of list) {
-        flat.push({ ...m, parentKey });
-        if (m.children) walk(m.children, m.key);
-      }
-    };
-    walk(machines);
-    return flat;
-  }, [machines]);
+  // All expanded keys (always keep fully expanded)
+  const expandedKeys = useMemo(() => getAllTreeKeys(treeData), [treeData]);
 
-  // Machine tree manipulation
-  const updateMachineField = (key, field, value) => {
-    const update = (list) =>
-      list.map((m) => {
-        if (m.key === key) return { ...m, [field]: value };
-        if (m.children) return { ...m, children: update(m.children) };
-        return m;
-      });
-    setMachines(update(machines));
-  };
+  // Flat list of all machines (for steps 2 and 3)
+  const flatMachines = useMemo(() => flattenTreeNodes(treeData), [treeData]);
 
-  const addChild = (parentKey) => {
-    const newChild = { key: Date.now() + Math.random(), name: '', parent_id: null, children: [] };
-    const add = (list) =>
-      list.map((m) => {
-        if (m.key === parentKey) return { ...m, children: [...(m.children || []), newChild] };
-        if (m.children) return { ...m, children: add(m.children) };
-        return m;
-      });
-    setMachines(add(machines));
-  };
+  // ── Stable callbacks to prevent focus-loss on controlled inputs ────────────
+  const handleNameChange = useCallback((key, value) => {
+    setTreeData((prev) => treeUpdateNode(key, 'name', value, prev));
+  }, []);
 
-  const removeMachine = (key) => {
-    const remove = (list) => list.filter((m) => m.key !== key).map((m) => ({
-      ...m,
-      children: m.children ? remove(m.children) : [],
-    }));
-    setMachines((prev) => {
-      const result = remove(prev);
-      return result.length === 0
-        ? [{ key: Date.now(), name: '', parent_id: null, children: [] }]
-        : result;
+  const handleParentChange = useCallback((key, value) => {
+    setTreeData((prev) => treeUpdateNode(key, 'parent_id', value, prev));
+  }, []);
+
+  const handleAddChild = useCallback((key) => {
+    setTreeData((prev) => treeAddChild(key, prev));
+  }, []);
+
+  const handleRemoveNode = useCallback((key) => {
+    setTreeData((prev) => {
+      const result = treeRemoveNode(key, prev);
+      return result.length === 0 ? [mkMachineNode(true)] : result;
     });
-  };
+  }, []);
 
-  const addRootMachine = () => {
-    setMachines((prev) => [...prev, { key: Date.now(), name: '', parent_id: null, children: [] }]);
-  };
+  const addRootMachine = useCallback(() => {
+    setTreeData((prev) => [...prev, mkMachineNode(true)]);
+  }, []);
 
-  // Render machine tree recursively
-  const renderTree = (list, depth = 0) =>
-    list.map((node) => (
-      <React.Fragment key={node.key}>
-        <MachineRow
-          node={node}
-          depth={depth}
-          allMachines={existingMachines}
-          flatMachines={flatMachines}
-          onChange={updateMachineField}
-          onAddChild={addChild}
-          onRemove={removeMachine}
-        />
-        {node.children && renderTree(node.children, depth + 1)}
-      </React.Fragment>
-    ));
+  // titleRender — memoized so Ant Design Tree doesn't remount nodes on re-render
+  const titleRender = useCallback((nodeData) => (
+    <MachineNodeTitle
+      nodeKey={nodeData.key}
+      name={nodeData.name}
+      parent_id={nodeData.parent_id}
+      isRoot={nodeData.isRoot}
+      existingMachines={existingMachines}
+      onNameChange={handleNameChange}
+      onParentChange={handleParentChange}
+      onAddChild={handleAddChild}
+      onRemove={handleRemoveNode}
+    />
+  ), [existingMachines, handleNameChange, handleParentChange, handleAddChild, handleRemoveNode]);
 
   // Validate step
   const canGoNext = () => {
-    if (step === 0) {
-      return flatMachines.some((m) => m.name.trim());
-    }
+    if (step === 0) return flatMachines.some((m) => m.name.trim());
     return true;
   };
 
@@ -591,8 +587,7 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
             children: m.children ? buildPayload(m.children) : [],
           }));
 
-      const payload = { machines: buildPayload(machines) };
-      await machineApi.bulkCreate(payload);
+      await machineApi.bulkCreate({ machines: buildPayload(treeData) });
       message.success('Machines created successfully');
       onDone();
     } catch {
@@ -651,14 +646,26 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
             <Text style={{ fontWeight: 600, fontSize: 15, color: '#111827', display: 'block', marginBottom: 16 }}>
               Machine Details
             </Text>
-            {renderTree(machines)}
+
+            {/* Ant Design Tree — same style as Master Access permission tree */}
+            <Tree
+              showLine={{ showLeafIcon: false }}
+              expandedKeys={expandedKeys}
+              onExpand={() => {/* keep fully expanded */}}
+              treeData={treeData}
+              titleRender={titleRender}
+              selectable={false}
+              blockNode={false}
+              style={{ fontSize: 13 }}
+            />
+
             <Button
               type="link"
               icon={<PlusOutlined />}
               onClick={addRootMachine}
               style={{ marginTop: 12, padding: 0, color: '#1d4ed8', fontWeight: 500 }}
             >
-              Add Another Machine
+              + Add Another Machine
             </Button>
           </div>
         )}
@@ -715,52 +722,70 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
         {/* ── Step 3: Set Parameters ────────────────────────────────── */}
         {step === 2 && (
           <div>
-            <Table
-              rowKey="key"
-              dataSource={flatMachines.filter((m) => m.name.trim())}
-              pagination={false}
-              size="middle"
-              scroll={{ x: 'max-content' }}
-              columns={[
-                {
-                  title: 'Name',
-                  dataIndex: 'name',
-                  width: 200,
-                  fixed: 'left',
-                },
-                ...parameters.map((p) => ({
-                  title: p.name,
-                  key: `param_${p.id}`,
-                  width: 120,
-                  render: (_, r) => (
-                    <Checkbox
-                      checked={!!(parameterSettings[r.key] || {})[p.id]}
-                      onChange={(e) =>
-                        setParameterSettings((prev) => ({
-                          ...prev,
-                          [r.key]: { ...(prev[r.key] || {}), [p.id]: e.target.checked },
-                        }))
-                      }
-                    />
-                  ),
-                })),
-                {
-                  title: (
-                    <Button
-                      type="link"
-                      icon={<PlusOutlined />}
-                      onClick={() => setDrawerOpen(true)}
-                      style={{ padding: 0, fontSize: 12 }}
-                    >
-                      Add Parameter
-                    </Button>
-                  ),
-                  key: 'add',
-                  width: 140,
-                  render: () => null,
-                },
-              ]}
-            />
+            {parameters.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
+                <Text style={{ display: 'block', marginBottom: 8 }}>No parameters defined yet.</Text>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setDrawerOpen(true)}
+                  style={{ borderRadius: 8 }}
+                >
+                  Add Parameter
+                </Button>
+              </div>
+            ) : (
+              <Table
+                rowKey="key"
+                dataSource={flatMachines.filter((m) => m.name.trim())}
+                pagination={false}
+                size="middle"
+                scroll={{ x: 'max-content' }}
+                columns={[
+                  {
+                    title: 'Name',
+                    dataIndex: 'name',
+                    width: 200,
+                    fixed: 'left',
+                    ellipsis: false,
+                  },
+                  ...parameters.map((p) => ({
+                    title: (
+                      <span style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>{p.name}</span>
+                    ),
+                    key: `param_${p.id}`,
+                    width: Math.max(90, p.name.length * 9),
+                    align: 'center',
+                    render: (_, r) => (
+                      <Checkbox
+                        checked={!!(parameterSettings[r.key] || {})[p.id]}
+                        onChange={(e) =>
+                          setParameterSettings((prev) => ({
+                            ...prev,
+                            [r.key]: { ...(prev[r.key] || {}), [p.id]: e.target.checked },
+                          }))
+                        }
+                      />
+                    ),
+                  })),
+                  {
+                    title: (
+                      <Button
+                        type="link"
+                        icon={<PlusOutlined />}
+                        onClick={() => setDrawerOpen(true)}
+                        style={{ padding: 0, fontSize: 12, whiteSpace: 'nowrap' }}
+                      >
+                        + Add Parameter
+                      </Button>
+                    ),
+                    key: 'add_param',
+                    width: 140,
+                    render: () => null,
+                  },
+                ]}
+              />
+            )}
           </div>
         )}
       </div>
