@@ -105,7 +105,7 @@ const NAV_ITEMS_DEF = [
         label: 'Other',
         children: [
           { key: 'm-reports',        label: 'Reports',        disabled: true, adminOnly: true },
-          { key: 'm-tag-management', label: 'Tag Management', disabled: true, adminOnly: true },
+          { key: 'm-tag-management', label: 'Tag Management', permission: 'other-tag_management-read' },
           { key: 'm-templates',      label: 'Templates',      disabled: true, adminOnly: true },
           { key: 'm-automation',     label: 'Automation',     disabled: true, adminOnly: true },
           { key: 'm-onboarding',     label: 'Onboarding',     disabled: true, adminOnly: true },
@@ -132,7 +132,8 @@ const KEY_TO_PATH = {
   shifts:          '/masters/shifts',
   'm-machines':    '/masters/production/machines',
   'm-items':       '/masters/production/items',
-  'm-warehouses':  '/masters/inventory/warehouses',
+  'm-warehouses':      '/masters/inventory/warehouses',
+  'm-tag-management':  '/masters/other/tag-management',
 };
 
 // ── Derive selected key + open keys from current pathname ────────────────────
@@ -147,6 +148,8 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/masters/production/items'))    return { selected: 'm-items',    open: ['masters', 'grp-production'] };
   // Inventory sub-group
   if (pathname.startsWith('/masters/inventory/warehouses')) return { selected: 'm-warehouses', open: ['masters', 'grp-inventory'] };
+  // Other sub-group
+  if (pathname.startsWith('/masters/other/tag-management')) return { selected: 'm-tag-management', open: ['masters', 'grp-other'] };
   // Generic masters fallback
   if (pathname.startsWith('/masters'))               return { selected: 'masters',       open: ['masters'] };
   return { selected: 'dashboard', open: [] };

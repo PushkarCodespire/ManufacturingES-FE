@@ -11,6 +11,7 @@ import {
 import dayjs from 'dayjs';
 import { machineApi } from '../../../api/machine.api';
 import { productionParameterApi } from '../../../api/productionParameter.api';
+import { tagApi } from '../../../api/tag.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 
@@ -18,6 +19,9 @@ const { Title, Text } = Typography;
 const { TextArea }    = Input;
 
 const fmtDateTime = (iso) => (iso ? dayjs(iso).format('DD MMM YYYY HH:mm') : '—');
+
+// Default parameter columns for Step 3 — Set Parameters table
+const SET_PARAM_COLUMNS = ['Scrap', 'Energy', 'Boxes', 'packaging', 'shipments'];
 
 const PARAM_TYPE_OPTIONS = [
   { label: 'Text',        value: 'text' },
@@ -33,85 +37,116 @@ const PARAM_TYPE_OPTIONS = [
 //  LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
 const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete, canWrite }) => {
+  // Build recursive tree: root machines with children nested (supports multi-level)
+  const treeData = useMemo(() => {
+    if (!machines?.length) return [];
+
+    const byId = new Map(machines.map((m) => [m.id, m]));
+    const childrenByParent = new Map();
+
+    machines.forEach((m) => {
+      if (m.parent_id && byId.has(m.parent_id)) {
+        if (!childrenByParent.has(m.parent_id)) childrenByParent.set(m.parent_id, []);
+        childrenByParent.get(m.parent_id).push(m);
+      }
+    });
+
+    // Recursively attach children at every level
+    const attachChildren = (machine) => {
+      const kids = childrenByParent.get(machine.id);
+      if (!kids?.length) return { ...machine, children: undefined };
+      return { ...machine, children: kids.map((k) => attachChildren(k)) };
+    };
+
+    // Roots = machines without parent_id OR whose parent isn't in current list
+    const roots = machines.filter((m) => !m.parent_id || !byId.has(m.parent_id));
+    return roots.map((m) => attachChildren(m));
+  }, [machines]);
+
   const columns = [
     {
       title: 'Name',
       key: 'name',
+      width: 200,
       render: (_, r) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: '#fef3c7', border: '1px solid #fcd34d',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#b45309', fontSize: 16, flexShrink: 0,
-          }}>
-            <ToolOutlined />
-          </div>
-          <div>
-            <Text
-              style={{ color: '#111827', fontWeight: 600, fontSize: 13, display: 'block', cursor: 'pointer' }}
-              onClick={() => onDetail(r)}
-            >
-              {r.name}
-            </Text>
-            <Text style={{ color: '#9ca3af', fontSize: 11, fontFamily: 'monospace' }}>{r.code}</Text>
-          </div>
-        </div>
+        <Text
+          style={{ color: '#1d4ed8', fontWeight: 500, fontSize: 13, cursor: 'pointer' }}
+          onClick={() => onDetail(r)}
+        >
+          {r.name}
+        </Text>
       ),
     },
     {
-      title: 'Parent Machine',
-      key: 'parent',
-      width: 180,
-      render: (_, r) =>
-        r.Parent
-          ? <Text style={{ fontSize: 12, color: '#374151' }}>{r.Parent.name}</Text>
-          : <Text style={{ color: '#d1d5db', fontSize: 12 }}>—</Text>,
+      title: 'Tags',
+      key: 'tags',
+      width: 260,
+      render: (_, r) => {
+        const tags = [
+          ...(r.machine_group_tags || []),
+          ...(r.item_group_tags || []),
+        ];
+        return tags.length > 0
+          ? <Text style={{ fontSize: 12, color: '#374151' }}>{tags.join(', ')}</Text>
+          : <Text style={{ color: '#d1d5db', fontSize: 12 }}>-</Text>;
+      },
     },
     {
-      title: 'Status',
-      key: 'status',
-      width: 100,
-      render: (_, r) =>
-        r.is_active
-          ? <Badge status="success" text={<Text style={{ color: '#16a34a', fontSize: 12, fontWeight: 500 }}>Active</Text>} />
-          : <Badge status="error" text={<Text style={{ color: '#dc2626', fontSize: 12, fontWeight: 500 }}>Inactive</Text>} />,
+      title: 'Shifts',
+      key: 'shifts',
+      width: 130,
+      render: (_, r) => (
+        <Text style={{ fontSize: 12, color: '#374151' }}>
+          {r.shift || 'Applied to All'}
+        </Text>
+      ),
+    },
+    {
+      title: 'Children',
+      key: 'children_col',
+      width: 280,
+      render: (_, r) => {
+        const kids = r.Children || [];
+        return kids.length > 0
+          ? <Text style={{ fontSize: 12, color: '#374151' }}>{kids.map((c) => c.name).join(', ')}</Text>
+          : <Text style={{ color: '#d1d5db', fontSize: 12 }}>-</Text>;
+      },
     },
     {
       title: 'Created At',
       key: 'createdAt',
-      width: 200,
+      width: 160,
       sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
       render: (_, r) => (
         <div>
-          <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block' }}>{r.Creator?.name || '—'}</Text>
-          <Text style={{ fontSize: 11, color: '#374151' }}>{fmtDateTime(r.createdAt)}</Text>
+          <Text style={{ fontSize: 12, color: '#374151', display: 'block' }}>{r.Creator?.name || '-'}</Text>
+          <Text style={{ fontSize: 11, color: '#9ca3af' }}>{fmtDateTime(r.createdAt)}</Text>
         </div>
       ),
     },
     {
       title: 'Last Updated At',
       key: 'updatedAt',
-      width: 220,
+      width: 160,
       sorter: (a, b) => new Date(a.updatedAt) - new Date(b.updatedAt),
       render: (_, r) => (
         <div>
-          <Text style={{ fontSize: 11, color: '#1d4ed8', display: 'block', fontWeight: 500 }}>{r.Updater?.name || '—'}</Text>
-          <Text style={{ fontSize: 11, color: '#374151' }}>{fmtDateTime(r.updatedAt)}</Text>
+          <Text style={{ fontSize: 12, color: '#111827', fontWeight: 500, display: 'block' }}>{r.Updater?.name || '-'}</Text>
+          <Text style={{ fontSize: 11, color: '#9ca3af' }}>{fmtDateTime(r.updatedAt)}</Text>
         </div>
       ),
     },
     ...(canWrite ? [{
       title: 'Actions',
       key: 'actions',
-      width: 170,
+      width: 80,
       render: (_, r) => (
-        <div style={{ display: 'flex', gap: 6 }}>
-          <Button size="small" icon={<SettingOutlined />} style={{ borderRadius: 6, fontSize: 12 }} onClick={() => onDetail(r)}>
-            Configure
-          </Button>
-          <Tooltip title="Delete machine">
-            <Button size="small" danger icon={<DeleteOutlined />} style={{ borderRadius: 6 }} onClick={() => onDelete(r)} />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Tooltip title="Configure">
+            <Button type="text" size="small" icon={<SettingOutlined />} onClick={() => onDetail(r)} />
+          </Tooltip>
+          <Tooltip title="Delete">
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={() => onDelete(r)} />
           </Tooltip>
         </div>
       ),
@@ -144,7 +179,7 @@ const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew,
           <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
-              Add New Machine
+              + NEW
             </Button>
           )}
         </div>
@@ -152,10 +187,15 @@ const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew,
         <Table
           rowKey="id"
           columns={columns}
-          dataSource={machines}
+          dataSource={treeData}
           loading={loading}
-          pagination={{ pageSize: 10, showTotal: (t) => `${t} machines`, style: { marginBottom: 0 } }}
-          scroll={{ x: 900 }}
+          expandable={{
+            childrenColumnName: 'children',
+            defaultExpandAllRows: false,
+            indentSize: 24,
+          }}
+          pagination={{ pageSize: 20, showTotal: (t) => `${t} machines`, style: { marginBottom: 0 } }}
+          scroll={{ x: 1200 }}
           size="middle"
           style={{ borderRadius: 8, overflow: 'hidden' }}
           locale={{
@@ -581,18 +621,34 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
   const handleSubmit = async () => {
     setSaving(true);
     try {
+      // Map parameter names to their DB ids (if they exist in the parameters list)
+      const paramIdByName = {};
+      parameters.forEach((p) => { paramIdByName[p.name] = p.id; });
+
       const buildPayload = (list) =>
         list
           .filter((m) => m.name.trim())
-          .map((m) => ({
-            name: m.name.trim(),
-            parent_id: m.parent_id || null,
-            production_against: productionSettings[m.key] || 'none',
-            parameter_ids: Object.entries(parameterSettings[m.key] || {})
+          .map((m) => {
+            const checkedParams = parameterSettings[m.key] || {};
+            // Collect checked parameter IDs by matching column name → DB id
+            const parameter_ids = Object.entries(checkedParams)
               .filter(([, v]) => v)
-              .map(([k]) => Number(k)),
-            children: m.children ? buildPayload(m.children) : [],
-          }));
+              .map(([name]) => paramIdByName[name])
+              .filter(Boolean);
+            // Also include the raw checked names for reference
+            const parameter_names = Object.entries(checkedParams)
+              .filter(([, v]) => v)
+              .map(([name]) => name);
+
+            return {
+              name: m.name.trim(),
+              parent_id: m.parent_id || null,
+              production_against: productionSettings[m.key] || 'none',
+              parameter_ids,
+              parameter_names,
+              children: m.children ? buildPayload(m.children) : [],
+            };
+          });
 
       await machineApi.bulkCreate({ machines: buildPayload(treeData) });
       message.success('Machines created successfully');
@@ -728,71 +784,73 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
 
         {/* ── Step 3: Set Parameters ────────────────────────────────── */}
         {step === 2 && (
-          <div>
-            {parameters.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
-                <Text style={{ display: 'block', marginBottom: 8 }}>No parameters defined yet.</Text>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => setDrawerOpen(true)}
-                  style={{ borderRadius: 8 }}
-                >
-                  Add Parameter
-                </Button>
-              </div>
-            ) : (
-              <Table
-                rowKey="key"
-                dataSource={flatMachines.filter((m) => m.name.trim())}
-                pagination={false}
-                size="middle"
-                scroll={{ x: 'max-content' }}
-                columns={[
-                  {
-                    title: 'Name',
-                    dataIndex: 'name',
-                    width: 200,
-                    fixed: 'left',
-                    ellipsis: false,
-                  },
-                  ...parameters.map((p) => ({
-                    title: (
-                      <span style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>{p.name}</span>
-                    ),
-                    key: `param_${p.id}`,
-                    width: Math.max(90, p.name.length * 9),
-                    align: 'center',
-                    render: (_, r) => (
-                      <Checkbox
-                        checked={!!(parameterSettings[r.key] || {})[p.id]}
-                        onChange={(e) =>
-                          setParameterSettings((prev) => ({
-                            ...prev,
-                            [r.key]: { ...(prev[r.key] || {}), [p.id]: e.target.checked },
-                          }))
-                        }
-                      />
-                    ),
-                  })),
-                  {
-                    title: (
-                      <Button
-                        type="link"
-                        icon={<PlusOutlined />}
-                        onClick={() => setDrawerOpen(true)}
-                        style={{ padding: 0, fontSize: 12, whiteSpace: 'nowrap' }}
-                      >
-                        + Add Parameter
-                      </Button>
-                    ),
-                    key: 'add_param',
-                    width: 140,
-                    render: () => null,
-                  },
-                ]}
-              />
-            )}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                  <th style={{ textAlign: 'left', padding: '14px 16px', fontWeight: 500, color: '#374151', minWidth: 180 }}>
+                    Name
+                  </th>
+                  {SET_PARAM_COLUMNS.map((col) => (
+                    <th
+                      key={col}
+                      style={{
+                        textAlign: 'left',
+                        padding: '14px 16px',
+                        fontWeight: 500,
+                        color: '#374151',
+                        whiteSpace: 'nowrap',
+                        minWidth: 140,
+                      }}
+                    >
+                      {col}
+                    </th>
+                  ))}
+                  <th style={{ textAlign: 'left', padding: '14px 16px', minWidth: 140 }}>
+                    <span
+                      style={{ color: '#1d4ed8', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}
+                      onClick={() => setDrawerOpen(true)}
+                    >
+                      + Add Parameter
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {flatMachines.filter((m) => m.name.trim()).length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={SET_PARAM_COLUMNS.length + 2}
+                      style={{ textAlign: 'center', padding: '40px 16px', color: '#9ca3af' }}
+                    >
+                      No machines added yet. Go back to Step 1 to add machines.
+                    </td>
+                  </tr>
+                ) : (
+                  flatMachines.filter((m) => m.name.trim()).map((m) => (
+                    <tr key={m.key} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ padding: '14px 16px', color: '#111827' }}>
+                        {m.name}
+                      </td>
+                      {SET_PARAM_COLUMNS.map((col) => (
+                        <td key={col} style={{ padding: '14px 16px' }}>
+                          <Checkbox
+                            checked={!!(parameterSettings[m.key] || {})[col]}
+                            onChange={(e) =>
+                              setParameterSettings((prev) => ({
+                                ...prev,
+                                [m.key]: { ...(prev[m.key] || {}), [col]: e.target.checked },
+                              }))
+                            }
+                          />
+                        </td>
+                      ))}
+                      <td style={{ padding: '14px 16px' }} />
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -841,11 +899,17 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
 // ══════════════════════════════════════════════════════════════════════════════
 //  EDIT / VIEW PAGE (3-column layout matching reference)
 // ══════════════════════════════════════════════════════════════════════════════
-const EditViewPage = ({ machine, parameters, onBack, onRefresh, onRefreshParams, canWrite }) => {
+const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshParams, canWrite }) => {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Build tag options from Tag Management
+  const itemGroupTagOptions = useMemo(
+    () => (tags || []).map((t) => ({ label: t.name, value: t.name })),
+    [tags],
+  );
 
   useEffect(() => {
     if (machine) {
@@ -1025,7 +1089,16 @@ const EditViewPage = ({ machine, parameters, onBack, onRefresh, onRefreshParams,
             </Text>
 
             <Form.Item name="item_group_tags" label={<Text style={{ fontSize: 12, color: '#1d4ed8' }}>Item Group Tags</Text>} style={{ marginBottom: 12 }}>
-              <Select mode="tags" placeholder="Add tags" style={{ borderRadius: 6 }} />
+              <Select
+                mode="multiple"
+                placeholder="Select item group tags"
+                options={itemGroupTagOptions}
+                style={{ borderRadius: 6 }}
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              />
             </Form.Item>
 
             <Form.Item name="machine_group_tags" label={<Text style={{ fontSize: 12, color: '#1d4ed8' }}>Machine Group Tags</Text>} style={{ marginBottom: 12 }}>
@@ -1218,6 +1291,7 @@ const MachinesPage = () => {
   const [view, setView]             = useState('list');
   const [machines, setMachines]     = useState([]);
   const [parameters, setParameters] = useState([]);
+  const [tags, setTags]             = useState([]);
   const [loading, setLoading]       = useState(false);
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState(null);
@@ -1245,8 +1319,18 @@ const MachinesPage = () => {
     }
   }, []);
 
+  const fetchTags = useCallback(async () => {
+    try {
+      const res = await tagApi.getAll();
+      setTags(res?.data ?? res ?? []);
+    } catch {
+      // silent
+    }
+  }, []);
+
   useEffect(() => { fetchMachines(); }, [fetchMachines]);
   useEffect(() => { fetchParameters(); }, [fetchParameters]);
+  useEffect(() => { fetchTags(); }, [fetchTags]);
 
   const refreshSelected = useCallback(async () => {
     if (!selected) return;
@@ -1314,6 +1398,7 @@ const MachinesPage = () => {
         <EditViewPage
           machine={selected}
           parameters={parameters}
+          tags={tags}
           onBack={() => { setView('list'); setSelected(null); }}
           onRefresh={refreshSelected}
           onRefreshParams={fetchParameters}

@@ -17,6 +17,7 @@ import ShiftsPage         from './pages/Masters/Shifts';
 import WarehousesPage     from './pages/Masters/Warehouses';
 import MachinesPage       from './pages/Production/Machines';
 import ItemsPage          from './pages/Production/Items';
+import TagManagementPage  from './pages/Masters/TagManagement';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
@@ -193,6 +194,16 @@ function App() {
                 element={
                   <ProtectedRoute permission="production-items-read">
                     <ItemsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Other — Tag Management */}
+              <Route
+                path="/masters/other/tag-management"
+                element={
+                  <ProtectedRoute permission="other-tag_management-read">
+                    <TagManagementPage />
                   </ProtectedRoute>
                 }
               />
