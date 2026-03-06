@@ -1,0 +1,479 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Typography, Table, Button, Form, Input, InputNumber,
+  TimePicker, Modal, message, Tooltip, Space,
+} from 'antd';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  ArrowLeftOutlined,
+  ClockCircleOutlined,
+  CalendarOutlined,
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+import { shiftApi } from '../../../api/shift.api';
+import AppLayout   from '../../../components/AppLayout';
+
+const { Title, Text } = Typography;
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+const fmtBreak = (mins) => {
+  if (!mins) return '0 Minutes';
+  return mins === 1 ? '1 Minute' : `${mins} Minutes`;
+};
+
+const fmtDateTime = (iso) => {
+  if (!iso) return '—';
+  return dayjs(iso).format('DD MMM YYYY HH:mm');
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LIST VIEW
+// ═══════════════════════════════════════════════════════════════════════════
+const ListView = ({ shifts, loading, onRefresh, onNew, onEdit, onDelete }) => {
+  const columns = [
+    {
+      title:     'Name',
+      dataIndex: 'name',
+      key:       'name',
+      render: (name) => (
+        <Text style={{ color: '#1d4ed8', fontWeight: 600, fontSize: 13 }}>{name}</Text>
+      ),
+    },
+    {
+      title: 'Start Time',
+      dataIndex: 'start_time',
+      key: 'start_time',
+      width: 120,
+      render: (t) => (
+        <Text style={{ fontSize: 13, color: '#374151' }}>{t || '—'}</Text>
+      ),
+    },
+    {
+      title: 'End Time',
+      dataIndex: 'end_time',
+      key: 'end_time',
+      width: 120,
+      render: (t) => (
+        <Text style={{ fontSize: 13, color: '#d97706' }}>{t || '—'}</Text>
+      ),
+    },
+    {
+      title: 'Lunch / Break Duration',
+      dataIndex: 'lunch_break_duration',
+      key: 'lunch_break_duration',
+      width: 180,
+      render: (mins) => (
+        <Text style={{ fontSize: 13, color: '#374151' }}>{fmtBreak(mins)}</Text>
+      ),
+    },
+    {
+      title: 'Created At',
+      key: 'createdAt',
+      width: 160,
+      render: (_, r) => (
+        <div>
+          <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block' }}>—</Text>
+          <Text style={{ fontSize: 11, color: '#374151' }}>{fmtDateTime(r.createdAt)}</Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Last Updated At',
+      key: 'updatedAt',
+      width: 160,
+      render: (_, r) => (
+        <div>
+          <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block' }}>—</Text>
+          <Text style={{ fontSize: 11, color: '#1d4ed8' }}>{fmtDateTime(r.updatedAt)}</Text>
+        </div>
+      ),
+    },
+    {
+      title:  'Actions',
+      key:    'actions',
+      width:  100,
+      align:  'center',
+      render: (_, r) => (
+        <Space size={4}>
+          <Tooltip title="Edit shift">
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined style={{ color: '#1d4ed8', fontSize: 15 }} />}
+              onClick={() => onEdit(r)}
+            />
+          </Tooltip>
+          <Tooltip title="Delete shift">
+            <Button
+              type="text"
+              danger
+              size="small"
+              icon={<DeleteOutlined style={{ color: '#e879b0', fontSize: 15 }} />}
+              onClick={() => onDelete(r)}
+              style={{ color: '#e879b0' }}
+            />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          display:        'flex',
+          alignItems:     'center',
+          justifyContent: 'space-between',
+          marginBottom:   20,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>
+            Shifts
+          </Title>
+          <Button
+            type="text"
+            size="small"
+            icon={<ReloadOutlined style={{ color: '#6b7280' }} />}
+            onClick={onRefresh}
+            loading={loading}
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={onNew}
+            style={{ borderRadius: 8, fontWeight: 600, background: '#1d4ed8' }}
+          >
+            NEW
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Summary chips ──────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+        {[
+          { label: 'Total Shifts', value: shifts.length, color: '#1d4ed8', bg: '#eff6ff' },
+          { label: 'Active',       value: shifts.filter((s) => s.is_active).length, color: '#16a34a', bg: '#f0fdf4' },
+        ].map((s) => (
+          <div
+            key={s.label}
+            style={{
+              padding: '8px 16px', background: s.bg,
+              border: `1px solid ${s.color}30`, borderRadius: 8,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 90,
+            }}
+          >
+            <Text style={{ color: s.color, fontWeight: 700, fontSize: 20, lineHeight: 1.2 }}>{s.value}</Text>
+            <Text style={{ color: s.color, fontSize: 11, opacity: 0.8 }}>{s.label}</Text>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Table ──────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          background:   '#ffffff',
+          border:       '1px solid #e8eaed',
+          borderRadius: 12,
+          overflow:     'hidden',
+          boxShadow:    '0 1px 4px rgba(0,0,0,0.06)',
+        }}
+      >
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={shifts}
+          loading={loading}
+          pagination={{
+            pageSize:        10,
+            showSizeChanger: true,
+            showTotal:       (total) => `${total} shifts`,
+            style:           { margin: '12px 16px 0' },
+          }}
+          size="middle"
+          style={{ borderRadius: 0 }}
+          locale={{
+            emptyText: (
+              <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                <CalendarOutlined style={{ fontSize: 36, color: '#d1d5db', marginBottom: 12 }} />
+                <div style={{ color: '#9ca3af', fontSize: 13 }}>
+                  No shifts yet. Click <strong>+ NEW</strong> to add one.
+                </div>
+              </div>
+            ),
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SHARED FORM VIEW  (used by both Add and Edit)
+// ═══════════════════════════════════════════════════════════════════════════
+const ShiftFormView = ({ shift, onBack, onSaved }) => {
+  const isEdit        = !!shift;
+  const [form]        = Form.useForm();
+  const [saving, setSaving] = useState(false);
+
+  // Pre-fill when editing
+  useEffect(() => {
+    if (isEdit) {
+      form.setFieldsValue({
+        name:                 shift.name,
+        time_range: [
+          dayjs(shift.start_time, 'HH:mm'),
+          dayjs(shift.end_time,   'HH:mm'),
+        ],
+        lunch_break_duration: shift.lunch_break_duration ?? 0,
+      });
+    }
+  }, [shift, form, isEdit]);
+
+  const handleSubmit = async () => {
+    let values;
+    try {
+      values = await form.validateFields();
+    } catch {
+      return;
+    }
+
+    const payload = {
+      name:                 values.name,
+      start_time:           values.time_range[0].format('HH:mm'),
+      end_time:             values.time_range[1].format('HH:mm'),
+      lunch_break_duration: values.lunch_break_duration ?? 0,
+    };
+
+    setSaving(true);
+    try {
+      if (isEdit) {
+        await shiftApi.update(shift.id, payload);
+        message.success('Shift updated successfully');
+      } else {
+        const res = await shiftApi.create(payload);
+        message.success(res.message || 'Shift created successfully');
+      }
+      form.resetFields();
+      onSaved();
+    } catch (err) {
+      message.error(
+        err?.response?.data?.message || err?.message ||
+        (isEdit ? 'Failed to update shift' : 'Failed to create shift')
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          onClick={onBack}
+          style={{ color: '#374151', fontWeight: 500, paddingLeft: 0 }}
+        />
+        <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>
+          {isEdit ? `Edit Shift — ${shift.name}` : 'Add New Shift'}
+        </Title>
+      </div>
+
+      {/* ── Form card ──────────────────────────────────────────────────── */}
+      <div
+        style={{
+          background:   '#ffffff',
+          border:       '1px solid #e8eaed',
+          borderRadius: 12,
+          padding:      '28px 32px',
+          boxShadow:    '0 1px 4px rgba(0,0,0,0.06)',
+        }}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          requiredMark={false}
+          size="large"
+          initialValues={{ lunch_break_duration: 0 }}
+        >
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            {/* Name */}
+            <Form.Item
+              name="name"
+              label={
+                <span style={{ color: '#374151', fontWeight: 500, fontSize: 13 }}>Name*</span>
+              }
+              rules={[{ required: true, message: 'Shift name is required' }]}
+              style={{ flex: '2 1 260px', minWidth: 200, marginBottom: 0 }}
+            >
+              <Input placeholder="e.g. Day Shift" />
+            </Form.Item>
+
+            {/* Start / End Time */}
+            <Form.Item
+              name="time_range"
+              label={
+                <span style={{ color: '#374151', fontWeight: 500, fontSize: 13 }}>
+                  Start Time / End Time*
+                </span>
+              }
+              rules={[{ required: true, message: 'Please select start and end time' }]}
+              style={{ flex: '2 1 240px', minWidth: 200, marginBottom: 0 }}
+            >
+              <TimePicker.RangePicker
+                format="HH:mm"
+                minuteStep={5}
+                suffixIcon={<ClockCircleOutlined />}
+                style={{ width: '100%' }}
+                placeholder={['Start', 'End']}
+              />
+            </Form.Item>
+
+            {/* Lunch / Break Duration */}
+            <Form.Item
+              name="lunch_break_duration"
+              label={
+                <span style={{ color: '#374151', fontWeight: 500, fontSize: 13 }}>
+                  Lunch / Break Duration
+                </span>
+              }
+              style={{ flex: '1 1 160px', minWidth: 140, marginBottom: 0 }}
+            >
+              <InputNumber
+                min={0}
+                max={480}
+                addonAfter="mins"
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
+          </div>
+
+          {/* Submit */}
+          <div style={{ marginTop: 28 }}>
+            <Button
+              type="primary"
+              loading={saving}
+              onClick={handleSubmit}
+              style={{
+                borderRadius: 8,
+                fontWeight:   600,
+                background:   '#1d4ed8',
+                paddingInline: 28,
+              }}
+            >
+              {isEdit ? 'Save Changes' : 'Submit'}
+            </Button>
+            <Button
+              onClick={onBack}
+              style={{ marginLeft: 12, borderRadius: 8 }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </Form>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  MAIN PAGE
+// ═══════════════════════════════════════════════════════════════════════════
+const ShiftsPage = () => {
+  const [shifts,       setShifts]       = useState([]);
+  const [loading,      setLoading]      = useState(false);
+  const [view,         setView]         = useState('list'); // 'list' | 'form'
+  const [editingShift, setEditingShift] = useState(null);  // null = add mode
+
+  const fetchShifts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await shiftApi.getAll();
+      setShifts(res?.data ?? res ?? []);
+    } catch {
+      message.error('Failed to load shifts');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchShifts(); }, [fetchShifts]);
+
+  const handleDelete = (record) => {
+    Modal.confirm({
+      title:   `Delete "${record.name}"?`,
+      content: 'This action cannot be undone.',
+      okText:  'Delete',
+      okType:  'danger',
+      onOk: async () => {
+        try {
+          await shiftApi.delete(record.id);
+          message.success(`Shift "${record.name}" deleted`);
+          fetchShifts();
+        } catch (err) {
+          message.error(err?.response?.data?.message || 'Failed to delete shift');
+        }
+      },
+    });
+  };
+
+  const handleNew = () => {
+    setEditingShift(null);
+    setView('form');
+  };
+
+  const handleEdit = (record) => {
+    setEditingShift(record);
+    setView('form');
+  };
+
+  const handleSaved = () => {
+    setView('list');
+    setEditingShift(null);
+    fetchShifts();
+  };
+
+  const handleBack = () => {
+    setView('list');
+    setEditingShift(null);
+  };
+
+  return (
+    <AppLayout>
+      {/* Breadcrumb */}
+      <div style={{ marginBottom: view === 'form' ? 0 : 4 }}>
+        <Text style={{ color: '#6b7280', fontSize: 13 }}>
+          Masters · Shifts &amp; Leaves
+        </Text>
+      </div>
+
+      {view === 'list' ? (
+        <ListView
+          shifts={shifts}
+          loading={loading}
+          onRefresh={fetchShifts}
+          onNew={handleNew}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      ) : (
+        <ShiftFormView
+          shift={editingShift}
+          onBack={handleBack}
+          onSaved={handleSaved}
+        />
+      )}
+    </AppLayout>
+  );
+};
+
+export default ShiftsPage;

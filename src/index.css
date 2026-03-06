@@ -1,0 +1,81 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  background: #f4f6f9;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f3f6; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* ── Ant Design Light Overrides ─────────────────────────────────────────────── */
+.ant-menu-light { background: transparent !important; }
+.ant-menu-light.ant-menu-inline { border-inline-end: none !important; }
+.ant-menu-light .ant-menu-item-selected {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border-radius: 6px;
+}
+.ant-menu-light .ant-menu-item:hover {
+  background: #f8fafc !important;
+  border-radius: 6px;
+}
+.ant-menu-light .ant-menu-item-selected .ant-menu-item-icon,
+.ant-menu-light .ant-menu-item-selected span {
+  color: #1d4ed8 !important;
+}
+
+/* Input light theme */
+.ant-input,
+.ant-input-affix-wrapper {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #111827 !important;
+}
+.ant-input::placeholder { color: #9ca3af !important; }
+.ant-input-affix-wrapper:hover,
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused {
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.08) !important;
+}
+.ant-input-password input { background: transparent !important; color: #111827 !important; }
+.ant-input-password .ant-input-suffix .anticon { color: #9ca3af; }
+
+/* Card */
+.ant-card {
+  background: #ffffff;
+  border-color: #e8eaed;
+}
+
+/* Alert */
+.ant-alert-error { background: #fef2f2; border-color: #fecaca; }
+.ant-alert-error .ant-alert-message { color: #dc2626; }
+
+/* Tag */
+.ant-tag { border-radius: 4px; }
+
+/* Layout */
+.ant-layout { background: #f4f6f9; }
+.ant-layout-sider { background: #ffffff !important; }
+.ant-layout-header { background: #ffffff !important; }
+
+/* Dropdown */
+.ant-dropdown-menu { border: 1px solid #e8eaed !important; box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important; }
+
+/* Form labels */
+.ant-form-item-label > label { color: #374151 !important; }
+
+/* Divider */
+.ant-divider { border-color: #e8eaed; }
