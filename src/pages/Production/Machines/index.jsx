@@ -179,7 +179,7 @@ const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew,
           <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
-              + NEW
+              NEW
             </Button>
           )}
         </div>

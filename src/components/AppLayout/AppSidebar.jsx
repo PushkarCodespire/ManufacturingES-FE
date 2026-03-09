@@ -59,8 +59,8 @@ const NAV_ITEMS_DEF = [
           { key: 'configuration', label: 'Configuration',      permission: 'sites-configuration-read' },
           { key: 'employees',     label: 'Employees & Access', permission: 'sites-employees___access-read' },
           { key: 'shifts',        label: 'Shifts & Leaves',    permission: 'sites-shifts___leaves-read' },
-          { key: 'integrations',  label: 'Integrations',       disabled: true, adminOnly: true },
-          { key: 'costing',       label: 'Costing',            disabled: true, adminOnly: true },
+          { key: 'integrations',  label: 'Integrations',       permission: 'sites-integrations-read' },
+          { key: 'costing',       label: 'Costing',            permission: 'sites-costing-read' },
         ],
       },
       // ── Production (SubMenu) ───────────────────────
@@ -74,7 +74,7 @@ const NAV_ITEMS_DEF = [
           { key: 'm-tools',            label: 'Tools',               disabled: true, adminOnly: true },
           { key: 'm-downtime',         label: 'Downtime',            disabled: true, adminOnly: true },
           { key: 'm-quality',          label: 'Quality',             disabled: true, adminOnly: true },
-          { key: 'm-production-forms', label: 'Production Forms',    disabled: true, adminOnly: true },
+          { key: 'm-production-forms', label: 'Production Forms',    permission: 'production-production_forms-read' },
           { key: 'm-set-sampling',     label: 'Set Sampling',        disabled: true, adminOnly: true },
           { key: 'm-ctq',             label: 'Critical To Quality', disabled: true, adminOnly: true },
         ],
@@ -84,9 +84,9 @@ const NAV_ITEMS_DEF = [
         key:   'grp-planning',
         label: 'Planning',
         children: [
-          { key: 'm-customers',         label: 'Customers',         disabled: true, adminOnly: true },
-          { key: 'm-vendors',           label: 'Vendors',           disabled: true, adminOnly: true },
-          { key: 'm-sticker-templates', label: 'Sticker Templates', disabled: true, adminOnly: true },
+          { key: 'm-customers',         label: 'Customers',         permission: 'planning-vendors-read' },
+          { key: 'm-vendors',           label: 'Vendors',           permission: 'planning-vendors-read' },
+          { key: 'm-sticker-templates', label: 'Sticker Templates', permission: 'planning-sticker-templates-read' },
         ],
       },
       // ── Inventory (SubMenu) ────────────────────────
@@ -96,7 +96,7 @@ const NAV_ITEMS_DEF = [
         children: [
           { key: 'm-warehouses',    label: 'Warehouses',    permission: 'inventory-warehouses-read' },
           { key: 'm-packages',      label: 'Packages',      disabled: true, adminOnly: true },
-          { key: 'm-custom-fields', label: 'Custom Fields', disabled: true, adminOnly: true },
+          { key: 'm-custom-fields', label: 'Custom Fields', permission: 'inventory-custom-fields-read' },
         ],
       },
       // ── Other (SubMenu) ────────────────────────────
@@ -106,7 +106,7 @@ const NAV_ITEMS_DEF = [
         children: [
           { key: 'm-reports',        label: 'Reports',        disabled: true, adminOnly: true },
           { key: 'm-tag-management', label: 'Tag Management', permission: 'other-tag_management-read' },
-          { key: 'm-templates',      label: 'Templates',      disabled: true, adminOnly: true },
+          { key: 'm-templates',      label: 'Templates',      permission: 'other-templates-read'      },
           { key: 'm-automation',     label: 'Automation',     disabled: true, adminOnly: true },
           { key: 'm-onboarding',     label: 'Onboarding',     disabled: true, adminOnly: true },
         ],
@@ -130,10 +130,18 @@ const KEY_TO_PATH = {
   configuration:   '/masters/configuration',
   employees:       '/masters/employees',
   shifts:          '/masters/shifts',
-  'm-machines':    '/masters/production/machines',
-  'm-items':       '/masters/production/items',
+  'm-machines':         '/masters/production/machines',
+  'm-items':            '/masters/production/items',
+  'm-production-forms': '/masters/production/production-forms',
   'm-warehouses':      '/masters/inventory/warehouses',
   'm-tag-management':  '/masters/other/tag-management',
+  'm-templates':       '/masters/other/templates',
+  'm-vendors':       '/masters/planning/vendors',
+  'm-customers':         '/masters/planning/customers',
+  'm-sticker-templates': '/masters/planning/sticker-templates',
+  'costing':             '/masters/costing',
+  'integrations':    '/masters/integrations',
+  'm-custom-fields': '/masters/inventory/custom-fields',
 };
 
 // ── Derive selected key + open keys from current pathname ────────────────────
@@ -143,13 +151,22 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/masters/employees'))     return { selected: 'employees',     open: ['masters', 'grp-sites'] };
   if (pathname.startsWith('/masters/configuration')) return { selected: 'configuration', open: ['masters', 'grp-sites'] };
   if (pathname.startsWith('/masters/shifts'))        return { selected: 'shifts',        open: ['masters', 'grp-sites'] };
+  if (pathname.startsWith('/masters/costing'))        return { selected: 'costing',       open: ['masters', 'grp-sites'] };
+  if (pathname.startsWith('/masters/integrations'))   return { selected: 'integrations',  open: ['masters', 'grp-sites'] };
   // Production sub-group
-  if (pathname.startsWith('/masters/production/machines')) return { selected: 'm-machines', open: ['masters', 'grp-production'] };
-  if (pathname.startsWith('/masters/production/items'))    return { selected: 'm-items',    open: ['masters', 'grp-production'] };
+  if (pathname.startsWith('/masters/production/machines'))         return { selected: 'm-machines',         open: ['masters', 'grp-production'] };
+  if (pathname.startsWith('/masters/production/items'))            return { selected: 'm-items',            open: ['masters', 'grp-production'] };
+  if (pathname.startsWith('/masters/production/production-forms')) return { selected: 'm-production-forms', open: ['masters', 'grp-production'] };
   // Inventory sub-group
   if (pathname.startsWith('/masters/inventory/warehouses')) return { selected: 'm-warehouses', open: ['masters', 'grp-inventory'] };
   // Other sub-group
   if (pathname.startsWith('/masters/other/tag-management')) return { selected: 'm-tag-management', open: ['masters', 'grp-other'] };
+  if (pathname.startsWith('/masters/other/templates'))      return { selected: 'm-templates',      open: ['masters', 'grp-other'] };
+  if (pathname.startsWith('/masters/inventory/custom-fields')) return { selected: 'm-custom-fields', open: ['masters', 'grp-inventory'] };
+  // Planning sub-group
+  if (pathname.startsWith('/masters/planning/sticker-templates')) return { selected: 'm-sticker-templates', open: ['masters', 'grp-planning'] };
+  if (pathname.startsWith('/masters/planning/customers'))         return { selected: 'm-customers',         open: ['masters', 'grp-planning'] };
+  if (pathname.startsWith('/masters/planning/vendors'))           return { selected: 'm-vendors',           open: ['masters', 'grp-planning'] };
   // Generic masters fallback
   if (pathname.startsWith('/masters'))               return { selected: 'masters',       open: ['masters'] };
   return { selected: 'dashboard', open: [] };
