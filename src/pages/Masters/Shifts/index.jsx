@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Table, Button, Form, Input, InputNumber,
-  TimePicker, Modal, message, Tooltip, Space,
+  TimePicker, Modal, message, Tooltip, Space, Card,
 } from 'antd';
 import {
   PlusOutlined,
@@ -11,10 +11,13 @@ import {
   ArrowLeftOutlined,
   ClockCircleOutlined,
   CalendarOutlined,
+  SearchOutlined,
+  RightOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { shiftApi } from '../../../api/shift.api';
-import AppLayout   from '../../../components/AppLayout';
+import { shiftApi }     from '../../../api/shift.api';
+import AppLayout        from '../../../components/AppLayout';
+import usePermissions   from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
 
@@ -32,8 +35,8 @@ const fmtDateTime = (iso) => {
 // ═══════════════════════════════════════════════════════════════════════════
 //  LIST VIEW
 // ═══════════════════════════════════════════════════════════════════════════
-const ListView = ({ shifts, loading, onRefresh, onNew, onEdit, onDelete }) => {
-  const columns = [
+const ListView = ({ shifts, loading, onRefresh, onNew, onEdit, onDelete, canWrite, search, setSearch }) => {
+  const baseColumns = [
     {
       title:     'Name',
       dataIndex: 'name',
@@ -91,71 +94,45 @@ const ListView = ({ shifts, loading, onRefresh, onNew, onEdit, onDelete }) => {
         </div>
       ),
     },
-    {
-      title:  'Actions',
-      key:    'actions',
-      width:  100,
-      align:  'center',
-      render: (_, r) => (
-        <Space size={4}>
-          <Tooltip title="Edit shift">
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined style={{ color: '#1d4ed8', fontSize: 15 }} />}
-              onClick={() => onEdit(r)}
-            />
-          </Tooltip>
-          <Tooltip title="Delete shift">
-            <Button
-              type="text"
-              danger
-              size="small"
-              icon={<DeleteOutlined style={{ color: '#e879b0', fontSize: 15 }} />}
-              onClick={() => onDelete(r)}
-              style={{ color: '#e879b0' }}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
   ];
+
+  // Only show Actions column if user has write permission
+  const columns = canWrite
+    ? [
+        ...baseColumns,
+        {
+          title:  'Actions',
+          key:    'actions',
+          width:  100,
+          align:  'center',
+          render: (_, r) => (
+            <Space size={4}>
+              <Tooltip title="Edit shift">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EditOutlined style={{ color: '#1d4ed8', fontSize: 15 }} />}
+                  onClick={() => onEdit(r)}
+                />
+              </Tooltip>
+              <Tooltip title="Delete shift">
+                <Button
+                  type="text"
+                  danger
+                  size="small"
+                  icon={<DeleteOutlined style={{ color: '#e879b0', fontSize: 15 }} />}
+                  onClick={() => onDelete(r)}
+                  style={{ color: '#e879b0' }}
+                />
+              </Tooltip>
+            </Space>
+          ),
+        },
+      ]
+    : baseColumns;
 
   return (
     <div>
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display:        'flex',
-          alignItems:     'center',
-          justifyContent: 'space-between',
-          marginBottom:   20,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>
-            Shifts
-          </Title>
-          <Button
-            type="text"
-            size="small"
-            icon={<ReloadOutlined style={{ color: '#6b7280' }} />}
-            onClick={onRefresh}
-            loading={loading}
-          />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={onNew}
-            style={{ borderRadius: 8, fontWeight: 600, background: '#1d4ed8' }}
-          >
-            NEW
-          </Button>
-        </div>
-      </div>
-
       {/* ── Summary chips ──────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
         {[
@@ -176,16 +153,38 @@ const ListView = ({ shifts, loading, onRefresh, onNew, onEdit, onDelete }) => {
         ))}
       </div>
 
-      {/* ── Table ──────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          background:   '#ffffff',
-          border:       '1px solid #e8eaed',
-          borderRadius: 12,
-          overflow:     'hidden',
-          boxShadow:    '0 1px 4px rgba(0,0,0,0.06)',
-        }}
+      {/* ── Table Card ─────────────────────────────────────────────────── */}
+      <Card
+        style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+        bodyStyle={{ padding: '16px 20px' }}
       >
+        {/* Toolbar */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
+          <Input
+            placeholder="Search shifts…"
+            prefix={<SearchOutlined style={{ color: '#9ca3af' }} />}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: 240, borderRadius: 8 }}
+            allowClear
+          />
+          <div style={{ flex: 1 }} />
+          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
+            Refresh
+          </Button>
+          {canWrite && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={onNew}
+              style={{ borderRadius: 8, fontWeight: 600 }}
+            >
+              Add New Shift
+            </Button>
+          )}
+        </div>
+
+        {/* Table */}
         <Table
           rowKey="id"
           columns={columns}
@@ -195,22 +194,34 @@ const ListView = ({ shifts, loading, onRefresh, onNew, onEdit, onDelete }) => {
             pageSize:        10,
             showSizeChanger: true,
             showTotal:       (total) => `${total} shifts`,
-            style:           { margin: '12px 16px 0' },
+            style:           { marginBottom: 0 },
           }}
+          scroll={{ x: 900 }}
           size="middle"
-          style={{ borderRadius: 0 }}
+          style={{ borderRadius: 8, overflow: 'hidden' }}
           locale={{
             emptyText: (
-              <div style={{ padding: '40px 0', textAlign: 'center' }}>
-                <CalendarOutlined style={{ fontSize: 36, color: '#d1d5db', marginBottom: 12 }} />
-                <div style={{ color: '#9ca3af', fontSize: 13 }}>
-                  No shifts yet. Click <strong>+ NEW</strong> to add one.
-                </div>
+              <div style={{ padding: 40 }}>
+                <CalendarOutlined style={{ fontSize: 32, color: '#d1d5db', display: 'block', marginBottom: 12 }} />
+                <Text style={{ color: '#9ca3af' }}>No shifts configured yet</Text>
+                {canWrite && (
+                  <>
+                    <br />
+                    <Button
+                      type="primary"
+                      size="small"
+                      onClick={onNew}
+                      style={{ marginTop: 10 }}
+                    >
+                      Add Your First Shift
+                    </Button>
+                  </>
+                )}
               </div>
             ),
           }}
         />
-      </div>
+      </Card>
     </div>
   );
 };
@@ -389,10 +400,14 @@ const ShiftFormView = ({ shift, onBack, onSaved }) => {
 //  MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════════════
 const ShiftsPage = () => {
+  const { can } = usePermissions();
+  const canWrite = can('sites-shifts___leaves-create_edit_delete');
+
   const [shifts,       setShifts]       = useState([]);
   const [loading,      setLoading]      = useState(false);
   const [view,         setView]         = useState('list'); // 'list' | 'form'
   const [editingShift, setEditingShift] = useState(null);  // null = add mode
+  const [search,       setSearch]       = useState('');
 
   const fetchShifts = useCallback(async () => {
     setLoading(true);
@@ -447,23 +462,39 @@ const ShiftsPage = () => {
     setEditingShift(null);
   };
 
+  // Client-side search filter
+  const filteredShifts = search
+    ? shifts.filter((s) => s.name?.toLowerCase().includes(search.toLowerCase()))
+    : shifts;
+
   return (
     <AppLayout>
-      {/* Breadcrumb */}
-      <div style={{ marginBottom: view === 'form' ? 0 : 4 }}>
+      {/* ── Page heading ─────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+          <Text style={{ color: '#9ca3af', fontSize: 12 }}>Masters</Text>
+          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+          <Text style={{ color: '#6b7280', fontSize: 12 }}>Shifts &amp; Leaves</Text>
+        </div>
+        <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>
+          Shifts &amp; Leaves
+        </Title>
         <Text style={{ color: '#6b7280', fontSize: 13 }}>
-          Masters · Shifts &amp; Leaves
+          Manage shift schedules, break durations and leave policies
         </Text>
       </div>
 
       {view === 'list' ? (
         <ListView
-          shifts={shifts}
+          shifts={filteredShifts}
           loading={loading}
           onRefresh={fetchShifts}
           onNew={handleNew}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          canWrite={canWrite}
+          search={search}
+          setSearch={setSearch}
         />
       ) : (
         <ShiftFormView

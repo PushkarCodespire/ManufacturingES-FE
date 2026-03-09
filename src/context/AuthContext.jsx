@@ -38,12 +38,17 @@ export const AuthProvider = ({ children }) => {
     const loginAt   = localStorage.getItem(STORAGE_TIME);
 
     if (token && stored && loginAt) {
-      const elapsed = Date.now() - parseInt(loginAt, 10);
+      const elapsed    = Date.now() - parseInt(loginAt, 10);
+      const parsedUser = JSON.parse(stored);
+
       if (elapsed >= SESSION_MS) {
         // Local 8-hour wall-clock expired — do a silent logout (no API call)
         logout(false);
+      } else if (!Array.isArray(parsedUser.permissions)) {
+        // Stale session — stored user pre-dates the permissions field; force re-login
+        logout(false);
       } else {
-        setUser(JSON.parse(stored));
+        setUser(parsedUser);
         // Schedule auto-logout for remaining time
         const remaining = SESSION_MS - elapsed;
         const timer = setTimeout(() => logout(true), remaining);

@@ -27,6 +27,7 @@ import {
 } from '@ant-design/icons';
 import { userApi } from '../../../api/user.api';
 import AppLayout   from '../../../components/AppLayout';
+import usePermissions from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
 
@@ -92,9 +93,7 @@ const mastersTreeData = [
       leaf('production', 'Tools',               stdPerms),
       leaf('production', 'Downtime',            stdPerms),
       leaf('production', 'Quality',             stdPerms),
-      leaf('production', 'Production Forms',    stdPerms),
-      leaf('production', 'Set Sampling',        stdPerms),
-      leaf('production', 'Critical To Quality', stdPerms),
+      leaf('production', 'Production Forms',    stdPerms)
     ],
   },
   {
@@ -422,7 +421,7 @@ const InfoRow = ({ icon, label, value, color }) => (
 // ═══════════════════════════════════════════════════════════════════════════
 //  ACCESS TREE TAB
 // ═══════════════════════════════════════════════════════════════════════════
-const AccessTreeTab = ({ treeData, checkedKeys, setCheckedKeys, title, description }) => (
+const AccessTreeTab = ({ treeData, checkedKeys, setCheckedKeys, title, description, onSave, saving, canWrite }) => (
   <div>
     <div style={{ marginBottom: 20 }}>
       <Text style={{ fontSize: 14, fontWeight: 600, color: '#111827', display: 'block' }}>{title}</Text>
@@ -437,28 +436,31 @@ const AccessTreeTab = ({ treeData, checkedKeys, setCheckedKeys, title, descripti
       }}
     >
       <Tree
-        checkable
+        checkable={canWrite}
         showLine={{ showLeafIcon: false }}
-        defaultExpandAll
+        defaultExpandedKeys={[]}
         treeData={treeData}
         checkedKeys={checkedKeys}
-        onCheck={(keys) => setCheckedKeys(keys)}
+        onCheck={canWrite ? (keys) => setCheckedKeys(keys) : undefined}
         style={{ fontSize: 13 }}
       />
     </div>
-    <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-      <Button size="small" onClick={() => setCheckedKeys([])}>
-        Clear All
-      </Button>
-      <Button
-        size="small"
-        type="primary"
-        icon={<SaveOutlined />}
-        onClick={() => message.success('Access permissions saved')}
-      >
-        Save Permissions
-      </Button>
-    </div>
+    {canWrite && (
+      <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <Button size="small" onClick={() => setCheckedKeys([])}>
+          Clear All
+        </Button>
+        <Button
+          size="small"
+          type="primary"
+          icon={<SaveOutlined />}
+          loading={saving}
+          onClick={onSave}
+        >
+          Save Permissions
+        </Button>
+      </div>
+    )}
   </div>
 );
 
@@ -468,6 +470,8 @@ const AccessTreeTab = ({ treeData, checkedKeys, setCheckedKeys, title, descripti
 const EmployeeDetailPage = () => {
   const { id }    = useParams();
   const navigate   = useNavigate();
+  const { can }   = usePermissions();
+  const canWrite  = can('sites-employees___access-create_edit_delete');
 
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
@@ -487,6 +491,14 @@ const EmployeeDetailPage = () => {
   const [storeChecked,      setStoreChecked]      = useState([]);
   const [productionChecked, setProductionChecked] = useState([]);
   const [planningChecked,   setPlanningChecked]   = useState([]);
+  const [savingPerms,       setSavingPerms]       = useState(false);
+
+  // ── Permission key prefix splitters ────────────────────────────────────
+  const MASTERS_ROOTS = ['sites', 'production', 'planning', 'inventory', 'other'];
+  const isMastersKey  = (k) => MASTERS_ROOTS.some((r) => k === r || k.startsWith(`${r}-`));
+  const isStoreKey    = (k) => k.startsWith('store');
+  const isProdKey     = (k) => k.startsWith('prod-');  // prod- ≠ production- (masters)
+  const isPlanKey     = (k) => k.startsWith('plan-');  // plan- ≠ planning- (masters)
 
   // ── Fetch employee ─────────────────────────────────────────────────────
   const fetchUser = useCallback(async () => {
@@ -494,12 +506,18 @@ const EmployeeDetailPage = () => {
     try {
       const data = await userApi.getById(id);
       setUser(data);
+      // Populate permission trees from DB
+      const perms = data?.permissions ?? [];
+      setMastersChecked(perms.filter(isMastersKey));
+      setStoreChecked(perms.filter(isStoreKey));
+      setProductionChecked(perms.filter(isProdKey));
+      setPlanningChecked(perms.filter(isPlanKey));
     } catch {
       message.error('Failed to load employee details');
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { fetchUser(); }, [fetchUser]);
 
@@ -547,6 +565,28 @@ const EmployeeDetailPage = () => {
   const cancelEdit = () => {
     setEditing(false);
     form.resetFields();
+  };
+
+  // ── Save permissions ───────────────────────────────────────────────────
+  const handleSavePermissions = async () => {
+    setSavingPerms(true);
+    try {
+      const permissions = [
+        ...mastersChecked,
+        ...storeChecked,
+        ...productionChecked,
+        ...planningChecked,
+      ];
+      await userApi.update(id, { permissions });
+      message.success(
+        `Permissions saved. ${user?.name ?? 'The user'} has been signed out and will need to log in again to apply the new permissions.`,
+        6,
+      );
+    } catch (err) {
+      message.error(err?.response?.data?.message || 'Failed to save permissions');
+    } finally {
+      setSavingPerms(false);
+    }
   };
 
   // ── Save edits ─────────────────────────────────────────────────────────
@@ -666,13 +706,15 @@ const EmployeeDetailPage = () => {
           </Text>
         </div>
         {!editing ? (
-          <Button
-            icon={<EditOutlined />}
-            onClick={startEdit}
-            style={{ borderRadius: 8, fontWeight: 600 }}
-          >
-            Edit
-          </Button>
+          canWrite && (
+            <Button
+              icon={<EditOutlined />}
+              onClick={startEdit}
+              style={{ borderRadius: 8, fontWeight: 600 }}
+            >
+              Edit
+            </Button>
+          )
         ) : (
           <div style={{ display: 'flex', gap: 8 }}>
             <Button icon={<CloseOutlined />} onClick={cancelEdit} style={{ borderRadius: 8 }}>
@@ -1079,6 +1121,9 @@ const EmployeeDetailPage = () => {
           setCheckedKeys={setMastersChecked}
           title="Masters Access Permissions"
           description="Control what master data this employee can view or manage across sites, production, planning, inventory and other modules."
+          onSave={handleSavePermissions}
+          saving={savingPerms}
+          canWrite={canWrite}
         />
       ),
     },
@@ -1096,6 +1141,9 @@ const EmployeeDetailPage = () => {
           setCheckedKeys={setStoreChecked}
           title="Store Access Permissions"
           description="Control access to store operations — GRN, issue slips, material transfers and stock ledger."
+          onSave={handleSavePermissions}
+          saving={savingPerms}
+          canWrite={canWrite}
         />
       ),
     },
@@ -1113,6 +1161,9 @@ const EmployeeDetailPage = () => {
           setCheckedKeys={setProductionChecked}
           title="Production Access Permissions"
           description="Control access to daily production, rejection, rework entries and job work challans."
+          onSave={handleSavePermissions}
+          saving={savingPerms}
+          canWrite={canWrite}
         />
       ),
     },
@@ -1130,6 +1181,9 @@ const EmployeeDetailPage = () => {
           setCheckedKeys={setPlanningChecked}
           title="Planning Access Permissions"
           description="Control access to purchase orders, scheduling and production/dispatch planning."
+          onSave={handleSavePermissions}
+          saving={savingPerms}
+          canWrite={canWrite}
         />
       ),
     },

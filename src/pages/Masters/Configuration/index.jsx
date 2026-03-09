@@ -14,13 +14,14 @@ import {
   RightOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { siteApi }  from '../../../api/site.api';
-import AppLayout    from '../../../components/AppLayout';
+import { siteApi }      from '../../../api/site.api';
+import AppLayout        from '../../../components/AppLayout';
+import usePermissions   from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
 
 // ── Table columns ─────────────────────────────────────────────────────────────
-const buildColumns = (onToggle, toggleLoading, onView) => [
+const buildColumns = (onToggle, toggleLoading, onView, canWrite) => [
   {
     title: 'Site Name',
     key:   'name',
@@ -112,19 +113,21 @@ const buildColumns = (onToggle, toggleLoading, onView) => [
         >
           Configure
         </Button>
-        <Tooltip title={r.is_active ? 'Deactivate site' : 'Activate site'}>
-          <Button
-            size="small"
-            icon={r.is_active ? <StopOutlined /> : <CheckCircleOutlined />}
-            loading={toggleLoading === r.id}
-            danger={r.is_active}
-            style={{
-              borderRadius: 6, fontSize: 12,
-              ...(r.is_active ? {} : { color: '#16a34a', borderColor: '#16a34a' }),
-            }}
-            onClick={() => onToggle(r)}
-          />
-        </Tooltip>
+        {canWrite && (
+          <Tooltip title={r.is_active ? 'Deactivate site' : 'Activate site'}>
+            <Button
+              size="small"
+              icon={r.is_active ? <StopOutlined /> : <CheckCircleOutlined />}
+              loading={toggleLoading === r.id}
+              danger={r.is_active}
+              style={{
+                borderRadius: 6, fontSize: 12,
+                ...(r.is_active ? {} : { color: '#16a34a', borderColor: '#16a34a' }),
+              }}
+              onClick={() => onToggle(r)}
+            />
+          </Tooltip>
+        )}
       </div>
     ),
   },
@@ -133,6 +136,8 @@ const buildColumns = (onToggle, toggleLoading, onView) => [
 // ── Main Component ─────────────────────────────────────────────────────────────
 const ConfigurationPage = () => {
   const navigate = useNavigate();
+  const { can }  = usePermissions();
+  const canWrite = can('sites-configuration-create_edit_delete');
 
   const [sites,         setSites]         = useState([]);
   const [loading,       setLoading]       = useState(false);
@@ -239,20 +244,22 @@ const ConfigurationPage = () => {
           <Button icon={<ReloadOutlined />} onClick={fetchSites} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => navigate('/masters/configuration/sites/add')}
-            style={{ borderRadius: 8, fontWeight: 600 }}
-          >
-            Add New Site
-          </Button>
+          {canWrite && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => navigate('/masters/configuration/sites/add')}
+              style={{ borderRadius: 8, fontWeight: 600 }}
+            >
+              Add New Site
+            </Button>
+          )}
         </div>
 
         {/* Table */}
         <Table
           rowKey="id"
-          columns={buildColumns(handleToggle, toggleLoading, (r) => navigate(`/masters/configuration/sites/${r.id}`))}
+          columns={buildColumns(handleToggle, toggleLoading, (r) => navigate(`/masters/configuration/sites/${r.id}`), canWrite)}
           dataSource={sites}
           loading={loading}
           pagination={{ pageSize: 10, showTotal: (t) => `${t} sites`, style: { marginBottom: 0 } }}
@@ -264,15 +271,19 @@ const ConfigurationPage = () => {
               <div style={{ padding: 40 }}>
                 <GlobalOutlined style={{ fontSize: 32, color: '#d1d5db', display: 'block', marginBottom: 12 }} />
                 <Text style={{ color: '#9ca3af' }}>No sites configured yet</Text>
-                <br />
-                <Button
-                  type="primary"
-                  size="small"
-                  onClick={() => navigate('/masters/configuration/sites/add')}
-                  style={{ marginTop: 10 }}
-                >
-                  Add Your First Site
-                </Button>
+                {canWrite && (
+                  <>
+                    <br />
+                    <Button
+                      type="primary"
+                      size="small"
+                      onClick={() => navigate('/masters/configuration/sites/add')}
+                      style={{ marginTop: 10 }}
+                    >
+                      Add Your First Site
+                    </Button>
+                  </>
+                )}
               </div>
             ),
           }}

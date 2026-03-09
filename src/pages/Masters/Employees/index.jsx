@@ -18,9 +18,11 @@ import {
   HomeOutlined,
   BankOutlined,
   AppstoreOutlined,
+  RightOutlined,
 } from '@ant-design/icons';
 import { userApi }  from '../../../api/user.api';
 import AppLayout    from '../../../components/AppLayout';
+import usePermissions from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -44,7 +46,7 @@ const LANDING_PAGE_OPTIONS = [
 ];
 
 // ── Table columns ─────────────────────────────────────────────────────────────
-const buildColumns = (onToggle, toggleLoading) => [
+const buildColumns = (onToggle, toggleLoading, canWrite) => [
   {
     title:     'Employee ID',
     dataIndex: 'employee_id',
@@ -142,7 +144,7 @@ const buildColumns = (onToggle, toggleLoading) => [
         : <Tag color="green"  style={{ fontSize: 11 }}>Done</Tag>
     ),
   },
-  {
+  ...(canWrite ? [{
     title:  'Actions',
     key:    'actions',
     width:  110,
@@ -164,7 +166,7 @@ const buildColumns = (onToggle, toggleLoading) => [
         </Button>
       </Tooltip>
     ),
-  },
+  }] : []),
 ];
 
 // ── Section header helper ─────────────────────────────────────────────────────
@@ -185,6 +187,8 @@ const SectionBox = ({ label, children }) => (
 // ── Main Component ─────────────────────────────────────────────────────────────
 const EmployeesPage = () => {
   const navigate = useNavigate();
+  const { can }  = usePermissions();
+  const canWrite = can('sites-employees___access-create_edit_delete');
   const [users,          setUsers]          = useState([]);
   const [departments,    setDepartments]    = useState([]);
   const [roles,          setRoles]          = useState([]);
@@ -328,11 +332,16 @@ const EmployeesPage = () => {
     <AppLayout>
       {/* ── Page heading ─────────────────────────────────────────────────── */}
       <div style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+          <Text style={{ color: '#9ca3af', fontSize: 12 }}>Masters</Text>
+          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+          <Text style={{ color: '#6b7280', fontSize: 12 }}>Employees &amp; Access</Text>
+        </div>
         <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>
           Employees &amp; Access
         </Title>
         <Text style={{ color: '#6b7280', fontSize: 13 }}>
-          Masters · Manage employees, roles, site access and landing page
+          Manage employees, roles, site access and landing page
         </Text>
       </div>
 
@@ -406,20 +415,22 @@ const EmployeesPage = () => {
           <Button icon={<ReloadOutlined />} onClick={fetchUsers} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setDrawerOpen(true)}
-            style={{ borderRadius: 8, fontWeight: 600 }}
-          >
-            Add Employee
-          </Button>
+          {canWrite && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setDrawerOpen(true)}
+              style={{ borderRadius: 8, fontWeight: 600 }}
+            >
+              Add Employee
+            </Button>
+          )}
         </div>
 
         {/* Table */}
         <Table
           rowKey="id"
-          columns={buildColumns(handleToggle, toggleLoading)}
+          columns={buildColumns(handleToggle, toggleLoading, canWrite)}
           dataSource={users}
           loading={loading}
           pagination={{
