@@ -94,8 +94,8 @@ const NAV_ITEMS_DEF = [
         key:   'grp-inventory',
         label: 'Inventory',
         children: [
-          { key: 'm-warehouses',    label: 'Warehouses',    permission: 'inventory-warehouses-read' },
-          { key: 'm-packages',      label: 'Packages',      disabled: true, adminOnly: true },
+          { key: 'm-warehouses',    label: 'Warehouses',    permission: 'inventory-warehouses-read'   },
+          { key: 'm-packages',      label: 'Packages',      permission: 'inventory-packages-read'     },
           { key: 'm-custom-fields', label: 'Custom Fields', permission: 'inventory-custom-fields-read' },
         ],
       },
@@ -104,7 +104,7 @@ const NAV_ITEMS_DEF = [
         key:   'grp-other',
         label: 'Other',
         children: [
-          { key: 'm-reports',        label: 'Reports',        disabled: true, adminOnly: true },
+          { key: 'm-reports',        label: 'Reports',        permission: 'other-reports-read'        },
           { key: 'm-tag-management', label: 'Tag Management', permission: 'other-tag_management-read' },
           { key: 'm-templates',      label: 'Templates',      permission: 'other-templates-read'      },
           { key: 'm-automation',     label: 'Automation',     disabled: true, adminOnly: true },
@@ -138,6 +138,8 @@ const KEY_TO_PATH = {
   'm-downtime':         '/masters/production/downtime',
   'm-quality':          '/masters/production/quality',
   'm-warehouses':      '/masters/inventory/warehouses',
+  'm-packages':        '/masters/inventory/packages',
+  'm-reports':         '/masters/other/reports',
   'm-tag-management':  '/masters/other/tag-management',
   'm-templates':       '/masters/other/templates',
   'm-vendors':       '/masters/planning/vendors',
@@ -167,7 +169,9 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/masters/production/quality'))          return { selected: 'm-quality',          open: ['masters', 'grp-production'] };
   // Inventory sub-group
   if (pathname.startsWith('/masters/inventory/warehouses')) return { selected: 'm-warehouses', open: ['masters', 'grp-inventory'] };
+  if (pathname.startsWith('/masters/inventory/packages'))   return { selected: 'm-packages',   open: ['masters', 'grp-inventory'] };
   // Other sub-group
+  if (pathname.startsWith('/masters/other/reports'))        return { selected: 'm-reports',        open: ['masters', 'grp-other'] };
   if (pathname.startsWith('/masters/other/tag-management')) return { selected: 'm-tag-management', open: ['masters', 'grp-other'] };
   if (pathname.startsWith('/masters/other/templates'))      return { selected: 'm-templates',      open: ['masters', 'grp-other'] };
   if (pathname.startsWith('/masters/inventory/custom-fields')) return { selected: 'm-custom-fields', open: ['masters', 'grp-inventory'] };

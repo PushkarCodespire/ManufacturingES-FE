@@ -26,8 +26,10 @@ import CustomersPage        from './pages/Masters/Planning/Customers';
 import StickerTemplatesPage from './pages/Masters/Planning/StickerTemplates';
 import CostingPage          from './pages/Masters/Costing';
 import CustomFieldsPage     from './pages/Masters/Inventory/CustomFields';
+import PackagesPage         from './pages/Masters/Inventory/Packages';
 import IntegrationsPage     from './pages/Masters/Integrations';
 import TemplatesPage        from './pages/Masters/Other/Templates';
+import ReportsPage          from './pages/Masters/Other/Reports';
 import ProductionFormsPage  from './pages/Production/ProductionForms';
 import ToolsPage            from './pages/Production/Tools';
 
@@ -278,6 +280,16 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
+              {/* Masters — Other — Reports */}
+              <Route
+                path="/masters/other/reports"
+                element={
+                  <ProtectedRoute permission="other-reports-read">
+                    <ReportsPage />
+                  </ProtectedRoute>
+                }
+              />
               {/* Masters — Planning — Vendors */}
               <Route
                 path="/masters/planning/vendors"
@@ -314,6 +326,16 @@ function App() {
                 element={
                   <ProtectedRoute permission="inventory-custom-fields-read">
                     <CustomFieldsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Inventory — Packages */}
+              <Route
+                path="/masters/inventory/packages"
+                element={
+                  <ProtectedRoute permission="inventory-packages-read">
+                    <PackagesPage />
                   </ProtectedRoute>
                 }
               />

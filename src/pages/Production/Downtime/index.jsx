@@ -221,7 +221,7 @@ const ListView = ({
               onClick={onNew}
               style={{ borderRadius: 8, fontWeight: 600 }}
             >
-              + NEW
+              NEW
             </Button>
           )}
         </div>

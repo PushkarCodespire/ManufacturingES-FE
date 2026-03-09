@@ -301,7 +301,7 @@ const CycleTimeRulesPage = () => {
           <Button icon={<ReloadOutlined />} onClick={fetchRules} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenAdd} style={{ borderRadius: 8, fontWeight: 600 }}>
-              + NEW
+              NEW
             </Button>
           )}
         </div>

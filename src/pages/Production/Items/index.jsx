@@ -638,7 +638,7 @@ const RulesView = ({ onBack, canWrite }) => {
           <Button icon={<ReloadOutlined />} onClick={fetchRules} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenAdd} style={{ borderRadius: 8, fontWeight: 600 }}>
-              + NEW
+              NEW
             </Button>
           )}
         </div>
@@ -788,7 +788,7 @@ const ListView = ({
           <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
-              + NEW
+              NEW
             </Button>
           )}
         </div>
