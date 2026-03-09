@@ -93,9 +93,7 @@ const mastersTreeData = [
       leaf('production', 'Tools',               stdPerms),
       leaf('production', 'Downtime',            stdPerms),
       leaf('production', 'Quality',             stdPerms),
-      leaf('production', 'Production Forms',    stdPerms),
-      leaf('production', 'Set Sampling',        stdPerms),
-      leaf('production', 'Critical To Quality', stdPerms),
+      leaf('production', 'Production Forms',    stdPerms)
     ],
   },
   {

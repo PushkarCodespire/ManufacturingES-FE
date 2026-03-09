@@ -74,9 +74,7 @@ const NAV_ITEMS_DEF = [
           { key: 'm-tools',            label: 'Tools',               permission: 'production-tools-read' },
           { key: 'm-downtime',         label: 'Downtime',            permission: 'production-downtime-read' },
           { key: 'm-quality',          label: 'Quality',             permission: 'production-quality-read' },
-          { key: 'm-production-forms', label: 'Production Forms',    permission: 'production-production_forms-read' },
-          { key: 'm-set-sampling',     label: 'Set Sampling',        disabled: true, adminOnly: true },
-          { key: 'm-ctq',              label: 'Critical To Quality', disabled: true, adminOnly: true },
+          { key: 'm-production-forms', label: 'Production Forms',    permission: 'production-production_forms-read' }
         ],
       },
       // ── Planning (SubMenu) ─────────────────────────
