@@ -139,17 +139,13 @@ const ListView = ({
       {/* ── Breadcrumb + Title ─────────────────────────────────────────── */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <Text style={{ color: '#9ca3af', fontSize: 12 }}>Quality</Text>
+          <Text style={{ color: '#9ca3af', fontSize: 12 }}>Production</Text>
           <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>Critical To Quality</Text>
+          <Text style={{ color: '#6b7280', fontSize: 12 }}>Quality</Text>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>Quality</Title>
-          <Text style={{ color: '#9ca3af', fontSize: 18 }}>|</Text>
-          <Title level={4} style={{ margin: 0, color: '#374151', fontWeight: 400 }}>Critical To Quality</Title>
-        </div>
+        <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>Quality</Title>
         <Text style={{ color: '#6b7280', fontSize: 13 }}>
-          Manage critical-to-quality issue codes for production quality tracking
+          Manage quality issue codes for production quality tracking
         </Text>
       </div>
 
@@ -222,9 +218,9 @@ const FormView = ({ issue, onBack, onSaved, canWrite }) => {
   const isEdit     = !!issue;
   const isReadOnly = !canWrite;
 
-  // Load Item Group tags
+  // Load all tags from Tag Management
   useEffect(() => {
-    tagApi.getAll({ tag_type: 'Item Group' })
+    tagApi.getAll()
       .then((res) => {
         const list = Array.isArray(res) ? res : res?.data || [];
         setAllTags(list);
@@ -353,14 +349,14 @@ const FormView = ({ issue, onBack, onSaved, canWrite }) => {
             </div>
           ) : (
             <Text style={{ fontSize: 12, color: '#9ca3af' }}>
-              No attached Item Group tags
+              No attached tags
             </Text>
           )}
         </div>
 
         {/* Tag picker modal */}
         <Modal
-          title="Select Item Group Tags"
+          title="Select Tags"
           open={tagPickerOpen}
           onCancel={() => setTagPickerOpen(false)}
           footer={[
@@ -373,7 +369,7 @@ const FormView = ({ issue, onBack, onSaved, canWrite }) => {
           <Select
             mode="multiple"
             style={{ width: '100%', marginTop: 8 }}
-            placeholder="Search and select Item Group tags…"
+            placeholder="Search and select tags…"
             value={selectedTags}
             onChange={(vals) => form.setFieldValue('tags', vals)}
             options={allTags.map((t) => ({ label: t.name, value: t.name }))}

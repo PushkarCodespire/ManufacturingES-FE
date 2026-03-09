@@ -221,9 +221,9 @@ function App() {
                 }
               />
 
-              {/* Masters — Production — Critical To Quality */}
+              {/* Masters — Production — Quality */}
               <Route
-                path="/masters/production/ctq"
+                path="/masters/production/quality"
                 element={
                   <ProtectedRoute permission="production-quality-read">
                     <CTQPage />
