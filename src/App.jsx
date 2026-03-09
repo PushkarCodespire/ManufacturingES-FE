@@ -21,6 +21,14 @@ import CycleTimeRulesPage from './pages/Production/CycleTimeRules';
 import DowntimePage       from './pages/Production/Downtime';
 import CTQPage            from './pages/Quality/CTQ';
 import TagManagementPage  from './pages/Masters/TagManagement';
+import VendorsPage          from './pages/Masters/Planning/Vendors';
+import CustomersPage        from './pages/Masters/Planning/Customers';
+import StickerTemplatesPage from './pages/Masters/Planning/StickerTemplates';
+import CostingPage          from './pages/Masters/Costing';
+import CustomFieldsPage     from './pages/Masters/Inventory/CustomFields';
+import IntegrationsPage     from './pages/Masters/Integrations';
+import TemplatesPage        from './pages/Masters/Other/Templates';
+import ProductionFormsPage  from './pages/Production/ProductionForms';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
@@ -201,6 +209,15 @@ function App() {
                 }
               />
 
+              {/* Masters — Production — Production Forms */}
+              <Route
+                path="/masters/production/production-forms"
+                element={
+                  <ProtectedRoute permission="production-production_forms-read">
+                    <ProductionFormsPage />
+                  </ProtectedRoute>
+                }
+              />  
               {/* Masters — Production — Cycle Time Rules */}
               <Route
                 path="/masters/production/cycle-time-rules"
@@ -237,6 +254,75 @@ function App() {
                 element={
                   <ProtectedRoute permission="other-tag_management-read">
                     <TagManagementPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Other — Templates */}
+              <Route
+                path="/masters/other/templates"
+                element={
+                  <ProtectedRoute permission="other-templates-read">
+                    <TemplatesPage />
+                  </ProtectedRoute>
+                }
+              />
+              {/* Masters — Planning — Vendors */}
+              <Route
+                path="/masters/planning/vendors"
+                element={
+                  <ProtectedRoute permission="planning-vendors-read">
+                    <VendorsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Planning — Customers */}
+              <Route
+                path="/masters/planning/customers"
+                element={
+                  <ProtectedRoute permission="planning-vendors-read">
+                    <CustomersPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Planning — Sticker Templates */}
+              <Route
+                path="/masters/planning/sticker-templates"
+                element={
+                  <ProtectedRoute permission="planning-sticker-templates-read">
+                    <StickerTemplatesPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Inventory — Custom Fields */}
+              <Route
+                path="/masters/inventory/custom-fields"
+                element={
+                  <ProtectedRoute permission="inventory-custom-fields-read">
+                    <CustomFieldsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Sites — Costing */}
+              <Route
+                path="/masters/costing"
+                element={
+                  <ProtectedRoute permission="sites-costing-read">
+                    <CostingPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Sites — Integrations */}
+              <Route
+                path="/masters/integrations"
+                element={
+                  <ProtectedRoute permission="sites-integrations-read">
+                    <IntegrationsPage />
                   </ProtectedRoute>
                 }
               />
