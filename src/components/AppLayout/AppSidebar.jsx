@@ -76,7 +76,7 @@ const NAV_ITEMS_DEF = [
           { key: 'm-quality',          label: 'Quality',             disabled: true, adminOnly: true },
           { key: 'm-production-forms', label: 'Production Forms',    disabled: true, adminOnly: true },
           { key: 'm-set-sampling',     label: 'Set Sampling',        disabled: true, adminOnly: true },
-          { key: 'm-ctq',             label: 'Critical To Quality', disabled: true, adminOnly: true },
+          { key: 'm-ctq',              label: 'Critical To Quality', permission: 'production-quality-read' },
         ],
       },
       // ── Planning (SubMenu) ─────────────────────────
@@ -134,6 +134,7 @@ const KEY_TO_PATH = {
   'm-items':       '/masters/production/items',
   'm-cycle-time':  '/masters/production/cycle-time-rules',
   'm-downtime':    '/masters/production/downtime',
+  'm-ctq':         '/masters/production/ctq',
   'm-warehouses':      '/masters/inventory/warehouses',
   'm-tag-management':  '/masters/other/tag-management',
 };
@@ -150,6 +151,7 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/masters/production/items'))           return { selected: 'm-items',      open: ['masters', 'grp-production'] };
   if (pathname.startsWith('/masters/production/cycle-time-rules')) return { selected: 'm-cycle-time', open: ['masters', 'grp-production'] };
   if (pathname.startsWith('/masters/production/downtime'))        return { selected: 'm-downtime',   open: ['masters', 'grp-production'] };
+  if (pathname.startsWith('/masters/production/ctq'))            return { selected: 'm-ctq',        open: ['masters', 'grp-production'] };
   // Inventory sub-group
   if (pathname.startsWith('/masters/inventory/warehouses')) return { selected: 'm-warehouses', open: ['masters', 'grp-inventory'] };
   // Other sub-group

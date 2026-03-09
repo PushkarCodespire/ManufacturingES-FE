@@ -19,6 +19,7 @@ import MachinesPage       from './pages/Production/Machines';
 import ItemsPage          from './pages/Production/Items';
 import CycleTimeRulesPage from './pages/Production/CycleTimeRules';
 import DowntimePage       from './pages/Production/Downtime';
+import CTQPage            from './pages/Quality/CTQ';
 import TagManagementPage  from './pages/Masters/TagManagement';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
@@ -216,6 +217,16 @@ function App() {
                 element={
                   <ProtectedRoute permission="production-downtime-read">
                     <DowntimePage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Production — Critical To Quality */}
+              <Route
+                path="/masters/production/ctq"
+                element={
+                  <ProtectedRoute permission="production-quality-read">
+                    <CTQPage />
                   </ProtectedRoute>
                 }
               />
