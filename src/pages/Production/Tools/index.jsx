@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Typography, Table, Button, Form, Input, InputNumber, Select, Card, Modal,
+  Typography, Table, Button, Form, Input, InputNumber, Card, Modal,
   message, Tooltip,
 } from 'antd';
 import {
@@ -9,16 +9,15 @@ import {
   ExclamationCircleOutlined, InfoCircleOutlined, ClockCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { toolApi } from '../../../api/tool.api';
-import { tagApi }  from '../../../api/tag.api';
-import AppLayout   from '../../../components/AppLayout';
-import usePermissions from '../../../hooks/usePermissions';
+import { toolApi }          from '../../../api/tool.api';
+import { cycleTimeRuleApi } from '../../../api/cycleTimeRule.api';
+import AppLayout            from '../../../components/AppLayout';
+import usePermissions       from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
 
 const fmtDateTime = (iso) => (iso ? dayjs(iso).format('DD MMM YYYY HH:mm') : '—');
 
-/** Lightweight unique key helper for inline-table rows */
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -50,9 +49,7 @@ const ListView = ({
       key: 'multiplier',
       width: 120,
       render: (val) => (
-        <Text style={{ fontSize: 12, color: '#374151' }}>
-          {val != null ? val : '—'}
-        </Text>
+        <Text style={{ fontSize: 12, color: '#374151' }}>{val != null ? val : '—'}</Text>
       ),
     },
     {
@@ -131,7 +128,6 @@ const ListView = ({
 
   return (
     <>
-      {/* ── Breadcrumb + Title ──────────────────────────────────────────── */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
           <Text style={{ color: '#9ca3af', fontSize: 12 }}>Production</Text>
@@ -144,7 +140,6 @@ const ListView = ({
         </Text>
       </div>
 
-      {/* ── Card + Toolbar + Table ──────────────────────────────────────── */}
       <Card
         style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
         bodyStyle={{ padding: '16px 20px' }}
@@ -179,11 +174,7 @@ const ListView = ({
           columns={columns}
           dataSource={tools}
           loading={loading}
-          pagination={{
-            pageSize: 20,
-            showTotal: (t) => `${t} tools`,
-            style: { marginBottom: 0 },
-          }}
+          pagination={{ pageSize: 20, showTotal: (t) => `${t} tools`, style: { marginBottom: 0 } }}
           scroll={{ x: 1100 }}
           size="middle"
           style={{ borderRadius: 8, overflow: 'hidden' }}
@@ -202,29 +193,319 @@ const ListView = ({
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
+//  ADD RULES MODAL — select from Cycle Time Rules
+// ══════════════════════════════════════════════════════════════════════════════
+const AddRulesModal = ({ open, onClose, onSubmit }) => {
+  const [rules, setRules]           = useState([]);
+  const [loading, setLoading]       = useState(false);
+  const [selectedKeys, setSelected] = useState([]);
+
+  useEffect(() => {
+    if (!open) return;
+    setSelected([]);
+    setLoading(true);
+    cycleTimeRuleApi.getAll()
+      .then((res) => {
+        const list = Array.isArray(res) ? res : res?.data || [];
+        setRules(list);
+      })
+      .catch(() => message.error('Failed to load cycle time rules'))
+      .finally(() => setLoading(false));
+  }, [open]);
+
+  const columns = [
+    {
+      title: 'Machines',
+      dataIndex: 'machine_group_tag',
+      key: 'machine_group_tag',
+      render: (v) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+    },
+    {
+      title: 'Item',
+      dataIndex: 'item_group_tag',
+      key: 'item_group_tag',
+      render: (v) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+    },
+    {
+      title: 'Process',
+      key: 'process',
+      render: () => <Text style={{ fontSize: 12, color: '#9ca3af' }}>—</Text>,
+    },
+    {
+      title: 'Seconds',
+      dataIndex: 'seconds_per_unit',
+      key: 'seconds_per_unit',
+      render: (v) => <Text style={{ fontSize: 12 }}>{v != null ? v : '—'}</Text>,
+    },
+    {
+      title: 'Created At',
+      key: 'createdAt',
+      render: (_, r) => (
+        <div>
+          <Text style={{ fontSize: 12, color: '#374151', display: 'block' }}>{r.Creator?.name || '—'}</Text>
+          <Text style={{ fontSize: 11, color: '#9ca3af' }}>{fmtDateTime(r.createdAt)}</Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Last Updated At',
+      key: 'updatedAt',
+      render: (_, r) => (
+        <div>
+          <Text style={{ fontSize: 12, color: '#374151', display: 'block' }}>{r.Updater?.name || '—'}</Text>
+          <Text style={{ fontSize: 11, color: '#9ca3af' }}>{fmtDateTime(r.updatedAt)}</Text>
+        </div>
+      ),
+    },
+  ];
+
+  const handleSubmit = () => {
+    const picked = rules.filter((r) => selectedKeys.includes(r.id));
+    onSubmit(picked);
+    onClose();
+  };
+
+  return (
+    <Modal
+      title="Add Rules"
+      open={open}
+      onCancel={onClose}
+      width={820}
+      footer={[
+        <Button key="cancel" onClick={onClose}>Cancel</Button>,
+        <Button
+          key="submit"
+          type="primary"
+          onClick={handleSubmit}
+          disabled={selectedKeys.length === 0}
+          style={{ background: '#1d4ed8', borderRadius: 6 }}
+        >
+          Submit
+        </Button>,
+      ]}
+    >
+      <Table
+        rowKey="id"
+        columns={columns}
+        dataSource={rules}
+        loading={loading}
+        rowSelection={{
+          selectedRowKeys: selectedKeys,
+          onChange: (keys) => setSelected(keys),
+        }}
+        pagination={{ pageSize: 10, showTotal: (t) => `${t} rules` }}
+        size="middle"
+        style={{ marginTop: 8 }}
+        locale={{
+          emptyText: (
+            <div style={{ padding: '32px 0', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+              No data
+            </div>
+          ),
+        }}
+      />
+    </Modal>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  ADD SUB-TOOLS MODAL — lifetime & maintenance cycle entries
+// ══════════════════════════════════════════════════════════════════════════════
+const AddSubToolsModal = ({ open, onClose, onSubmit, existingEntries }) => {
+  const [rows, setRows]         = useState([]);
+  const [addCount, setAddCount] = useState(1);
+
+  // Initialise: always ensure a "parent" row at index 0
+  useEffect(() => {
+    if (!open) return;
+    const base = (existingEntries || []).map((e, i) => ({
+      ...e,
+      _key:      e._key || uid(),
+      is_parent: i === 0,
+    }));
+    if (base.length === 0) {
+      base.push({
+        _key:                     uid(),
+        tool_details:             '',
+        lifetime_strokes:         0,
+        maintenance_cycle_strokes: 0,
+        is_parent:                true,
+      });
+    }
+    setRows(base);
+    setAddCount(1);
+  }, [open, existingEntries]);
+
+  const updRow = (key, field, value) =>
+    setRows((prev) => prev.map((r) => (r._key === key ? { ...r, [field]: value } : r)));
+
+  const delRow = (key) =>
+    setRows((prev) => prev.filter((r) => r._key !== key));
+
+  const handleAddRows = () => {
+    const n = Math.max(1, Math.min(addCount || 1, 50));
+    const newRows = Array.from({ length: n }, () => ({
+      _key:                     uid(),
+      tool_details:             '',
+      lifetime_strokes:         null,
+      maintenance_cycle_strokes: null,
+      is_parent:                false,
+    }));
+    setRows((prev) => [...prev, ...newRows]);
+  };
+
+  const columns = [
+    {
+      title: 'Tool Details',
+      key: 'tool_details',
+      width: 160,
+      render: (_, row) => (
+        <Input
+          value={row.tool_details}
+          onChange={(e) => updRow(row._key, 'tool_details', e.target.value)}
+          size="small"
+          style={{ fontSize: 12 }}
+        />
+      ),
+    },
+    {
+      title: (
+        <span>
+          Lifetime (Number of strokes){' '}
+          <Tooltip title="Number of production strokes before this tool needs replacement">
+            <InfoCircleOutlined style={{ color: '#9ca3af', fontSize: 11 }} />
+          </Tooltip>
+        </span>
+      ),
+      key: 'lifetime_strokes',
+      width: 210,
+      render: (_, row) => (
+        <InputNumber
+          value={row.lifetime_strokes ?? 0}
+          onChange={(v) => updRow(row._key, 'lifetime_strokes', v)}
+          min={0}
+          size="small"
+          style={{ width: '100%' }}
+        />
+      ),
+    },
+    {
+      title: (
+        <span>
+          Maintenance Cycle (Number of strokes){' '}
+          <Tooltip title="Number of production strokes before scheduled maintenance">
+            <InfoCircleOutlined style={{ color: '#9ca3af', fontSize: 11 }} />
+          </Tooltip>
+        </span>
+      ),
+      key: 'maintenance_cycle_strokes',
+      width: 240,
+      render: (_, row) => (
+        <InputNumber
+          value={row.maintenance_cycle_strokes ?? 0}
+          onChange={(v) => updRow(row._key, 'maintenance_cycle_strokes', v)}
+          min={0}
+          size="small"
+          style={{ width: '100%' }}
+        />
+      ),
+    },
+    {
+      title: '',
+      key: 'action',
+      width: 70,
+      render: (_, row) =>
+        row.is_parent ? (
+          <Text style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 500 }}>Parent</Text>
+        ) : (
+          <Button
+            type="text" size="small" danger
+            icon={<DeleteOutlined />}
+            onClick={() => delRow(row._key)}
+          />
+        ),
+    },
+  ];
+
+  return (
+    <Modal
+      title="Add Sub-Tools"
+      open={open}
+      onCancel={onClose}
+      width={760}
+      footer={[
+        <Button key="cancel" onClick={onClose}>Cancel</Button>,
+        <Button
+          key="submit"
+          type="primary"
+          onClick={() => { onSubmit(rows); onClose(); }}
+          style={{ background: '#1d4ed8', borderRadius: 6 }}
+        >
+          Submit
+        </Button>,
+      ]}
+    >
+      <Table
+        rowKey="_key"
+        columns={columns}
+        dataSource={rows}
+        pagination={false}
+        size="small"
+        style={{ marginTop: 8, marginBottom: 12 }}
+        locale={{
+          emptyText: (
+            <div style={{ padding: '16px 0', color: '#9ca3af', textAlign: 'center', fontSize: 12 }}>
+              No data
+            </div>
+          ),
+        }}
+      />
+
+      {/* Add New Rows control */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '8px 12px',
+          border: '1px solid #e8eaed',
+          borderRadius: 6,
+          background: '#fafafa',
+        }}
+      >
+        <InputNumber
+          min={1} max={50}
+          value={addCount}
+          onChange={(v) => setAddCount(v)}
+          size="small"
+          style={{ width: 60 }}
+        />
+        <Button
+          type="link" size="small"
+          onClick={handleAddRows}
+          style={{ color: '#1d4ed8', fontWeight: 500, padding: 0 }}
+        >
+          Add New Rows
+        </Button>
+      </div>
+    </Modal>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
 //  ADD / EDIT / VIEW FORM
 // ══════════════════════════════════════════════════════════════════════════════
 const FormView = ({ tool, onBack, onSaved, canWrite }) => {
   const [form]            = Form.useForm();
-  const [saving, setSaving]             = useState(false);
-  const [allTags, setAllTags]           = useState([]);
-  const [linkedRules, setLinkedRules]   = useState([]);
-  const [lifetimeEntries, setLifetime]  = useState([]);
+  const [saving, setSaving]               = useState(false);
+  const [linkedRules, setLinkedRules]     = useState([]);
+  const [lifetimeEntries, setLifetime]    = useState([]);
+  const [rulesModalOpen, setRulesModal]   = useState(false);
+  const [subToolsOpen, setSubToolsOpen]   = useState(false);
 
   const isEdit     = !!tool;
   const isReadOnly = !canWrite;
 
-  // ── Load tags for Machine Group / Item selects ───────────────────────────
-  useEffect(() => {
-    tagApi.getAll()
-      .then((res) => {
-        const list = Array.isArray(res) ? res : res?.data || [];
-        setAllTags(list);
-      })
-      .catch(() => {});
-  }, []);
-
-  // ── Pre-fill for edit ────────────────────────────────────────────────────
   useEffect(() => {
     if (tool) {
       form.setFieldsValue({
@@ -240,31 +521,25 @@ const FormView = ({ tool, onBack, onSaved, canWrite }) => {
     }
   }, [tool, form]);
 
-  // ── Linked Rules helpers ─────────────────────────────────────────────────
-  const addLinkedRule = () =>
-    setLinkedRules((prev) => [
-      ...prev,
-      { _key: uid(), machine_group_tag: null, item_tag: null, process: '', seconds_per_unit: null },
-    ]);
+  // Called when user picks rules from the Add Rules modal
+  const handleRulesSelected = (pickedRules) => {
+    const newRules = pickedRules.map((r) => ({
+      _key:              uid(),
+      machine_group_tag: r.machine_group_tag,
+      item_tag:          r.item_group_tag,
+      process:           '',
+      seconds_per_unit:  r.seconds_per_unit,
+      rule_id:           r.id,
+    }));
+    setLinkedRules((prev) => {
+      const existingIds = new Set(prev.map((p) => p.rule_id).filter(Boolean));
+      const unique = newRules.filter((nr) => !existingIds.has(nr.rule_id));
+      return [...prev, ...unique];
+    });
+  };
 
-  const updRule = (key, field, value) =>
-    setLinkedRules((prev) => prev.map((r) => (r._key === key ? { ...r, [field]: value } : r)));
+  const delLinkedRule = (key) => setLinkedRules((prev) => prev.filter((r) => r._key !== key));
 
-  const delRule = (key) => setLinkedRules((prev) => prev.filter((r) => r._key !== key));
-
-  // ── Lifetime Entry helpers ───────────────────────────────────────────────
-  const addLifetimeEntry = () =>
-    setLifetime((prev) => [
-      ...prev,
-      { _key: uid(), tool_details: '', lifetime_strokes: null, maintenance_cycle_strokes: null },
-    ]);
-
-  const updEntry = (key, field, value) =>
-    setLifetime((prev) => prev.map((e) => (e._key === key ? { ...e, [field]: value } : e)));
-
-  const delEntry = (key) => setLifetime((prev) => prev.filter((e) => e._key !== key));
-
-  // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async (values) => {
     setSaving(true);
     try {
@@ -293,160 +568,80 @@ const FormView = ({ tool, onBack, onSaved, canWrite }) => {
     }
   };
 
-  const tagOptions = allTags.map((t) => ({ label: t.name, value: t.name }));
-
-  // ── Linked Rules columns ─────────────────────────────────────────────────
+  // Linked Rules display columns
   const linkedRuleColumns = [
     {
       title: 'Machine Group',
-      key:   'machine_group_tag',
-      width: 160,
-      render: (_, row) => (
-        <Select
-          value={row.machine_group_tag || undefined}
-          onChange={(v) => updRule(row._key, 'machine_group_tag', v)}
-          options={tagOptions}
-          placeholder="Select"
-          showSearch
-          size="small"
-          style={{ width: '100%' }}
-          disabled={isReadOnly}
-          filterOption={(inp, opt) => (opt?.label || '').toLowerCase().includes(inp.toLowerCase())}
-        />
-      ),
+      dataIndex: 'machine_group_tag',
+      key: 'machine_group_tag',
+      render: (v) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
     },
     {
       title: 'Item',
-      key:   'item_tag',
-      width: 150,
-      render: (_, row) => (
-        <Select
-          value={row.item_tag || undefined}
-          onChange={(v) => updRule(row._key, 'item_tag', v)}
-          options={tagOptions}
-          placeholder="Select"
-          showSearch
-          size="small"
-          style={{ width: '100%' }}
-          disabled={isReadOnly}
-          filterOption={(inp, opt) => (opt?.label || '').toLowerCase().includes(inp.toLowerCase())}
-        />
-      ),
+      dataIndex: 'item_tag',
+      key: 'item_tag',
+      render: (v) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
     },
     {
       title: 'Process',
-      key:   'process',
-      width: 130,
-      render: (_, row) => (
-        <Input
-          value={row.process}
-          onChange={(e) => updRule(row._key, 'process', e.target.value)}
-          size="small"
-          disabled={isReadOnly}
-        />
-      ),
+      dataIndex: 'process',
+      key: 'process',
+      render: (v) => <Text style={{ fontSize: 12, color: '#9ca3af' }}>{v || '—'}</Text>,
     },
     {
       title: 'Seconds',
-      key:   'seconds_per_unit',
-      width: 90,
-      render: (_, row) => (
-        <InputNumber
-          value={row.seconds_per_unit}
-          onChange={(v) => updRule(row._key, 'seconds_per_unit', v)}
-          min={0}
-          size="small"
-          style={{ width: '100%' }}
-          disabled={isReadOnly}
-        />
-      ),
+      dataIndex: 'seconds_per_unit',
+      key: 'seconds_per_unit',
+      render: (v) => <Text style={{ fontSize: 12 }}>{v != null ? v : '—'}</Text>,
     },
     {
       title: '',
-      key:   'del',
-      width: 36,
+      key: 'del',
+      width: 40,
       render: (_, row) =>
         !isReadOnly && (
           <Button
             type="text" size="small" danger
             icon={<DeleteOutlined />}
-            onClick={() => delRule(row._key)}
+            onClick={() => delLinkedRule(row._key)}
           />
         ),
     },
   ];
 
-  // ── Lifetime columns ─────────────────────────────────────────────────────
-  const lifetimeColumns = [
+  // Lifetime display columns (read-only in main panel)
+  const lifetimeDisplayColumns = [
     {
       title: 'Tool Details',
-      key:   'tool_details',
-      width: 160,
-      render: (_, row) => (
-        <Input
-          value={row.tool_details}
-          onChange={(e) => updEntry(row._key, 'tool_details', e.target.value)}
-          size="small"
-          disabled={isReadOnly}
-        />
-      ),
+      dataIndex: 'tool_details',
+      key: 'tool_details',
+      render: (v) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
     },
     {
       title: (
         <span>
           Lifetime (Number of strokes){' '}
-          <Tooltip title="Number of production strokes before this tool needs replacement">
-            <InfoCircleOutlined style={{ color: '#9ca3af', fontSize: 12 }} />
+          <Tooltip title="Strokes before replacement">
+            <InfoCircleOutlined style={{ color: '#9ca3af', fontSize: 11 }} />
           </Tooltip>
         </span>
       ),
+      dataIndex: 'lifetime_strokes',
       key: 'lifetime_strokes',
-      width: 210,
-      render: (_, row) => (
-        <InputNumber
-          value={row.lifetime_strokes}
-          onChange={(v) => updEntry(row._key, 'lifetime_strokes', v)}
-          min={0}
-          size="small"
-          style={{ width: '100%' }}
-          disabled={isReadOnly}
-        />
-      ),
+      render: (v) => <Text style={{ fontSize: 12 }}>{v != null ? Number(v).toLocaleString() : '—'}</Text>,
     },
     {
       title: (
         <span>
           Maintenance Cycle (Number of strokes){' '}
-          <Tooltip title="Number of production strokes before scheduled maintenance">
-            <InfoCircleOutlined style={{ color: '#9ca3af', fontSize: 12 }} />
+          <Tooltip title="Strokes before maintenance">
+            <InfoCircleOutlined style={{ color: '#9ca3af', fontSize: 11 }} />
           </Tooltip>
         </span>
       ),
+      dataIndex: 'maintenance_cycle_strokes',
       key: 'maintenance_cycle_strokes',
-      width: 250,
-      render: (_, row) => (
-        <InputNumber
-          value={row.maintenance_cycle_strokes}
-          onChange={(v) => updEntry(row._key, 'maintenance_cycle_strokes', v)}
-          min={0}
-          size="small"
-          style={{ width: '100%' }}
-          disabled={isReadOnly}
-        />
-      ),
-    },
-    {
-      title: '',
-      key:   'del',
-      width: 36,
-      render: (_, row) =>
-        !isReadOnly && (
-          <Button
-            type="text" size="small" danger
-            icon={<DeleteOutlined />}
-            onClick={() => delEntry(row._key)}
-          />
-        ),
+      render: (v) => <Text style={{ fontSize: 12 }}>{v != null ? Number(v).toLocaleString() : '—'}</Text>,
     },
   ];
 
@@ -496,11 +691,7 @@ const FormView = ({ tool, onBack, onSaved, canWrite }) => {
               name="multiplier"
               style={{ marginBottom: 20 }}
             >
-              <InputNumber
-                min={0}
-                step={0.01}
-                style={{ width: '100%', borderRadius: 6 }}
-              />
+              <InputNumber min={0} step={0.01} style={{ width: '100%', borderRadius: 6 }} />
             </Form.Item>
 
             {/* Linked Rules */}
@@ -509,9 +700,8 @@ const FormView = ({ tool, onBack, onSaved, canWrite }) => {
                 <Text style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Linked Rules</Text>
                 {!isReadOnly && (
                   <Button
-                    type="link"
-                    size="small"
-                    onClick={addLinkedRule}
+                    type="link" size="small"
+                    onClick={() => setRulesModal(true)}
                     style={{ color: '#1d4ed8', fontWeight: 500, padding: 0 }}
                   >
                     + Rules
@@ -537,15 +727,7 @@ const FormView = ({ tool, onBack, onSaved, canWrite }) => {
 
             {/* Audit info for edit */}
             {isEdit && (
-              <div
-                style={{
-                  background: '#f9fafb',
-                  borderRadius: 8,
-                  padding: '12px 16px',
-                  marginBottom: 20,
-                  border: '1px solid #f0f0f0',
-                }}
-              >
+              <div style={{ background: '#f9fafb', borderRadius: 8, padding: '12px 16px', marginBottom: 20, border: '1px solid #f0f0f0' }}>
                 <div style={{ display: 'flex', gap: 32 }}>
                   <div>
                     <Text style={{ color: '#9ca3af', fontSize: 11, display: 'block' }}>Created By</Text>
@@ -561,7 +743,7 @@ const FormView = ({ tool, onBack, onSaved, canWrite }) => {
               </div>
             )}
 
-            {/* Submit / Edit button */}
+            {/* Submit / Edit */}
             {!isReadOnly && (
               <Button
                 type="primary"
@@ -575,42 +757,26 @@ const FormView = ({ tool, onBack, onSaved, canWrite }) => {
           </Form>
         </div>
 
-        {/* RIGHT PANEL — Lifetime & Maintenance cycle */}
+        {/* RIGHT PANEL */}
         <div style={{ flex: '1 1 44%', minWidth: 0 }}>
-          <div
-            style={{
-              border: '1px solid #e8eaed',
-              borderRadius: 12,
-              padding: '16px',
-              background: '#ffffff',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 12,
-              }}
-            >
+          <div style={{ border: '1px solid #e8eaed', borderRadius: 12, padding: '16px', background: '#ffffff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <Text style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
                 Lifetime &amp; Maintenance cycle
               </Text>
               {!isReadOnly && (
                 <Button
-                  type="link"
-                  size="small"
-                  onClick={addLifetimeEntry}
+                  type="link" size="small"
+                  onClick={() => setSubToolsOpen(true)}
                   style={{ color: '#1d4ed8', fontWeight: 500, padding: 0 }}
                 >
                   + Add
                 </Button>
               )}
             </div>
-
             <Table
               rowKey="_key"
-              columns={lifetimeColumns}
+              columns={lifetimeDisplayColumns}
               dataSource={lifetimeEntries}
               pagination={false}
               size="small"
@@ -625,8 +791,20 @@ const FormView = ({ tool, onBack, onSaved, canWrite }) => {
             />
           </div>
         </div>
-
       </div>
+
+      {/* Modals */}
+      <AddRulesModal
+        open={rulesModalOpen}
+        onClose={() => setRulesModal(false)}
+        onSubmit={handleRulesSelected}
+      />
+      <AddSubToolsModal
+        open={subToolsOpen}
+        onClose={() => setSubToolsOpen(false)}
+        onSubmit={(entries) => setLifetime(entries)}
+        existingEntries={lifetimeEntries}
+      />
     </div>
   );
 };
@@ -638,10 +816,10 @@ const ToolsPage = () => {
   const { can }  = usePermissions();
   const canWrite = can('production-tools-create_edit_delete');
 
-  const [view, setView]               = useState('list');
-  const [tools, setTools]             = useState([]);
-  const [loading, setLoading]         = useState(false);
-  const [search, setSearch]           = useState('');
+  const [view, setView]                 = useState('list');
+  const [tools, setTools]               = useState([]);
+  const [loading, setLoading]           = useState(false);
+  const [search, setSearch]             = useState('');
   const [selectedTool, setSelectedTool] = useState(null);
 
   const fetchTools = useCallback(async () => {
@@ -662,9 +840,7 @@ const ToolsPage = () => {
     if (!search.trim()) return tools;
     const q = search.toLowerCase();
     return tools.filter(
-      (r) =>
-        r.name?.toLowerCase().includes(q) ||
-        r.code?.toLowerCase().includes(q)
+      (r) => r.name?.toLowerCase().includes(q) || r.code?.toLowerCase().includes(q)
     );
   }, [tools, search]);
 
@@ -675,11 +851,9 @@ const ToolsPage = () => {
 
   const handleDelete = (tool) => {
     Modal.confirm({
-      title:      'Delete Tool',
-      content:    `Are you sure you want to delete "${tool.name}"?`,
-      okText:     'Delete',
-      okType:     'danger',
-      cancelText: 'Cancel',
+      title:   'Delete Tool',
+      content: `Are you sure you want to delete "${tool.name}"?`,
+      okText: 'Delete', okType: 'danger', cancelText: 'Cancel',
       onOk: async () => {
         try {
           await toolApi.delete(tool.id);
