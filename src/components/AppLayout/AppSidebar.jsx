@@ -71,7 +71,7 @@ const NAV_ITEMS_DEF = [
           { key: 'm-machines',         label: 'Machines',            permission: 'production-machines-read' },
           { key: 'm-items',            label: 'Items',               permission: 'production-items-read' },
           { key: 'm-cycle-time',       label: 'Cycle Time Rules',    permission: 'production-items-read' },
-          { key: 'm-tools',            label: 'Tools',               disabled: true, adminOnly: true },
+          { key: 'm-tools',            label: 'Tools',               permission: 'production-tools-read' },
           { key: 'm-downtime',         label: 'Downtime',            permission: 'production-downtime-read' },
           { key: 'm-quality',          label: 'Quality',             permission: 'production-quality-read' },
           { key: 'm-production-forms', label: 'Production Forms',    permission: 'production-production_forms-read' },
@@ -134,6 +134,7 @@ const KEY_TO_PATH = {
   'm-items':            '/masters/production/items',
   'm-production-forms': '/masters/production/production-forms',
   'm-cycle-time':       '/masters/production/cycle-time-rules',
+  'm-tools':            '/masters/production/tools',
   'm-downtime':         '/masters/production/downtime',
   'm-quality':          '/masters/production/quality',
   'm-warehouses':      '/masters/inventory/warehouses',
@@ -161,6 +162,7 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/masters/production/items'))            return { selected: 'm-items',            open: ['masters', 'grp-production'] };
   if (pathname.startsWith('/masters/production/production-forms')) return { selected: 'm-production-forms', open: ['masters', 'grp-production'] };
   if (pathname.startsWith('/masters/production/cycle-time-rules')) return { selected: 'm-cycle-time',       open: ['masters', 'grp-production'] };
+  if (pathname.startsWith('/masters/production/tools'))            return { selected: 'm-tools',            open: ['masters', 'grp-production'] };
   if (pathname.startsWith('/masters/production/downtime'))         return { selected: 'm-downtime',         open: ['masters', 'grp-production'] };
   if (pathname.startsWith('/masters/production/quality'))          return { selected: 'm-quality',          open: ['masters', 'grp-production'] };
   // Inventory sub-group

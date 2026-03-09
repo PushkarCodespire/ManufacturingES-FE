@@ -29,6 +29,7 @@ import CustomFieldsPage     from './pages/Masters/Inventory/CustomFields';
 import IntegrationsPage     from './pages/Masters/Integrations';
 import TemplatesPage        from './pages/Masters/Other/Templates';
 import ProductionFormsPage  from './pages/Production/ProductionForms';
+import ToolsPage            from './pages/Production/Tools';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
@@ -224,6 +225,16 @@ function App() {
                 element={
                   <ProtectedRoute permission="production-items-read">
                     <CycleTimeRulesPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Production — Tools */}
+              <Route
+                path="/masters/production/tools"
+                element={
+                  <ProtectedRoute permission="production-tools-read">
+                    <ToolsPage />
                   </ProtectedRoute>
                 }
               />
