@@ -83,8 +83,9 @@ const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew,
       width: 260,
       render: (_, r) => {
         const tags = [
-          ...(r.machine_group_tags || []),
           ...(r.item_group_tags || []),
+          ...(r.machine_group_tags || []),
+          ...(r.iot_device_tags || []),
         ];
         return tags.length > 0
           ? <Text style={{ fontSize: 12, color: '#374151' }}>{tags.join(', ')}</Text>
@@ -1000,6 +1001,7 @@ const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshP
       </div>
 
       {/* 3-column layout */}
+      <Form form={form} layout="vertical" disabled={!editing}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, alignItems: 'start' }}>
         {/* ── Column 1: Machine Details ─────────────────────── */}
         <div style={{
@@ -1052,7 +1054,6 @@ const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshP
             Planning
           </Text>
 
-          <Form form={form} layout="vertical" disabled={!editing}>
             <Text style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 8 }}>Production Against</Text>
             <Form.Item name="production_against" style={{ marginBottom: 16 }}>
               <Radio.Group>
@@ -1120,7 +1121,6 @@ const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshP
             <Form.Item name="min_batch_quantity" label="Minimum Batch Quantity" style={{ marginBottom: 12 }}>
               <Input type="number" placeholder="0" style={{ borderRadius: 6 }} />
             </Form.Item>
-          </Form>
         </div>
 
         {/* ── Column 3: Production ─────────────────────────── */}
@@ -1136,7 +1136,6 @@ const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshP
             Production Configuration
           </Text>
 
-          <Form form={form} disabled={!editing}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
               {[
                 { name: 'weighted_production', label: 'Weighted Production', info: true },
@@ -1155,7 +1154,6 @@ const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshP
                 </div>
               ))}
             </div>
-          </Form>
 
           <Text style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 10 }}>
             Production Parameters
@@ -1245,6 +1243,7 @@ const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshP
           </Button>
         </div>
       </div>
+      </Form>
 
       {/* Edit Button (fixed bottom-left like reference) */}
       {canWrite && (
@@ -1399,7 +1398,7 @@ const MachinesPage = () => {
           machine={selected}
           parameters={parameters}
           tags={tags}
-          onBack={() => { setView('list'); setSelected(null); }}
+          onBack={() => { setView('list'); setSelected(null); fetchMachines(); }}
           onRefresh={refreshSelected}
           onRefreshParams={fetchParameters}
           canWrite={canWrite}
