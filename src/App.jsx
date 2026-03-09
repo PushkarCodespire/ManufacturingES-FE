@@ -17,6 +17,8 @@ import ShiftsPage         from './pages/Masters/Shifts';
 import WarehousesPage     from './pages/Masters/Warehouses';
 import MachinesPage       from './pages/Production/Machines';
 import ItemsPage          from './pages/Production/Items';
+import CycleTimeRulesPage from './pages/Production/CycleTimeRules';
+import DowntimePage       from './pages/Production/Downtime';
 import TagManagementPage  from './pages/Masters/TagManagement';
 import VendorsPage          from './pages/Masters/Planning/Vendors';
 import CustomersPage        from './pages/Masters/Planning/Customers';
@@ -212,6 +214,25 @@ function App() {
                 element={
                   <ProtectedRoute permission="production-production_forms-read">
                     <ProductionFormsPage />
+                  </ProtectedRoute>
+                }
+              />  
+              {/* Masters — Production — Cycle Time Rules */}
+              <Route
+                path="/masters/production/cycle-time-rules"
+                element={
+                  <ProtectedRoute permission="production-items-read">
+                    <CycleTimeRulesPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Production — Downtime */}
+              <Route
+                path="/masters/production/downtime"
+                element={
+                  <ProtectedRoute permission="production-downtime-read">
+                    <DowntimePage />
                   </ProtectedRoute>
                 }
               />

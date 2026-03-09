@@ -70,9 +70,9 @@ const NAV_ITEMS_DEF = [
         children: [
           { key: 'm-machines',         label: 'Machines',            permission: 'production-machines-read' },
           { key: 'm-items',            label: 'Items',               permission: 'production-items-read' },
-          { key: 'm-cycle-time',       label: 'Cycle Time Rules',    disabled: true, adminOnly: true },
+          { key: 'm-cycle-time',       label: 'Cycle Time Rules',    permission: 'production-items-read' },
           { key: 'm-tools',            label: 'Tools',               disabled: true, adminOnly: true },
-          { key: 'm-downtime',         label: 'Downtime',            disabled: true, adminOnly: true },
+          { key: 'm-downtime',         label: 'Downtime',            permission: 'production-downtime-read' },
           { key: 'm-quality',          label: 'Quality',             disabled: true, adminOnly: true },
           { key: 'm-production-forms', label: 'Production Forms',    permission: 'production-production_forms-read' },
           { key: 'm-set-sampling',     label: 'Set Sampling',        disabled: true, adminOnly: true },
@@ -133,6 +133,8 @@ const KEY_TO_PATH = {
   'm-machines':         '/masters/production/machines',
   'm-items':            '/masters/production/items',
   'm-production-forms': '/masters/production/production-forms',
+  'm-cycle-time':       '/masters/production/cycle-time-rules',
+  'm-downtime':         '/masters/production/downtime',
   'm-warehouses':      '/masters/inventory/warehouses',
   'm-tag-management':  '/masters/other/tag-management',
   'm-templates':       '/masters/other/templates',
@@ -157,6 +159,8 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/masters/production/machines'))         return { selected: 'm-machines',         open: ['masters', 'grp-production'] };
   if (pathname.startsWith('/masters/production/items'))            return { selected: 'm-items',            open: ['masters', 'grp-production'] };
   if (pathname.startsWith('/masters/production/production-forms')) return { selected: 'm-production-forms', open: ['masters', 'grp-production'] };
+  if (pathname.startsWith('/masters/production/cycle-time-rules')) return { selected: 'm-cycle-time',       open: ['masters', 'grp-production'] };
+  if (pathname.startsWith('/masters/production/downtime'))         return { selected: 'm-downtime',         open: ['masters', 'grp-production'] };
   // Inventory sub-group
   if (pathname.startsWith('/masters/inventory/warehouses')) return { selected: 'm-warehouses', open: ['masters', 'grp-inventory'] };
   // Other sub-group
