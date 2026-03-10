@@ -9,7 +9,7 @@ When building any new feature page, complete **all 6 steps** in order:
 
 ### Step 1: Add Permission Tree Data (if new module)
 - Open `src/pages/Masters/Employees/EmployeeDetail.jsx`
-- Add your feature's entries to the correct tree (`mastersTree`, `storeTree`, `productionTree`, or `planningTree`)
+- Add your feature's entries to the correct tree (`mastersTree`, `storeTree`, `productionTree`, `ordersTree`, or `procurementTree`)
 - Use the helper functions: `leaf(parentKey, label, perms)` with standard perm arrays:
   ```js
   const stdPerms = ['Read', 'Create/Edit/Delete'];
@@ -190,7 +190,8 @@ Examples:
 | `sites-`, `production-`, `planning-`, `inventory-`, `other-` | Masters | `mastersChecked` |
 | `store-` | Store | `storeChecked` |
 | `prod-` (NOT `production-`) | Production | `productionChecked` |
-| `plan-` (NOT `planning-`) | Planning | `planningChecked` |
+| `plan-orders-`, `plan-sales-order-` | Orders | `ordersChecked` |
+| other `plan-` (NOT `planning-`) | Procurement | `procurementChecked` |
 
 ### Standard permission types
 | Array | Keys generated |

@@ -32,6 +32,23 @@ import TemplatesPage        from './pages/Masters/Other/Templates';
 import ReportsPage          from './pages/Masters/Other/Reports';
 import ProductionFormsPage  from './pages/Production/ProductionForms';
 import ToolsPage            from './pages/Production/Tools';
+import RFQPage              from './pages/Orders/RFQ';
+import QuotationPage        from './pages/Orders/Quotation';
+import CustomerPOPage       from './pages/Orders/CustomerPO';
+import OrderTrackingPage    from './pages/Orders/Tracking';
+import GRNPage              from './pages/Store/GRN';
+import MaterialRequestPage  from './pages/Store/MaterialRequest';
+import IssueSlipPage        from './pages/Store/IssueSlip';
+import StockLedgerPage      from './pages/Store/StockLedger';
+import StockAdjustmentPage  from './pages/Store/StockAdjustment';
+import WorkOrdersPage        from './pages/Production/WorkOrders';
+import JobCardsPage          from './pages/Production/JobCards';
+import LQCPage               from './pages/Production/LQC';
+import SchedulingPage        from './pages/Production/Scheduling';
+import ScrapVoucherPage      from './pages/Production/ScrapVoucher';
+import PurchaseOrdersPage    from './pages/Procurement/PurchaseOrders';
+import OutwardChallanPage    from './pages/Subcontracting/OutwardChallan';
+import InwardChallanPage     from './pages/Subcontracting/InwardChallan';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
@@ -359,6 +376,96 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
+              {/* ── Orders Module ──────────────────────────────────────────── */}
+              <Route
+                path="/orders/rfq"
+                element={
+                  <ProtectedRoute permission="plan-orders-rfq-read">
+                    <RFQPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/orders/quotation"
+                element={
+                  <ProtectedRoute permission="plan-orders-quotation-read">
+                    <QuotationPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/orders/customer-po"
+                element={
+                  <ProtectedRoute permission="plan-orders-customer_po-read">
+                    <CustomerPOPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/orders/tracking"
+                element={
+                  <ProtectedRoute permission="plan-orders-order_tracking-read">
+                    <OrderTrackingPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* ── Store Module ────────────────────────────────────────────── */}
+              <Route
+                path="/store/grn"
+                element={
+                  <ProtectedRoute permission="store-transactions-grn-read">
+                    <GRNPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/store/issue-slip"
+                element={
+                  <ProtectedRoute permission="store-transactions-issue_slip-read">
+                    <IssueSlipPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/store/material-request"
+                element={
+                  <ProtectedRoute permission="store-requests-material_request-read">
+                    <MaterialRequestPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/store/stock-ledger"
+                element={
+                  <ProtectedRoute permission="store-inventory-stock_ledger-read">
+                    <StockLedgerPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/store/stock-adjustment"
+                element={
+                  <ProtectedRoute permission="store-inventory-stock_adjustment-read">
+                    <StockAdjustmentPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* ── Production Module ─────────────────────────────────────────── */}
+              <Route path="/production/work-orders" element={<ProtectedRoute permission="prod-work_centre-manage_work_centre-read"><WorkOrdersPage /></ProtectedRoute>} />
+              <Route path="/production/job-cards" element={<ProtectedRoute permission="prod-dpr-daily_production_report-read"><JobCardsPage /></ProtectedRoute>} />
+              <Route path="/production/lqc" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><LQCPage /></ProtectedRoute>} />
+              <Route path="/production/scheduling" element={<ProtectedRoute permission="prod-mrp_expected_production-create_plan-read"><SchedulingPage /></ProtectedRoute>} />
+              <Route path="/production/scrap" element={<ProtectedRoute permission="prod-dpr-rejection_entry-read"><ScrapVoucherPage /></ProtectedRoute>} />
+
+              {/* ── Procurement Module ─────────────────────────────────────────── */}
+              <Route path="/procurement/purchase-orders" element={<ProtectedRoute permission="plan-po-create_po-read"><PurchaseOrdersPage /></ProtectedRoute>} />
+
+              {/* ── Subcontracting Module ──────────────────────────────────────── */}
+              <Route path="/subcontracting/outward" element={<ProtectedRoute permission="plan-subcontracting-outward_challan-read"><OutwardChallanPage /></ProtectedRoute>} />
+              <Route path="/subcontracting/inward" element={<ProtectedRoute permission="plan-subcontracting-inward_challan-read"><InwardChallanPage /></ProtectedRoute>} />
 
               {/* Catch-all */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

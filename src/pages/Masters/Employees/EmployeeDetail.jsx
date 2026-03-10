@@ -19,6 +19,8 @@ import {
   CheckCircleOutlined,
   ApartmentOutlined,
   ShopOutlined,
+  ShoppingCartOutlined,
+  SolutionOutlined,
   SettingOutlined,
   TeamOutlined,
   ToolOutlined,
@@ -217,11 +219,11 @@ const productionTreeData = [
   },
   {
     title: 'MRP/Expected Production',
-    key: 'prod-mrp',
+    key: 'prod-mrp_expected_production',
     children: [
-      leaf('prod-mrp', 'View Plan',     ['Read']),
-      leaf('prod-mrp', 'Create Plan',   stdPerms),
-      leaf('prod-mrp', 'Download Plan', ['Read', 'Download']),
+      leaf('prod-mrp_expected_production', 'View Plan',     ['Read']),
+      leaf('prod-mrp_expected_production', 'Create Plan',   stdPerms),
+      leaf('prod-mrp_expected_production', 'Download Plan', ['Read', 'Download']),
     ],
   },
   {
@@ -236,10 +238,10 @@ const productionTreeData = [
   },
   {
     title: 'Work Centre',
-    key: 'prod-workcentre',
+    key: 'prod-work_centre',
     children: [
-      leaf('prod-workcentre', 'View Work Centre',   ['Read']),
-      leaf('prod-workcentre', 'Manage Work Centre',  stdPerms),
+      leaf('prod-work_centre', 'View Work Centre',   ['Read']),
+      leaf('prod-work_centre', 'Manage Work Centre',  stdPerms),
     ],
   },
   {
@@ -270,12 +272,12 @@ const productionTreeData = [
   },
   {
     title: 'Quality Level',
-    key: 'prod-quality',
+    key: 'prod-quality_level',
     children: [
-      leaf('prod-quality', 'IQC',    stdPerms),
-      leaf('prod-quality', 'PQC',    stdPerms),
-      leaf('prod-quality', 'OQC',    stdPerms),
-      leaf('prod-quality', 'CAPA',   stdPerms),
+      leaf('prod-quality_level', 'IQC',    stdPerms),
+      leaf('prod-quality_level', 'PQC',    stdPerms),
+      leaf('prod-quality_level', 'OQC',    stdPerms),
+      leaf('prod-quality_level', 'CAPA',   stdPerms),
     ],
   },
   {
@@ -299,7 +301,18 @@ const productionTreeData = [
   },
 ];
 
-const planningTreeData = [
+// ── Orders Access tree (matches sidebar "Orders" top-level module) ──────────
+const ordersTreeData = [
+  {
+    title: 'Orders',
+    key: 'plan-orders',
+    children: [
+      leaf('plan-orders', 'RFQ',            stdPerms),
+      leaf('plan-orders', 'Quotation',      stdPerms),
+      leaf('plan-orders', 'Customer PO',    stdPerms),
+      leaf('plan-orders', 'Order Tracking', ['Read', 'Download']),
+    ],
+  },
   {
     title: 'Sales Order',
     key: 'plan-sales-order',
@@ -308,14 +321,10 @@ const planningTreeData = [
       leaf('plan-sales-order', 'Sales Order History',  ['Read', 'Download']),
     ],
   },
-  {
-    title: 'Customer / Vendor',
-    key: 'plan-customer-vendor',
-    children: [
-      leaf('plan-customer-vendor', 'Customers',  stdPerms),
-      leaf('plan-customer-vendor', 'Vendors',    stdPerms),
-    ],
-  },
+];
+
+// ── Procurement Access tree (matches sidebar "Procurement" top-level module) ─
+const procurementTreeData = [
   {
     title: 'Purchase Order',
     key: 'plan-po',
@@ -323,6 +332,23 @@ const planningTreeData = [
       leaf('plan-po', 'Create PO',   stdPerms),
       leaf('plan-po', 'Approve PO',  ['Read', 'Approve/Reject']),
       leaf('plan-po', 'PO Reports',  ['Read', 'Download']),
+    ],
+  },
+  {
+    title: 'Subcontracting',
+    key: 'plan-subcontracting',
+    children: [
+      leaf('plan-subcontracting', 'Outward Challan',  stdPerms),
+      leaf('plan-subcontracting', 'Inward Challan',   stdPerms),
+      leaf('plan-subcontracting', 'Download',         ['Read', 'Download']),
+    ],
+  },
+  {
+    title: 'Customer / Vendor',
+    key: 'plan-customer-vendor',
+    children: [
+      leaf('plan-customer-vendor', 'Customers',  stdPerms),
+      leaf('plan-customer-vendor', 'Vendors',    stdPerms),
     ],
   },
   {
@@ -339,15 +365,6 @@ const planningTreeData = [
     children: [
       leaf('plan-production-board', 'View Board',   ['Read']),
       leaf('plan-production-board', 'Manage Board',  stdPerms),
-    ],
-  },
-  {
-    title: 'Subcontracting',
-    key: 'plan-subcontracting',
-    children: [
-      leaf('plan-subcontracting', 'Outward Challan',  stdPerms),
-      leaf('plan-subcontracting', 'Inward Challan',   stdPerms),
-      leaf('plan-subcontracting', 'Download',         ['Read', 'Download']),
     ],
   },
   {
@@ -486,19 +503,21 @@ const EmployeeDetailPage = () => {
   const [allWarehouses, setAllWarehouses] = useState([]);
   const [filteredRoles, setFilteredRoles] = useState([]);
 
-  // Access tree checked keys (per tab)
-  const [mastersChecked,    setMastersChecked]    = useState([]);
-  const [storeChecked,      setStoreChecked]      = useState([]);
-  const [productionChecked, setProductionChecked] = useState([]);
-  const [planningChecked,   setPlanningChecked]   = useState([]);
-  const [savingPerms,       setSavingPerms]       = useState(false);
+  // Access tree checked keys (per tab — mirrors sidebar top-level modules)
+  const [mastersChecked,     setMastersChecked]     = useState([]);
+  const [storeChecked,       setStoreChecked]       = useState([]);
+  const [productionChecked,  setProductionChecked]  = useState([]);
+  const [ordersChecked,      setOrdersChecked]      = useState([]);  // sidebar "Orders"
+  const [procurementChecked, setProcurementChecked] = useState([]);  // sidebar "Procurement"
+  const [savingPerms,        setSavingPerms]        = useState(false);
 
   // ── Permission key prefix splitters ────────────────────────────────────
-  const MASTERS_ROOTS = ['sites', 'production', 'planning', 'inventory', 'other'];
-  const isMastersKey  = (k) => MASTERS_ROOTS.some((r) => k === r || k.startsWith(`${r}-`));
-  const isStoreKey    = (k) => k.startsWith('store');
-  const isProdKey     = (k) => k.startsWith('prod-');  // prod- ≠ production- (masters)
-  const isPlanKey     = (k) => k.startsWith('plan-');  // plan- ≠ planning- (masters)
+  const MASTERS_ROOTS  = ['sites', 'production', 'planning', 'inventory', 'other'];
+  const isMastersKey   = (k) => MASTERS_ROOTS.some((r) => k === r || k.startsWith(`${r}-`));
+  const isStoreKey     = (k) => k.startsWith('store');
+  const isProdKey      = (k) => k.startsWith('prod-');      // prod- ≠ production- (masters)
+  const isOrdersKey    = (k) => k.startsWith('plan-orders') || k.startsWith('plan-sales-order');
+  const isProcKey      = (k) => k.startsWith('plan-') && !isOrdersKey(k);
 
   // ── Fetch employee ─────────────────────────────────────────────────────
   const fetchUser = useCallback(async () => {
@@ -511,7 +530,8 @@ const EmployeeDetailPage = () => {
       setMastersChecked(perms.filter(isMastersKey));
       setStoreChecked(perms.filter(isStoreKey));
       setProductionChecked(perms.filter(isProdKey));
-      setPlanningChecked(perms.filter(isPlanKey));
+      setOrdersChecked(perms.filter(isOrdersKey));
+      setProcurementChecked(perms.filter(isProcKey));
     } catch {
       message.error('Failed to load employee details');
     } finally {
@@ -575,7 +595,8 @@ const EmployeeDetailPage = () => {
         ...mastersChecked,
         ...storeChecked,
         ...productionChecked,
-        ...planningChecked,
+        ...ordersChecked,
+        ...procurementChecked,
       ];
       await userApi.update(id, { permissions });
       message.success(
@@ -1168,19 +1189,39 @@ const EmployeeDetailPage = () => {
       ),
     },
     {
-      key:   'planning',
+      key:   'orders',
       label: (
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <ApartmentOutlined /> Planning Access
+          <SolutionOutlined /> Orders Access
         </span>
       ),
       children: (
         <AccessTreeTab
-          treeData={planningTreeData}
-          checkedKeys={planningChecked}
-          setCheckedKeys={setPlanningChecked}
-          title="Planning Access Permissions"
-          description="Control access to purchase orders, scheduling and production/dispatch planning."
+          treeData={ordersTreeData}
+          checkedKeys={ordersChecked}
+          setCheckedKeys={setOrdersChecked}
+          title="Orders Access Permissions"
+          description="Control access to RFQ, quotations, customer purchase orders and order tracking."
+          onSave={handleSavePermissions}
+          saving={savingPerms}
+          canWrite={canWrite}
+        />
+      ),
+    },
+    {
+      key:   'procurement',
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <ShoppingCartOutlined /> Procurement Access
+        </span>
+      ),
+      children: (
+        <AccessTreeTab
+          treeData={procurementTreeData}
+          checkedKeys={procurementChecked}
+          setCheckedKeys={setProcurementChecked}
+          title="Procurement Access Permissions"
+          description="Control access to purchase orders, subcontracting challans, scheduling and capacity planning."
           onSave={handleSavePermissions}
           saving={savingPerms}
           canWrite={canWrite}
