@@ -124,7 +124,7 @@ export default function LQCPage() {
         machine_id:      vals.machine_id      || null,
         inspector_id:    vals.inspector_id    || null,
         notes:           vals.notes           || '',
-        parameters:      params.map(({ _key, ...p }) => p),
+        results:         params.map(({ _key, ...p }) => p),
       };
       await lqcApi.create(payload);
       message.success('LQC inspection created');
@@ -199,15 +199,6 @@ export default function LQCPage() {
         const cfg = RESULT_CONFIG[res] || { color: 'default', label: res };
         return <Tag color={cfg.color}>{cfg.label}</Tag>;
       },
-    },
-    {
-      title: 'Parameters', key: 'params', width: 100, align: 'center',
-      render: (_, r) => (
-        <Badge
-          count={r.Results?.length || r.parameters?.length || 0}
-          style={{ backgroundColor: '#e0e7ff', color: '#1d4ed8' }}
-        />
-      ),
     },
     ...(canWrite ? [{
       title: 'Actions', key: 'actions', width: 160,

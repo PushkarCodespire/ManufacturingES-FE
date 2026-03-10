@@ -148,6 +148,19 @@ export default function OutwardChallanPage() {
   const updateLine = (key, field, value) =>
     setLineItems((p) => p.map((r) => r._key === key ? { ...r, [field]: value } : r));
 
+  const onWorkOrderSelect = (woId) => {
+    if (!woId) return;
+    const wo = workOrders.find((w) => w.id === woId);
+    if (wo?.item_id) {
+      setLineItems([{
+        _key:    Date.now() + Math.random(),
+        item_id: wo.item_id,
+        qty:     parseFloat(wo.planned_qty) || 1,
+        unit:    'pcs',
+      }]);
+    }
+  };
+
   // ── Table columns ──────────────────────────────────────────────────────────
   const columns = [
     {
@@ -371,6 +384,7 @@ export default function OutwardChallanPage() {
               optionFilterProp="label"
               options={workOrders.map((wo) => ({ value: wo.id, label: wo.wo_no }))}
               allowClear
+              onChange={onWorkOrderSelect}
             />
           </Form.Item>
 

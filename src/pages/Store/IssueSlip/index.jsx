@@ -15,6 +15,7 @@ import usePermissions        from '../../../hooks/usePermissions';
 import { issueSlipApi, materialRequestApi } from '../../../api/store.api';
 import { itemApi }           from '../../../api/item.api';
 import { warehouseApi }      from '../../../api/warehouse.api';
+import { userApi }           from '../../../api/user.api';
 
 const { Title, Text } = Typography;
 
@@ -41,6 +42,7 @@ export default function IssueSlipPage() {
   const [warehouses,     setWarehouses]      = useState([]);
   const [items,          setItems]           = useState([]);
   const [materialReqs,   setMaterialReqs]    = useState([]);
+  const [users,          setUsers]           = useState([]);
   const [loading,        setLoading]         = useState(false);
   const [search,         setSearch]          = useState('');
   const [statusFilter,   setStatusFilter]    = useState(null);
@@ -73,10 +75,12 @@ export default function IssueSlipPage() {
       itemApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
       warehouseApi.getAll({ limit: 100 }).catch(() => []),
       materialRequestApi.getAll({ status: 'approved', limit: 200 }).catch(() => []),
-    ]).then(([i, w, mr]) => {
+      userApi.getAll({ limit: 500 }).catch(() => []),
+    ]).then(([i, w, mr, u]) => {
       setItems(Array.isArray(i) ? i : (i?.data ?? []));
       setWarehouses(Array.isArray(w) ? w : (w?.data ?? []));
       setMaterialReqs(Array.isArray(mr) ? mr : (mr?.data ?? []));
+      setUsers(Array.isArray(u) ? u : (u?.data ?? []));
     });
   }, []);
 
@@ -97,7 +101,7 @@ export default function IssueSlipPage() {
         warehouse_id:        vals.warehouse_id,
         issued_date:         vals.issued_date.format('YYYY-MM-DD'),
         material_request_id: vals.material_request_id || null,
-        issued_to_name:      vals.issued_to_name      || '',
+        issued_to:           vals.issued_to            || null,
         notes:               vals.notes               || '',
         items:               lineItems.map(({ _key, ...it }) => it),
       };
@@ -160,13 +164,13 @@ export default function IssueSlipPage() {
       title: 'Material Req', key: 'mr', width: 130,
       render: (_, r) => r.MaterialRequest ? (
         <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#6b7280' }}>
-          {r.MaterialRequest.mr_no}
+          {r.MaterialRequest.request_no}
         </Text>
       ) : <Text type="secondary">—</Text>,
     },
     {
-      title: 'Issued To', dataIndex: 'issued_to_name', key: 'issued_to', width: 130,
-      render: (v) => v || <Text type="secondary">—</Text>,
+      title: 'Issued To', key: 'issued_to', width: 130,
+      render: (_, r) => <Text style={{ fontSize: 13 }}>{r.IssuedTo?.name || '—'}</Text>,
     },
     {
       title: 'Items', key: 'items', width: 70, align: 'center',
@@ -312,14 +316,23 @@ export default function IssueSlipPage() {
                   allowClear
                   options={materialReqs.map((mr) => ({
                     value: mr.id,
-                    label: `${mr.mr_no} — ${mr.Warehouse?.name || ''}`,
+                    label: `${mr.request_no} — ${mr.Warehouse?.name || ''}`,
                   }))}
                 />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="issued_to_name" label="Issued To">
-                <Input placeholder="Department or person name" />
+              <Form.Item name="issued_to" label="Issued To">
+                <Select
+                  showSearch
+                  placeholder="Select person"
+                  optionFilterProp="label"
+                  allowClear
+                  options={users.map((u) => ({
+                    value: u.id,
+                    label: `${u.name}${u.employee_id ? ` (${u.employee_id})` : ''}`,
+                  }))}
+                />
               </Form.Item>
             </Col>
           </Row>

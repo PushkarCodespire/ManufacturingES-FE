@@ -69,7 +69,7 @@ export default function CustomerPOPage() {
     Promise.all([
       vendorApi.getAll({ type: 'customer', limit: 500 }).catch(() => []),
       itemApi.getAll({ limit: 500 }).catch(() => []),
-      quotationApi.getAll({ status: 'sent', limit: 200 }).catch(() => []),
+      quotationApi.getAll({ limit: 200 }).catch(() => []),
     ]).then(([c, i, q]) => {
       setCustomers(Array.isArray(c) ? c : (c?.data ?? []));
       setItemsList(Array.isArray(i) ? i : (i?.data ?? []));
