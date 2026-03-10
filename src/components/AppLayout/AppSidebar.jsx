@@ -192,9 +192,37 @@ const NAV_ITEMS_DEF = [
       { key: 'scrap-vouchers',       label: 'Scrap Authorization',permission: 'prod-dpr-rejection_entry-read'                   },
     ],
   },
-  { key: 'dispatch',    label: 'Dispatch',    icon: <CarOutlined />,          disabled: true, adminOnly: true },
   { key: 'accounts',    label: 'Accounts',    icon: <DollarOutlined />,       disabled: true, adminOnly: true },
-  { key: 'hr',          label: 'HR',          icon: <TeamOutlined />,         disabled: true, adminOnly: true },
+
+  // ── Dispatch & Logistics — dispatch_admin, it_admin, plant_head only ─────────
+  {
+    key:   'dispatch',
+    label: 'Dispatch',
+    icon:  <CarOutlined />,
+    roles: ['dispatch_admin', 'it_admin', 'plant_head'],
+    children: [
+      { key: 'dispatch-transporters', label: 'Transporters'      },
+      { key: 'dispatch-orders',       label: 'Dispatch Orders'   },
+      { key: 'dispatch-challans',     label: 'Delivery Challans' },
+      { key: 'dispatch-tracking',     label: 'Shipment Tracking' },
+      { key: 'dispatch-reports',      label: 'Reports'           },
+    ],
+  },
+
+  // ── HR & Training — visible to hr_admin, it_admin, plant_head only ──────────
+  {
+    key:   'hr',
+    label: 'HR & Training',
+    icon:  <TeamOutlined />,
+    roles: ['hr_admin', 'it_admin', 'plant_head'],
+    children: [
+      { key: 'hr-training-topics',   label: 'Training Topics'   },
+      { key: 'hr-role-requirements', label: 'Role Requirements' },
+      { key: 'hr-training-records',  label: 'Training Records'  },
+      { key: 'hr-competency-matrix', label: 'Competency Matrix' },
+      { key: 'hr-effectiveness',     label: 'Effectiveness'     },
+    ],
+  },
 ];
 
 // key → route path (for items that navigate)
@@ -242,6 +270,18 @@ const KEY_TO_PATH = {
   'purchase-orders': '/procurement/purchase-orders',
   'outward-challan': '/subcontracting/outward',
   'inward-challan':  '/subcontracting/inward',
+  // HR & Training
+  'hr-training-topics':   '/hr/training-topics',
+  'hr-role-requirements': '/hr/role-requirements',
+  'hr-training-records':  '/hr/training-records',
+  'hr-competency-matrix': '/hr/competency-matrix',
+  'hr-effectiveness':     '/hr/effectiveness',
+  // Dispatch & Logistics
+  'dispatch-transporters': '/dispatch/transporters',
+  'dispatch-orders':       '/dispatch/orders',
+  'dispatch-challans':     '/dispatch/challans',
+  'dispatch-tracking':     '/dispatch/tracking',
+  'dispatch-reports':      '/dispatch/reports',
 };
 
 // ── Derive selected key + open keys from current pathname ────────────────────
@@ -296,6 +336,18 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/subcontracting/inward'))   return { selected: 'inward-challan',    open: ['procurement', 'grp-subcontracting']    };
   // Generic masters fallback
   if (pathname.startsWith('/masters'))               return { selected: 'masters',       open: ['masters'] };
+  // HR & Training
+  if (pathname.startsWith('/hr/training-topics'))   return { selected: 'hr-training-topics',   open: ['hr'] };
+  if (pathname.startsWith('/hr/role-requirements')) return { selected: 'hr-role-requirements', open: ['hr'] };
+  if (pathname.startsWith('/hr/training-records'))  return { selected: 'hr-training-records',  open: ['hr'] };
+  if (pathname.startsWith('/hr/competency-matrix')) return { selected: 'hr-competency-matrix', open: ['hr'] };
+  if (pathname.startsWith('/hr/effectiveness'))     return { selected: 'hr-effectiveness',     open: ['hr'] };
+  // Dispatch & Logistics
+  if (pathname.startsWith('/dispatch/transporters')) return { selected: 'dispatch-transporters', open: ['dispatch'] };
+  if (pathname.startsWith('/dispatch/orders'))       return { selected: 'dispatch-orders',       open: ['dispatch'] };
+  if (pathname.startsWith('/dispatch/challans'))     return { selected: 'dispatch-challans',     open: ['dispatch'] };
+  if (pathname.startsWith('/dispatch/tracking'))     return { selected: 'dispatch-tracking',     open: ['dispatch'] };
+  if (pathname.startsWith('/dispatch/reports'))      return { selected: 'dispatch-reports',      open: ['dispatch'] };
   return { selected: 'dashboard', open: [] };
 };
 
@@ -333,12 +385,26 @@ const AppSidebar = ({ collapsed, onCollapse }) => {
 
   // ── Build filtered menu items based on current user's permissions ──────────
   const menuItems = useMemo(() => {
+    const userRoleName = user?.role?.name;
+
     const resolveItem = (item) => {
       // Pass-through dividers
       if (item.type === 'divider') return item;
 
-      const { key, label, icon, disabled, permission, adminOnly, children, type } = item;
+      const { key, label, icon, disabled, permission, adminOnly, roles, children, type } = item;
 
+      // Role whitelist — hide entirely for anyone whose role is not in the list
+      if (roles) {
+        if (!roles.includes(userRoleName)) return null;
+        // User's role is allowed — resolve children recursively if any
+        if (children) {
+          const visible = children.map(resolveItem).filter(Boolean);
+          if (visible.length === 0) return null;
+          const cleaned = cleanDividers(visible);
+          return cleaned.length > 0 ? { key, label, icon, children: cleaned, type } : null;
+        }
+        return { key, label, icon, type };
+      }
       // Permission-gated leaf
       if (permission) {
         return can(permission) ? { key, label, icon, type } : null;
@@ -360,7 +426,7 @@ const AppSidebar = ({ collapsed, onCollapse }) => {
     };
 
     return NAV_ITEMS_DEF.map(resolveItem).filter(Boolean);
-  }, [can, isAdmin]);
+  }, [can, isAdmin, user?.role?.name]);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
