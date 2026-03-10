@@ -49,6 +49,16 @@ import ScrapVoucherPage      from './pages/Production/ScrapVoucher';
 import PurchaseOrdersPage    from './pages/Procurement/PurchaseOrders';
 import OutwardChallanPage    from './pages/Subcontracting/OutwardChallan';
 import InwardChallanPage     from './pages/Subcontracting/InwardChallan';
+import TrainingTopicsPage   from './pages/HR/TrainingTopics';
+import RoleRequirementsPage from './pages/HR/RoleRequirements';
+import TrainingRecordsPage  from './pages/HR/TrainingRecords';
+import CompetencyMatrixPage from './pages/HR/CompetencyMatrix';
+import EffectivenessPage    from './pages/HR/Effectiveness';
+import TransportersPage     from './pages/Dispatch/Transporters';
+import DispatchOrdersPage   from './pages/Dispatch/DispatchOrders';
+import DeliveryChallansPage from './pages/Dispatch/DeliveryChallans';
+import ShipmentTrackingPage from './pages/Dispatch/ShipmentTracking';
+import DispatchReportsPage  from './pages/Dispatch/Reports';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
@@ -237,7 +247,7 @@ function App() {
                     <ProductionFormsPage />
                   </ProtectedRoute>
                 }
-              />  
+              />
               {/* Masters — Production — Cycle Time Rules */}
               <Route
                 path="/masters/production/cycle-time-rules"
@@ -466,6 +476,90 @@ function App() {
               {/* ── Subcontracting Module ──────────────────────────────────────── */}
               <Route path="/subcontracting/outward" element={<ProtectedRoute permission="plan-subcontracting-outward_challan-read"><OutwardChallanPage /></ProtectedRoute>} />
               <Route path="/subcontracting/inward" element={<ProtectedRoute permission="plan-subcontracting-inward_challan-read"><InwardChallanPage /></ProtectedRoute>} />
+
+              {/* HR & Training — hr_admin, it_admin, plant_head only */}
+              <Route
+                path="/hr/training-topics"
+                element={
+                  <ProtectedRoute roles={['hr_admin', 'it_admin', 'plant_head']}>
+                    <TrainingTopicsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/hr/role-requirements"
+                element={
+                  <ProtectedRoute roles={['hr_admin', 'it_admin', 'plant_head']}>
+                    <RoleRequirementsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/hr/training-records"
+                element={
+                  <ProtectedRoute roles={['hr_admin', 'it_admin', 'plant_head']}>
+                    <TrainingRecordsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/hr/competency-matrix"
+                element={
+                  <ProtectedRoute roles={['hr_admin', 'it_admin', 'plant_head']}>
+                    <CompetencyMatrixPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/hr/effectiveness"
+                element={
+                  <ProtectedRoute roles={['hr_admin', 'it_admin', 'plant_head']}>
+                    <EffectivenessPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Dispatch & Logistics — dispatch_admin, it_admin, plant_head only */}
+              <Route
+                path="/dispatch/transporters"
+                element={
+                  <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
+                    <TransportersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dispatch/orders"
+                element={
+                  <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
+                    <DispatchOrdersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dispatch/challans"
+                element={
+                  <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
+                    <DeliveryChallansPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dispatch/tracking"
+                element={
+                  <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
+                    <ShipmentTrackingPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dispatch/reports"
+                element={
+                  <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
+                    <DispatchReportsPage />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Catch-all */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
