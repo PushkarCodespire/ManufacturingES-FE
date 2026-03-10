@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Typography, Button, Table, Space, Tag, Form, Input, Select, DatePicker,
   InputNumber, message, Card, Modal, Divider, Tooltip,
@@ -6,7 +7,7 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   RightOutlined, SearchOutlined, ArrowLeftOutlined,
-  PlusCircleOutlined, MinusCircleOutlined, InboxOutlined,
+  PlusCircleOutlined, MinusCircleOutlined, InboxOutlined, FileTextOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { dispatchOrderApi } from '../../../api/dispatchOrder.api';
@@ -33,6 +34,7 @@ const STATUS_OPTIONS = [
 
 const DispatchOrdersPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const canWrite = ['dispatch_admin', 'it_admin', 'plant_head'].includes(user?.role?.name);
 
   const [records,      setRecords]      = useState([]);
@@ -187,21 +189,28 @@ const DispatchOrdersPage = () => {
         ? <Tag color="blue">{r.Challans.length} challan(s)</Tag>
         : <Text style={{ color: '#9ca3af', fontSize: 12 }}>—</Text>,
     },
-    ...(canWrite ? [{
-      title: 'Actions', key: 'actions', width: 90, align: 'center',
+    {
+      title: 'Actions', key: 'actions', width: 140, align: 'center',
       render: (_, record) => (
         <Space size={4}>
-          <Tooltip title="Edit">
-            <Button type="text" size="small" icon={<EditOutlined style={{ color: '#1d4ed8' }} />} onClick={() => openForm(record)} />
-          </Tooltip>
-          {(record.status === 'draft' || record.status === 'cancelled') && (
+          {record.status !== 'draft' && (
+            <Tooltip title="Documents">
+              <Button type="text" size="small" icon={<FileTextOutlined style={{ color: '#7c3aed' }} />} onClick={() => navigate(`/dispatch/orders/${record.id}/documents`)} />
+            </Tooltip>
+          )}
+          {canWrite && (
+            <Tooltip title="Edit">
+              <Button type="text" size="small" icon={<EditOutlined style={{ color: '#1d4ed8' }} />} onClick={() => openForm(record)} />
+            </Tooltip>
+          )}
+          {canWrite && (record.status === 'draft' || record.status === 'cancelled') && (
             <Tooltip title="Delete">
               <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record)} />
             </Tooltip>
           )}
         </Space>
       ),
-    }] : []),
+    },
   ];
 
   return (
