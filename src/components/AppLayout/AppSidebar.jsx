@@ -16,6 +16,7 @@ import {
   MenuUnfoldOutlined,
   KeyOutlined,
   ControlOutlined,
+  SolutionOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth }        from '../../context/AuthContext';
@@ -84,7 +85,7 @@ const NAV_ITEMS_DEF = [
         children: [
           { key: 'm-customers',         label: 'Customers',         permission: 'planning-vendors-read' },
           { key: 'm-vendors',           label: 'Vendors',           permission: 'planning-vendors-read' },
-          { key: 'm-sticker-templates', label: 'Sticker Templates', permission: 'planning-sticker-templates-read' },
+          { key: 'm-sticker-templates', label: 'Sticker Templates', permission: 'planning-sticker_templates-read' },
         ],
       },
       // ── Inventory (SubMenu) ────────────────────────
@@ -94,7 +95,7 @@ const NAV_ITEMS_DEF = [
         children: [
           { key: 'm-warehouses',    label: 'Warehouses',    permission: 'inventory-warehouses-read'   },
           { key: 'm-packages',      label: 'Packages',      permission: 'inventory-packages-read'     },
-          { key: 'm-custom-fields', label: 'Custom Fields', permission: 'inventory-custom-fields-read' },
+          { key: 'm-custom-fields', label: 'Custom Fields', permission: 'inventory-custom_fields-read' },
         ],
       },
       // ── Other (SubMenu) ────────────────────────────
@@ -112,11 +113,85 @@ const NAV_ITEMS_DEF = [
     ],
   },
 
+  // ── Orders module ────────────────────────────────────────────────────────────
+  {
+    key:   'orders',
+    label: 'Orders',
+    icon:  <SolutionOutlined />,
+    children: [
+      { key: 'o-rfq',            label: 'RFQ',            permission: 'plan-orders-rfq-read'            },
+      { key: 'o-quotation',      label: 'Quotation',      permission: 'plan-orders-quotation-read'      },
+      { key: 'o-customer-po',    label: 'Customer PO',    permission: 'plan-orders-customer_po-read'    },
+      { key: 'o-order-tracking', label: 'Order Tracking', permission: 'plan-orders-order_tracking-read' },
+    ],
+  },
+
   // ── Future top-level modules — shown disabled to admins only ────────────────
-  { key: 'quality',     label: 'Quality',     icon: <CheckCircleOutlined />,  disabled: true, adminOnly: true },
-  { key: 'procurement', label: 'Procurement', icon: <ShoppingCartOutlined />, disabled: true, adminOnly: true },
-  { key: 'store',       label: 'Store',       icon: <DatabaseOutlined />,     disabled: true, adminOnly: true },
-  { key: 'production',  label: 'Production',  icon: <ToolOutlined />,         disabled: true, adminOnly: true },
+  { key: 'quality', label: 'Quality', icon: <CheckCircleOutlined />, disabled: true, adminOnly: true },
+
+  // ── Procurement module ────────────────────────────────────────────────────
+  {
+    key:   'procurement',
+    label: 'Procurement',
+    icon:  <ShoppingCartOutlined />,
+    children: [
+      { key: 'purchase-orders', label: 'Purchase Orders', permission: 'plan-po-create_po-read' },
+      {
+        key:   'grp-subcontracting',
+        label: 'Subcontracting',
+        children: [
+          { key: 'outward-challan', label: 'Outward Challan', permission: 'plan-subcontracting-outward_challan-read' },
+          { key: 'inward-challan',  label: 'Inward Challan',  permission: 'plan-subcontracting-inward_challan-read'  },
+        ],
+      },
+    ],
+  },
+
+  // ── Store module ─────────────────────────────────────────────────────────
+  {
+    key:   'store',
+    label: 'Store',
+    icon:  <DatabaseOutlined />,
+    children: [
+      {
+        key:   'grp-store-transactions',
+        label: 'Transactions',
+        children: [
+          { key: 's-grn',        label: 'GRN',       permission: 'store-transactions-grn-read'        },
+          { key: 's-issue-slip', label: 'Issue Slip', permission: 'store-transactions-issue_slip-read' },
+        ],
+      },
+      {
+        key:   'grp-store-requests',
+        label: 'Requests',
+        children: [
+          { key: 's-material-request', label: 'Material Request', permission: 'store-requests-material_request-read' },
+        ],
+      },
+      {
+        key:   'grp-store-inventory',
+        label: 'Inventory',
+        children: [
+          { key: 's-stock-ledger',     label: 'Stock Ledger',     permission: 'store-inventory-stock_ledger-read'     },
+          { key: 's-stock-adjustment', label: 'Stock Adjustment', permission: 'store-inventory-stock_adjustment-read' },
+        ],
+      },
+    ],
+  },
+
+  // ── Production module ─────────────────────────────────────────────────────
+  {
+    key:   'production',
+    label: 'Production',
+    icon:  <ToolOutlined />,
+    children: [
+      { key: 'work-orders',          label: 'Work Orders',       permission: 'prod-work_centre-manage_work_centre-read'          },
+      { key: 'job-cards',            label: 'Job Cards',         permission: 'prod-dpr-daily_production_report-read'             },
+      { key: 'lqc',                  label: 'LQC Inspection',    permission: 'prod-quality_level-iqc-read'                       },
+      { key: 'production-scheduling',label: 'Scheduling',        permission: 'prod-mrp_expected_production-create_plan-read'     },
+      { key: 'scrap-vouchers',       label: 'Scrap Authorization',permission: 'prod-dpr-rejection_entry-read'                   },
+    ],
+  },
   { key: 'dispatch',    label: 'Dispatch',    icon: <CarOutlined />,          disabled: true, adminOnly: true },
   { key: 'accounts',    label: 'Accounts',    icon: <DollarOutlined />,       disabled: true, adminOnly: true },
   { key: 'hr',          label: 'HR',          icon: <TeamOutlined />,         disabled: true, adminOnly: true },
@@ -146,6 +221,27 @@ const KEY_TO_PATH = {
   'costing':             '/masters/costing',
   'integrations':    '/masters/integrations',
   'm-custom-fields': '/masters/inventory/custom-fields',
+  // Orders module
+  'o-rfq':            '/orders/rfq',
+  'o-quotation':      '/orders/quotation',
+  'o-customer-po':    '/orders/customer-po',
+  'o-order-tracking': '/orders/tracking',
+  // Store module
+  's-grn':              '/store/grn',
+  's-issue-slip':       '/store/issue-slip',
+  's-material-request': '/store/material-request',
+  's-stock-ledger':     '/store/stock-ledger',
+  's-stock-adjustment': '/store/stock-adjustment',
+  // Production module
+  'work-orders':           '/production/work-orders',
+  'job-cards':             '/production/job-cards',
+  'lqc':                   '/production/lqc',
+  'production-scheduling': '/production/scheduling',
+  'scrap-vouchers':        '/production/scrap',
+  // Procurement module
+  'purchase-orders': '/procurement/purchase-orders',
+  'outward-challan': '/subcontracting/outward',
+  'inward-challan':  '/subcontracting/inward',
 };
 
 // ── Derive selected key + open keys from current pathname ────────────────────
@@ -177,6 +273,27 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/masters/planning/sticker-templates')) return { selected: 'm-sticker-templates', open: ['masters', 'grp-planning'] };
   if (pathname.startsWith('/masters/planning/customers'))         return { selected: 'm-customers',         open: ['masters', 'grp-planning'] };
   if (pathname.startsWith('/masters/planning/vendors'))           return { selected: 'm-vendors',           open: ['masters', 'grp-planning'] };
+  // Orders module
+  if (pathname.startsWith('/orders/rfq'))       return { selected: 'o-rfq',            open: ['orders'] };
+  if (pathname.startsWith('/orders/quotation')) return { selected: 'o-quotation',      open: ['orders'] };
+  if (pathname.startsWith('/orders/customer-po')) return { selected: 'o-customer-po',  open: ['orders'] };
+  if (pathname.startsWith('/orders/tracking'))  return { selected: 'o-order-tracking', open: ['orders'] };
+  // Store module
+  if (pathname.startsWith('/store/grn'))               return { selected: 's-grn',              open: ['store', 'grp-store-transactions'] };
+  if (pathname.startsWith('/store/issue-slip'))         return { selected: 's-issue-slip',        open: ['store', 'grp-store-transactions'] };
+  if (pathname.startsWith('/store/material-request'))   return { selected: 's-material-request',  open: ['store', 'grp-store-requests']     };
+  if (pathname.startsWith('/store/stock-ledger'))       return { selected: 's-stock-ledger',      open: ['store', 'grp-store-inventory']    };
+  if (pathname.startsWith('/store/stock-adjustment'))   return { selected: 's-stock-adjustment',  open: ['store', 'grp-store-inventory']    };
+  // Production module
+  if (pathname.startsWith('/production/work-orders'))  return { selected: 'work-orders',           open: ['production'] };
+  if (pathname.startsWith('/production/job-cards'))    return { selected: 'job-cards',             open: ['production'] };
+  if (pathname.startsWith('/production/lqc'))          return { selected: 'lqc',                   open: ['production'] };
+  if (pathname.startsWith('/production/scheduling'))   return { selected: 'production-scheduling', open: ['production'] };
+  if (pathname.startsWith('/production/scrap'))        return { selected: 'scrap-vouchers',        open: ['production'] };
+  // Procurement module
+  if (pathname.startsWith('/procurement/'))            return { selected: 'purchase-orders',  open: ['procurement']                          };
+  if (pathname.startsWith('/subcontracting/outward'))  return { selected: 'outward-challan',   open: ['procurement', 'grp-subcontracting']    };
+  if (pathname.startsWith('/subcontracting/inward'))   return { selected: 'inward-challan',    open: ['procurement', 'grp-subcontracting']    };
   // Generic masters fallback
   if (pathname.startsWith('/masters'))               return { selected: 'masters',       open: ['masters'] };
   return { selected: 'dashboard', open: [] };
@@ -265,7 +382,7 @@ const AppSidebar = ({ collapsed, onCollapse }) => {
         left:        0,
         bottom:      0,
         zIndex:      100,
-        overflow:    'hidden',
+        overflow:    collapsed ? 'visible' : 'hidden',
         boxShadow:   '2px 0 8px rgba(0,0,0,0.04)',
       }}
     >
@@ -353,14 +470,16 @@ const AppSidebar = ({ collapsed, onCollapse }) => {
         </div>
 
         {/* ── NAVIGATION MENU ────────────────────────────────────────────── */}
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: collapsed ? 'visible' : 'hidden' }}>
           <Menu
             mode="inline"
             inlineCollapsed={collapsed}
             inlineIndent={16}
             selectedKeys={[selected]}
-            openKeys={collapsed ? [] : openKeys}
-            onOpenChange={(keys) => setOpenKeys(keys)}
+            {...(collapsed
+              ? {}  // collapsed: no openKeys control — let Ant Design handle popup state internally
+              : { openKeys, onOpenChange: (keys) => setOpenKeys(keys) }
+            )}
             items={menuItems}
             onClick={handleMenuClick}
             style={{ border: 'none', background: 'transparent', paddingTop: 4 }}

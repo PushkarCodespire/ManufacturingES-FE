@@ -1,0 +1,454 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Typography, Card, Button, Input, Table, Tag, Space, Drawer,
+  Form, Select, DatePicker, InputNumber, Divider, message, Tooltip,
+  Popconfirm, Badge, Row, Col,
+} from 'antd';
+import {
+  PlusOutlined, SearchOutlined, ReloadOutlined,
+  EditOutlined, DeleteOutlined, RightOutlined,
+  PlusCircleOutlined, MinusCircleOutlined,
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+import AppLayout            from '../../../components/AppLayout';
+import usePermissions       from '../../../hooks/usePermissions';
+import { customerOrderApi, quotationApi } from '../../../api/orders.api';
+import { vendorApi }        from '../../../api/vendor.api';
+import { itemApi }          from '../../../api/item.api';
+
+const { Title, Text } = Typography;
+
+const STATUS_CONFIG = {
+  active:        { color: 'blue',    label: 'Active'        },
+  in_production: { color: 'orange',  label: 'In Production' },
+  ready:         { color: 'cyan',    label: 'Ready'         },
+  dispatched:    { color: 'purple',  label: 'Dispatched'    },
+  closed:        { color: 'green',   label: 'Closed'        },
+  cancelled:     { color: 'default', label: 'Cancelled'     },
+};
+const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }));
+
+const emptyItem = () => ({
+  _key: Date.now() + Math.random(),
+  item_id: null, description: '', qty_ordered: 1, unit: 'pcs', unit_price: 0, gst_rate: 18, total_price: 0,
+});
+
+export default function CustomerPOPage() {
+  const { can } = usePermissions();
+  const canWrite = can('plan-orders-customer_po-create_edit_delete');
+
+  const [orders,       setOrders]       = useState([]);
+  const [customers,    setCustomers]    = useState([]);
+  const [items,        setItemsList]    = useState([]);
+  const [quotations,   setQuotations]   = useState([]);
+  const [loading,      setLoading]      = useState(false);
+  const [search,       setSearch]       = useState('');
+  const [statusFilter, setStatusFilter] = useState(null);
+  const [drawerOpen,   setDrawerOpen]   = useState(false);
+  const [editing,      setEditing]      = useState(null);
+  const [saving,       setSaving]       = useState(false);
+  const [lineItems,    setLineItems]    = useState([emptyItem()]);
+
+  const [form] = Form.useForm();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (search)       params.search = search;
+      if (statusFilter) params.status = statusFilter;
+      const data = await customerOrderApi.getAll(params);
+      setOrders(data);
+    } catch { message.error('Failed to load orders'); }
+    finally { setLoading(false); }
+  }, [search, statusFilter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    Promise.all([
+      vendorApi.getAll({ type: 'customer', limit: 500 }).catch(() => []),
+      itemApi.getAll({ limit: 500 }).catch(() => []),
+      quotationApi.getAll({ status: 'sent', limit: 200 }).catch(() => []),
+    ]).then(([c, i, q]) => {
+      setCustomers(Array.isArray(c) ? c : (c?.data ?? []));
+      setItemsList(Array.isArray(i) ? i : (i?.data ?? []));
+      setQuotations(Array.isArray(q) ? q : (q?.data ?? []));
+    });
+  }, []);
+
+  const openAdd = () => {
+    setEditing(null);
+    form.resetFields();
+    form.setFieldsValue({ order_date: dayjs() });
+    setLineItems([emptyItem()]);
+    setDrawerOpen(true);
+  };
+
+  const openEdit = (record) => {
+    setEditing(record);
+    form.setFieldsValue({
+      customer_id:    record.customer_id,
+      customer_po_no: record.customer_po_no,
+      quotation_id:   record.quotation_id,
+      order_date:     dayjs(record.order_date),
+      delivery_date:  record.delivery_date ? dayjs(record.delivery_date) : null,
+      terms:          record.terms,
+      notes:          record.notes,
+      status:         record.status,
+    });
+    setLineItems((record.Items || []).map((it) => ({
+      _key:         it.id,
+      item_id:      it.item_id,
+      description:  it.description || '',
+      qty_ordered:  parseFloat(it.qty_ordered) || 1,
+      unit:         it.unit || 'pcs',
+      unit_price:   parseFloat(it.unit_price) || 0,
+      gst_rate:     parseFloat(it.gst_rate) || 18,
+      total_price:  parseFloat(it.total_price) || 0,
+    })));
+    setDrawerOpen(true);
+  };
+
+  // When quotation selected, auto-populate customer + line items
+  const onQuotationSelect = async (qId) => {
+    if (!qId) return;
+    const found = quotations.find((q) => q.id === qId);
+    if (found) {
+      form.setFieldsValue({ customer_id: found.customer_id });
+      if (found.Items?.length) {
+        setLineItems(found.Items.map((it) => ({
+          _key:        Date.now() + Math.random(),
+          item_id:     it.item_id,
+          description: it.description || it.Item?.name || '',
+          qty_ordered: parseFloat(it.qty) || 1,
+          unit:        it.unit || 'pcs',
+          unit_price:  parseFloat(it.unit_price) || 0,
+          gst_rate:    parseFloat(it.gst_rate) || 18,
+          total_price: parseFloat(it.total_price) || 0,
+        })));
+      }
+    }
+  };
+
+  const grandTotal = lineItems.reduce((s, r) => s + (r.qty_ordered || 0) * (r.unit_price || 0), 0);
+
+  const onSave = async () => {
+    try {
+      const vals = await form.validateFields();
+      if (!lineItems.length) { message.error('Add at least one item'); return; }
+      setSaving(true);
+      const payload = {
+        customer_id:    vals.customer_id,
+        customer_po_no: vals.customer_po_no,
+        quotation_id:   vals.quotation_id || null,
+        order_date:     vals.order_date.format('YYYY-MM-DD'),
+        delivery_date:  vals.delivery_date ? vals.delivery_date.format('YYYY-MM-DD') : null,
+        terms:          vals.terms || '',
+        notes:          vals.notes || '',
+        ...(editing && { status: vals.status }),
+        items: lineItems.map(({ _key, ...it }) => ({
+          ...it,
+          total_price: parseFloat(((it.qty_ordered || 0) * (it.unit_price || 0)).toFixed(4)),
+        })),
+      };
+      if (editing) {
+        await customerOrderApi.update(editing.id, payload);
+        message.success('Order updated');
+      } else {
+        await customerOrderApi.create(payload);
+        message.success('Customer Order created');
+      }
+      setDrawerOpen(false);
+      load();
+    } catch (err) {
+      if (err?.errorFields) return;
+      message.error(err?.response?.data?.message || 'Save failed');
+    } finally { setSaving(false); }
+  };
+
+  const onDelete = async (id) => {
+    try {
+      await customerOrderApi.delete(id);
+      message.success('Order deleted');
+      load();
+    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+  };
+
+  const addLine = () => setLineItems((p) => [...p, emptyItem()]);
+  const removeLine = (key) => setLineItems((p) => p.filter((r) => r._key !== key));
+  const updateLine = (key, field, value) =>
+    setLineItems((p) => p.map((r) => r._key === key ? { ...r, [field]: value } : r));
+
+  const onItemSelect = (key, itemId) => {
+    const found = items.find((i) => i.id === itemId);
+    if (found) {
+      updateLine(key, 'description', found.name);
+      updateLine(key, 'unit', found.unit || 'pcs');
+      if (found.gst_rate) updateLine(key, 'gst_rate', parseFloat(found.gst_rate));
+    }
+    updateLine(key, 'item_id', itemId);
+  };
+
+  const columns = [
+    {
+      title: 'Order No',
+      dataIndex: 'order_no',
+      key: 'order_no',
+      width: 140,
+      render: (no, r) => (
+        <Text style={{ color: '#1d4ed8', fontWeight: 600, cursor: 'pointer' }} onClick={() => openEdit(r)}>
+          {no}
+        </Text>
+      ),
+    },
+    {
+      title: 'Customer PO No',
+      dataIndex: 'customer_po_no',
+      key: 'cust_po',
+      width: 150,
+      render: (v) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</Text>,
+    },
+    {
+      title: 'Customer',
+      key: 'customer',
+      width: 180,
+      render: (_, r) => r.Customer ? (
+        <div>
+          <Text style={{ fontWeight: 500, fontSize: 13 }}>{r.Customer.name}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 11 }}>{r.Customer.partner_code}</Text>
+        </div>
+      ) : '—',
+    },
+    {
+      title: 'Order Date',
+      dataIndex: 'order_date',
+      key: 'order_date',
+      width: 110,
+      render: (d) => d ? dayjs(d).format('DD MMM YYYY') : '—',
+    },
+    {
+      title: 'Delivery Date',
+      dataIndex: 'delivery_date',
+      key: 'delivery_date',
+      width: 120,
+      render: (d) => {
+        if (!d) return '—';
+        const isPast = dayjs(d).isBefore(dayjs(), 'day');
+        return <Text style={{ color: isPast ? '#dc2626' : undefined }}>{dayjs(d).format('DD MMM YYYY')}</Text>;
+      },
+    },
+    {
+      title: 'Items',
+      key: 'items',
+      width: 70,
+      align: 'center',
+      render: (_, r) => (
+        <Badge count={r.Items?.length || 0} style={{ backgroundColor: '#e0e7ff', color: '#1d4ed8' }} />
+      ),
+    },
+    {
+      title: 'Amount (₹)',
+      dataIndex: 'total_amount',
+      key: 'amount',
+      width: 120,
+      align: 'right',
+      render: (v) => v ? <Text strong>₹{parseFloat(v).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text> : '—',
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 130,
+      render: (s) => {
+        const cfg = STATUS_CONFIG[s] || { color: 'default', label: s };
+        return <Tag color={cfg.color}>{cfg.label}</Tag>;
+      },
+    },
+    ...(canWrite ? [{
+      title: 'Actions',
+      key: 'actions',
+      width: 90,
+      render: (_, r) => (
+        <Space size={4}>
+          <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
+          {(r.status === 'active' || r.status === 'cancelled') && (
+            <Popconfirm title="Delete this order?" onConfirm={() => onDelete(r.id)} okText="Delete" okType="danger">
+              <Tooltip title="Delete"><Button size="small" danger icon={<DeleteOutlined />} /></Tooltip>
+            </Popconfirm>
+          )}
+        </Space>
+      ),
+    }] : []),
+  ];
+
+  return (
+    <AppLayout>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+        <Text style={{ color: '#9ca3af', fontSize: 12 }}>Orders</Text>
+        <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>Customer PO</Text>
+      </div>
+
+      <Title level={3} style={{ margin: 0 }}>Customer Purchase Orders</Title>
+      <Text type="secondary" style={{ fontSize: 13 }}>
+        Record and manage confirmed customer purchase orders. Track delivery timelines and production status.
+      </Text>
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 16 }}>
+        <Tag color="blue">Total: {orders.length}</Tag>
+        <Tag color="processing">Active: {orders.filter((o) => o.status === 'active').length}</Tag>
+        <Tag color="orange">In Production: {orders.filter((o) => o.status === 'in_production').length}</Tag>
+        <Tag color="green">Closed: {orders.filter((o) => o.status === 'closed').length}</Tag>
+      </div>
+
+      <Card
+        style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+        bodyStyle={{ padding: '16px 20px' }}
+      >
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+          <Input
+            placeholder="Search order no or PO no…"
+            prefix={<SearchOutlined />}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: 280, borderRadius: 8 }}
+            allowClear
+          />
+          <Select
+            placeholder="Filter by status"
+            allowClear
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={STATUS_OPTIONS}
+            style={{ width: 160 }}
+          />
+          <div style={{ flex: 1 }} />
+          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          {canWrite && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>Receive PO</Button>
+          )}
+        </div>
+
+        <Table
+          rowKey="id"
+          loading={loading}
+          columns={columns}
+          dataSource={orders}
+          size="small"
+          scroll={{ x: 1280 }}
+          pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
+        />
+      </Card>
+
+      {/* ── Drawer ──────────────────────────────────────────────────────────── */}
+      <Drawer
+        title={editing ? `Edit Order — ${editing.order_no}` : 'Receive Customer PO'}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        width={820}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text strong>Total: ₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
+              {canWrite && (
+                <Button type="primary" loading={saving} onClick={onSave}>
+                  {editing ? 'Update Order' : 'Create Order'}
+                </Button>
+              )}
+            </div>
+          </div>
+        }
+      >
+        <Form form={form} layout="vertical">
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="customer_id" label="Customer" rules={[{ required: true }]}>
+                <Select showSearch optionFilterProp="label" placeholder="Select customer"
+                  options={customers.map((c) => ({ value: c.id, label: `${c.name} (${c.partner_code})` }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="customer_po_no" label="Customer PO Number" rules={[{ required: true, message: 'PO number is required' }]}>
+                <Input placeholder="e.g. PO-2026-12345" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="quotation_id" label="Against Quotation (optional)">
+                <Select showSearch allowClear optionFilterProp="label" placeholder="Link to quotation"
+                  onChange={onQuotationSelect}
+                  options={quotations.map((q) => ({ value: q.id, label: `${q.quotation_no} — ${q.Customer?.name || ''}` }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              {editing && (
+                <Form.Item name="status" label="Status">
+                  <Select options={STATUS_OPTIONS} />
+                </Form.Item>
+              )}
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="order_date" label="Order Date" rules={[{ required: true }]}>
+                <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="delivery_date" label="Requested Delivery Date">
+                <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="terms" label="Terms">
+            <Input.TextArea rows={2} placeholder="Payment terms, special conditions…" />
+          </Form.Item>
+          <Form.Item name="notes" label="Notes">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+
+          <Divider orientation="left" style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+            Order Items
+          </Divider>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '180px 100px 60px 80px 90px 70px 32px', gap: 6, marginBottom: 6 }}>
+            {['Item', 'Description', 'Qty', 'Unit', 'Unit Price', 'GST %', ''].map((h) => (
+              <Text key={h} style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>{h}</Text>
+            ))}
+          </div>
+
+          {lineItems.map((row) => (
+            <div key={row._key} style={{ display: 'grid', gridTemplateColumns: '180px 100px 60px 80px 90px 70px 32px', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+              <Select size="small" showSearch allowClear optionFilterProp="label"
+                value={row.item_id} placeholder="Item" onChange={(v) => onItemSelect(row._key, v)}
+                options={items.map((i) => ({ value: i.id, label: `${i.name}` }))}
+              />
+              <Input size="small" placeholder="Description" value={row.description}
+                onChange={(e) => updateLine(row._key, 'description', e.target.value)} />
+              <InputNumber size="small" min={0} value={row.qty_ordered}
+                onChange={(v) => updateLine(row._key, 'qty_ordered', v)} style={{ width: '100%' }} />
+              <Input size="small" value={row.unit}
+                onChange={(e) => updateLine(row._key, 'unit', e.target.value)} />
+              <InputNumber size="small" min={0} precision={2} value={row.unit_price}
+                onChange={(v) => updateLine(row._key, 'unit_price', v)} style={{ width: '100%' }} />
+              <InputNumber size="small" min={0} precision={1} value={row.gst_rate}
+                onChange={(v) => updateLine(row._key, 'gst_rate', v)} style={{ width: '100%' }} />
+              <Button size="small" type="text" danger icon={<MinusCircleOutlined />}
+                onClick={() => removeLine(row._key)} disabled={lineItems.length === 1} />
+            </div>
+          ))}
+
+          <Button type="dashed" onClick={addLine} icon={<PlusCircleOutlined />} style={{ width: '100%', marginTop: 4 }}>
+            Add Item
+          </Button>
+        </Form>
+      </Drawer>
+    </AppLayout>
+  );
+}
