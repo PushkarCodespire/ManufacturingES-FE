@@ -12,10 +12,11 @@ import {
 import dayjs from 'dayjs';
 import AppLayout          from '../../../components/AppLayout';
 import usePermissions     from '../../../hooks/usePermissions';
-import { grnApi }         from '../../../api/store.api';
-import { vendorApi }      from '../../../api/vendor.api';
-import { itemApi }        from '../../../api/item.api';
-import { warehouseApi }   from '../../../api/warehouse.api';
+import { grnApi }              from '../../../api/store.api';
+import { vendorApi }           from '../../../api/vendor.api';
+import { itemApi }             from '../../../api/item.api';
+import { warehouseApi }        from '../../../api/warehouse.api';
+import { purchaseOrderApi }    from '../../../api/procurement.api';
 
 const { Title, Text } = Typography;
 
@@ -50,6 +51,7 @@ export default function GRNPage() {
   const [vendors,      setVendors]      = useState([]);
   const [warehouses,   setWarehouses]   = useState([]);
   const [items,        setItems]        = useState([]);
+  const [pos,          setPos]          = useState([]);
   const [loading,      setLoading]      = useState(false);
   const [search,       setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState(null);
@@ -83,10 +85,13 @@ export default function GRNPage() {
       vendorApi.getAll({ type: 'vendor', limit: 500 }).catch(() => []),
       itemApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
       warehouseApi.getAll({ limit: 100 }).catch(() => []),
-    ]).then(([v, i, w]) => {
+      purchaseOrderApi.getAll({ status: 'sent' }).catch(() => ({ data: [] })),
+    ]).then(([v, i, w, p]) => {
       setVendors(Array.isArray(v) ? v : (v?.data ?? []));
       setItems(Array.isArray(i) ? i : (i?.data ?? []));
       setWarehouses(Array.isArray(w) ? w : (w?.data ?? []));
+      const poList = Array.isArray(p) ? p : (p?.data ?? []);
+      setPos(poList);
     });
   }, []);
 
@@ -105,6 +110,7 @@ export default function GRNPage() {
       vendor_id:    record.vendor_id,
       warehouse_id: record.warehouse_id,
       received_date: dayjs(record.received_date),
+      po_id:        record.po_id || null,
       po_reference: record.po_reference,
       invoice_no:   record.invoice_no,
       status:       record.status,
@@ -134,6 +140,7 @@ export default function GRNPage() {
         vendor_id:    vals.vendor_id    || null,
         warehouse_id: vals.warehouse_id,
         received_date: vals.received_date.format('YYYY-MM-DD'),
+        po_id:        vals.po_id        || null,
         po_reference: vals.po_reference || '',
         invoice_no:   vals.invoice_no   || '',
         notes:        vals.notes        || '',
@@ -187,6 +194,35 @@ export default function GRNPage() {
     updateLine(key, 'item_id', itemId);
   };
 
+  // ── PO selection: auto-fill vendor, po_reference, and line items ──────────
+  const onPoSelect = async (poId) => {
+    if (!poId) return;
+    try {
+      const res = await purchaseOrderApi.getById(poId);
+      const po = res?.data ?? res;
+      if (!po) return;
+      // Auto-fill vendor
+      if (po.vendor_id) form.setFieldsValue({ vendor_id: po.vendor_id });
+      if (po.po_no)     form.setFieldsValue({ po_reference: po.po_no });
+      // Auto-fill line items from PO items
+      const poItems = po.Items || [];
+      if (poItems.length) {
+        setLineItems(poItems.map((pit) => ({
+          _key:         Date.now() + Math.random(),
+          item_id:      pit.item_id,
+          item_code:    pit.Item?.code || '',
+          description:  pit.Item?.name || pit.description || '',
+          qty_ordered:  parseFloat(pit.qty_ordered) || 0,
+          qty_received: parseFloat(pit.qty_ordered) - parseFloat(pit.qty_received || 0),
+          unit:         pit.unit || pit.Item?.unit || 'pcs',
+          unit_price:   pit.unit_price ? parseFloat(pit.unit_price) : null,
+          lot_no:       '',
+          remarks:      '',
+        })));
+      }
+    } catch { /* silent — PO detail fetch failed */ }
+  };
+
   // ── Stats ──────────────────────────────────────────────────────────────────
   const total    = grns.length;
   const pending  = grns.filter((r) => r.status === 'pending').length;
@@ -221,8 +257,10 @@ export default function GRNPage() {
       render: (_, r) => <Text style={{ fontSize: 13 }}>{r.Warehouse?.name || '—'}</Text>,
     },
     {
-      title: 'PO Ref', dataIndex: 'po_reference', key: 'po_ref', width: 120,
-      render: (v) => v || <Text type="secondary">—</Text>,
+      title: 'Purchase Order', key: 'po_ref', width: 150,
+      render: (_, r) => r.PurchaseOrder
+        ? <Text style={{ color: '#1d4ed8', fontSize: 12 }}>{r.PurchaseOrder.po_no}</Text>
+        : (r.po_reference || <Text type="secondary">—</Text>),
     },
     {
       title: 'Items', key: 'items', width: 70, align: 'center',
@@ -379,11 +417,29 @@ export default function GRNPage() {
           </Row>
 
           <Row gutter={16}>
-            <Col span={8}>
+            <Col span={12}>
+              <Form.Item name="po_id" label="Link to Purchase Order">
+                <Select
+                  showSearch
+                  placeholder="Select PO (optional)"
+                  optionFilterProp="label"
+                  allowClear
+                  onChange={onPoSelect}
+                  options={pos.map((p) => ({
+                    value: p.id,
+                    label: `${p.po_no}${p.Vendor ? ` — ${p.Vendor.name}` : ''}`,
+                  }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
               <Form.Item name="received_date" label="Received Date" rules={[{ required: true, message: 'Select a date' }]}>
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>
             </Col>
+          </Row>
+
+          <Row gutter={16}>
             <Col span={8}>
               <Form.Item name="po_reference" label="PO Reference">
                 <Input placeholder="Vendor PO no." />

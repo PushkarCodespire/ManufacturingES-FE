@@ -7,11 +7,14 @@ import {
 import {
   PlusOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
-  CheckCircleOutlined,
+  CheckCircleOutlined, BulbOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import AppLayout       from '../../../components/AppLayout';
-import usePermissions  from '../../../hooks/usePermissions';
+import AppLayout            from '../../../components/AppLayout';
+import usePermissions       from '../../../hooks/usePermissions';
+import useAiSuggestion      from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionCard';
+import aiApi                from '../../../api/ai.api';
 import { scheduleApi, workOrderApi } from '../../../api/production.api';
 import { itemApi }     from '../../../api/item.api';
 import { machineApi }  from '../../../api/machine.api';
@@ -45,6 +48,12 @@ export default function SchedulingPage() {
   const [saving,     setSaving]     = useState(false);
 
   const [form] = Form.useForm();
+
+  // ── AI suggestions ────────────────────────────────────────────────────────
+  const shortage   = useAiSuggestion(aiApi.getShortagePrediction);
+  const bottleneck = useAiSuggestion(aiApi.getBottleneckDetection);
+  const [showShortage, setShowShortage]     = useState(false);
+  const [showBottleneck, setShowBottleneck] = useState(false);
 
   // ── Load schedules ─────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -306,6 +315,24 @@ export default function SchedulingPage() {
             style={{ width: 140 }}
           />
           <div style={{ flex: 1 }} />
+          <Tooltip title="AI: Predict material shortages">
+            <Button
+              icon={<BulbOutlined />}
+              onClick={() => { setShowShortage(true); shortage.fetch(); }}
+              loading={shortage.loading}
+            >
+              Shortage
+            </Button>
+          </Tooltip>
+          <Tooltip title="AI: Detect production bottlenecks">
+            <Button
+              icon={<BulbOutlined />}
+              onClick={() => { setShowBottleneck(true); bottleneck.fetch(); }}
+              loading={bottleneck.loading}
+            >
+              Bottleneck
+            </Button>
+          </Tooltip>
           <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
@@ -324,6 +351,99 @@ export default function SchedulingPage() {
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
         />
       </Card>
+
+      {/* ── AI Shortage Prediction Panel ──────────────────────────────────── */}
+      {showShortage && (
+        <AiSuggestionCard
+          title="Material Shortage Prediction"
+          loading={shortage.loading}
+          error={shortage.error}
+          aiAvailable={shortage.aiAvailable}
+          cached={shortage.cached}
+          onDismiss={() => { setShowShortage(false); shortage.reset(); }}
+          onRetry={() => shortage.fetch()}
+          style={{ marginTop: 16 }}
+        >
+          {shortage.data?.suggestion && (
+            <div style={{ fontSize: 13 }}>
+              {shortage.data.suggestion.summary_hinglish && (
+                <div style={{ whiteSpace: 'pre-line', marginBottom: 10, color: '#374151' }}>
+                  {shortage.data.suggestion.summary_hinglish}
+                </div>
+              )}
+              {shortage.data.suggestion.at_risk_items?.length > 0 && (
+                <Table
+                  size="small"
+                  pagination={false}
+                  rowKey="item_code"
+                  dataSource={shortage.data.suggestion.at_risk_items}
+                  columns={[
+                    { title: 'Item', dataIndex: 'item_name', key: 'item_name', width: 180, ellipsis: true },
+                    { title: 'Code', dataIndex: 'item_code', key: 'item_code', width: 100 },
+                    { title: 'Stock', dataIndex: 'current_stock', key: 'current_stock', width: 80, align: 'right' },
+                    { title: 'Required', dataIndex: 'required_qty', key: 'required_qty', width: 80, align: 'right' },
+                    { title: 'Deficit', dataIndex: 'deficit', key: 'deficit', width: 80, align: 'right',
+                      render: (v) => <Text type="danger">{v}</Text> },
+                    { title: 'Urgency', dataIndex: 'urgency', key: 'urgency', width: 90,
+                      render: (u) => <Tag color={u === 'critical' ? 'red' : u === 'warning' ? 'orange' : 'blue'}>{u}</Tag> },
+                  ]}
+                />
+              )}
+              {shortage.data.suggestion.at_risk_items?.length === 0 && (
+                <Text type="success">No material shortages predicted — supply looks healthy.</Text>
+              )}
+            </div>
+          )}
+        </AiSuggestionCard>
+      )}
+
+      {/* ── AI Bottleneck Detection Panel ────────────────────────────────── */}
+      {showBottleneck && (
+        <AiSuggestionCard
+          title="Production Bottleneck Detection"
+          loading={bottleneck.loading}
+          error={bottleneck.error}
+          aiAvailable={bottleneck.aiAvailable}
+          cached={bottleneck.cached}
+          onDismiss={() => { setShowBottleneck(false); bottleneck.reset(); }}
+          onRetry={() => bottleneck.fetch()}
+          style={{ marginTop: 16 }}
+        >
+          {bottleneck.data?.suggestion && (
+            <div style={{ fontSize: 13 }}>
+              {bottleneck.data.suggestion.summary_hinglish && (
+                <div style={{ whiteSpace: 'pre-line', marginBottom: 10, color: '#374151' }}>
+                  {bottleneck.data.suggestion.summary_hinglish}
+                </div>
+              )}
+              {bottleneck.data.suggestion.bottlenecks?.length > 0 && (
+                <Table
+                  size="small"
+                  pagination={false}
+                  rowKey={(r) => `${r.machine_id}-${r.date}`}
+                  dataSource={bottleneck.data.suggestion.bottlenecks}
+                  columns={[
+                    { title: 'Machine', dataIndex: 'machine_name', key: 'machine_name', width: 150 },
+                    { title: 'Date', dataIndex: 'date', key: 'date', width: 110,
+                      render: (d) => d ? dayjs(d).format('DD MMM YYYY') : '—' },
+                    { title: 'Scheduled', dataIndex: 'scheduled_hours', key: 'scheduled_hours', width: 90, align: 'right',
+                      render: (v) => `${v}h` },
+                    { title: 'Available', dataIndex: 'available_hours', key: 'available_hours', width: 90, align: 'right',
+                      render: (v) => `${v}h` },
+                    { title: 'Overload', dataIndex: 'overload_pct', key: 'overload_pct', width: 90, align: 'right',
+                      render: (v) => <Text type="danger">{v}%</Text> },
+                    { title: 'Severity', dataIndex: 'severity', key: 'severity', width: 90,
+                      render: (s) => <Tag color={s === 'critical' ? 'red' : s === 'warning' ? 'orange' : 'blue'}>{s}</Tag> },
+                  ]}
+                />
+              )}
+              {bottleneck.data.suggestion.bottlenecks?.length === 0 && (
+                <Text type="success">No bottlenecks detected — machine capacity looks balanced.</Text>
+              )}
+            </div>
+          )}
+        </AiSuggestionCard>
+      )}
 
       {/* ── Create / Edit Drawer ──────────────────────────────────────────── */}
       <Drawer

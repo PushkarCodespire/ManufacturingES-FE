@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Layout } from 'antd';
 import AppHeader  from './AppHeader';
 import AppSidebar from './AppSidebar';
+import MadadChatWidget from '../MadadChat/MadadChatWidget';
 
 const { Content } = Layout;
 
@@ -51,6 +52,7 @@ const AppLayout = ({ children }) => {
           }}
         >
           {children}
+          <MadadChatWidget />
         </Content>
       </Layout>
     </Layout>

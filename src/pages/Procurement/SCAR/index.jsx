@@ -7,6 +7,7 @@ import {
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   DeleteOutlined, RightOutlined, EditOutlined,
+  CheckCircleOutlined, SendOutlined, WarningOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout        from '../../../components/AppLayout';
@@ -46,19 +47,27 @@ export default function SCARPage() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [updateDrawerOpen, setUpdateDrawerOpen] = useState(false);
+  const [respondDrawerOpen, setRespondDrawerOpen] = useState(false);
   const [activeScar, setActiveScar] = useState(null);
   const [saving,    setSaving]    = useState(false);
+  const [overdueFilter, setOverdueFilter] = useState(false);
 
-  const [form]       = Form.useForm();
-  const [updateForm] = Form.useForm();
+  const [form]        = Form.useForm();
+  const [updateForm]  = Form.useForm();
+  const [respondForm] = Form.useForm();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const p = {};
-      if (statusFilter)   p.status   = statusFilter;
-      if (severityFilter) p.severity = severityFilter;
-      const res = await scarApi.getAll(p);
+      let res;
+      if (overdueFilter) {
+        res = await scarApi.getOverdue();
+      } else {
+        const p = {};
+        if (statusFilter)   p.status   = statusFilter;
+        if (severityFilter) p.severity = severityFilter;
+        res = await scarApi.getAll(p);
+      }
       const arr = Array.isArray(res) ? res : (res?.data ?? []);
       const filtered = search
         ? arr.filter((s) =>
@@ -70,7 +79,7 @@ export default function SCARPage() {
       setScars(filtered);
     } catch { message.error('Failed to load SCARs'); }
     finally { setLoading(false); }
-  }, [search, statusFilter, severityFilter]);
+  }, [search, statusFilter, severityFilter, overdueFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -156,6 +165,50 @@ export default function SCARPage() {
     } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
   };
 
+  const openRespond = (scar) => {
+    setActiveScar(scar);
+    respondForm.resetFields();
+    respondForm.setFieldsValue({
+      response_notes:    scar.response_notes || '',
+      root_cause:        scar.root_cause || '',
+      corrective_action: scar.corrective_action || '',
+    });
+    setRespondDrawerOpen(true);
+  };
+
+  const onRespond = async () => {
+    try {
+      const vals = await respondForm.validateFields();
+      setSaving(true);
+      await scarApi.respond(activeScar.id, {
+        response_notes:    vals.response_notes,
+        root_cause:        vals.root_cause,
+        corrective_action: vals.corrective_action,
+      });
+      message.success('SCAR response recorded');
+      setRespondDrawerOpen(false);
+      load();
+    } catch (err) {
+      if (err?.errorFields) return;
+      message.error(err?.response?.data?.message || 'Respond failed');
+    } finally { setSaving(false); }
+  };
+
+  const onClose = async (id) => {
+    try {
+      await scarApi.close(id);
+      message.success('SCAR closed successfully');
+      load();
+    } catch (err) { message.error(err?.response?.data?.message || 'Close failed'); }
+  };
+
+  const isOverdue = (scar) => {
+    if (!scar.required_response_date) return false;
+    if (['closed', 'accepted', 'rejected'].includes(scar.status)) return false;
+    if (['response_received', 'under_review'].includes(scar.status)) return false;
+    return new Date(scar.required_response_date) < new Date();
+  };
+
   const columns = [
     {
       title: 'SCAR No', dataIndex: 'scar_no', key: 'scar_no', width: 160,
@@ -188,11 +241,18 @@ export default function SCARPage() {
       },
     },
     {
-      title: 'Response Due', dataIndex: 'required_response_date', key: 'required_response_date', width: 120,
-      render: (d) => {
+      title: 'Response Due', dataIndex: 'required_response_date', key: 'required_response_date', width: 140,
+      render: (d, r) => {
         if (!d) return <Text type="secondary">—</Text>;
-        const isOverdue = new Date(d) < new Date() && !['accepted', 'rejected', 'closed'].includes('');
-        return <Text style={{ color: isOverdue ? '#dc2626' : undefined }}>{dayjs(d).format('DD MMM YYYY')}</Text>;
+        const overdue = isOverdue(r);
+        return (
+          <Space size={4}>
+            <Text style={{ color: overdue ? '#dc2626' : undefined, fontWeight: overdue ? 600 : 400 }}>
+              {dayjs(d).format('DD MMM YYYY')}
+            </Text>
+            {overdue && <Tag color="red" style={{ margin: 0, fontSize: 10, lineHeight: '16px', height: 16 }}>OVERDUE</Tag>}
+          </Space>
+        );
       },
     },
     {
@@ -200,9 +260,36 @@ export default function SCARPage() {
       render: (d) => d ? dayjs(d).format('DD MMM YYYY') : '—',
     },
     ...(canWrite ? [{
-      title: 'Actions', key: 'actions', width: 120,
+      title: 'Actions', key: 'actions', width: 180,
       render: (_, r) => (
         <Space size={4}>
+          {['created', 'sent'].includes(r.status) && (
+            <Tooltip title="Record vendor response">
+              <Button
+                size="small"
+                type="primary"
+                ghost
+                icon={<SendOutlined />}
+                onClick={() => openRespond(r)}
+              />
+            </Tooltip>
+          )}
+          {['response_received', 'under_review', 'accepted'].includes(r.status) && (
+            <Popconfirm
+              title="Close this SCAR?"
+              description="This marks the SCAR as resolved."
+              onConfirm={() => onClose(r.id)}
+              okText="Close"
+            >
+              <Tooltip title="Close SCAR">
+                <Button
+                  size="small"
+                  icon={<CheckCircleOutlined />}
+                  style={{ borderColor: '#16a34a', color: '#16a34a' }}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
           <Tooltip title="Update SCAR">
             <Button
               size="small"
@@ -231,6 +318,7 @@ export default function SCARPage() {
     total:    scars.length,
     open:     scars.filter((s) => !['accepted', 'rejected', 'closed'].includes(s.status)).length,
     critical: scars.filter((s) => s.severity === 'critical').length,
+    overdue:  scars.filter((s) => isOverdue(s)).length,
     closed:   scars.filter((s) => s.status === 'closed').length,
   };
 
@@ -253,6 +341,16 @@ export default function SCARPage() {
         <Tag color="blue">Total: {totals.total}</Tag>
         <Tag color="orange">Open: {totals.open}</Tag>
         <Tag color="red">Critical: {totals.critical}</Tag>
+        {totals.overdue > 0 && (
+          <Tag
+            color="volcano"
+            style={{ cursor: 'pointer' }}
+            icon={<WarningOutlined />}
+            onClick={() => setOverdueFilter(!overdueFilter)}
+          >
+            Overdue: {totals.overdue} {overdueFilter ? '(filtered)' : ''}
+          </Tag>
+        )}
         <Tag color="green">Closed: {totals.closed}</Tag>
       </div>
 
@@ -464,6 +562,47 @@ export default function SCARPage() {
             </Form.Item>
           </Form>
         )}
+      </Drawer>
+      {/* ── Respond Drawer ────────────────────────────────────────────────── */}
+      <Drawer
+        title={`Respond to SCAR — ${activeScar?.scar_no || ''}`}
+        open={respondDrawerOpen}
+        onClose={() => setRespondDrawerOpen(false)}
+        width={560}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={() => setRespondDrawerOpen(false)}>Cancel</Button>
+            <Button type="primary" loading={saving} onClick={onRespond}>
+              Submit Response
+            </Button>
+          </div>
+        }
+      >
+        <Form form={respondForm} layout="vertical">
+          <Form.Item
+            name="response_notes"
+            label="Vendor Response Details"
+            rules={[{ required: true, message: 'Enter vendor response' }]}
+          >
+            <Input.TextArea rows={4} placeholder="Vendor's response to the SCAR…" />
+          </Form.Item>
+
+          <Form.Item
+            name="root_cause"
+            label="Root Cause Identified"
+            rules={[{ required: true, message: 'Enter root cause' }]}
+          >
+            <Input.TextArea rows={3} placeholder="Root cause analysis from vendor…" />
+          </Form.Item>
+
+          <Form.Item
+            name="corrective_action"
+            label="Corrective Action Plan"
+            rules={[{ required: true, message: 'Enter corrective action' }]}
+          >
+            <Input.TextArea rows={3} placeholder="Actions taken / planned by vendor…" />
+          </Form.Item>
+        </Form>
       </Drawer>
     </AppLayout>
   );

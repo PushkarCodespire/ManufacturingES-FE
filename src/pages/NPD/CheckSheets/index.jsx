@@ -6,7 +6,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
-  EditOutlined, DeleteOutlined,
+  EditOutlined, DeleteOutlined, CheckCircleOutlined,
 } from '@ant-design/icons';
 import AppLayout         from '../../../components/AppLayout';
 import usePermissions    from '../../../hooks/usePermissions';
@@ -16,7 +16,7 @@ import { itemApi }       from '../../../api/item.api';
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
 
-const STATUS_COLOR = { active: 'green', inactive: 'default' };
+const STATUS_COLOR = { active: 'green', inactive: 'default', invalidated: 'red', reviewed: 'blue' };
 
 const STAGE_OPTS = [
   { value: 'incoming',   label: 'Incoming'   },
@@ -113,14 +113,27 @@ export default function CheckSheetsPage() {
       render: (v) => <Tag>{STAGE_OPTS.find((o) => o.value === v)?.label ?? v}</Tag> },
     { title: 'Dimensions',    key: 'dims',                width: 100,
       render: (_, r) => <Tag color="blue">{r.Dimensions?.length ?? 0} dims</Tag> },
-    { title: 'Status',        dataIndex: 'status',        key: 'status',width: 90,
-      render: (v) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{v}</Tag> },
+    { title: 'Status',        key: 'status', width: 110,
+      render: (_, r) => <Tag color={STATUS_COLOR[r.sheet_status] ?? STATUS_COLOR[r.status] ?? 'default'}>{r.sheet_status || r.status}</Tag> },
   ];
 
+  const onRevalidate = async (rid) => {
+    try {
+      await checkSheetApi.revalidate(rid);
+      message.success('Check-sheet revalidated');
+      fetchAll();
+    } catch (err) { message.error(err?.message || 'Revalidate failed'); }
+  };
+
   const actionColumn = {
-    title: 'Actions', key: 'actions', width: 110,
+    title: 'Actions', key: 'actions', width: 150,
     render: (_, r) => (
       <Space size={4}>
+        {r.sheet_status === 'invalidated' && (
+          <Button size="small" icon={<CheckCircleOutlined />} onClick={() => onRevalidate(r.id)}>
+            Revalidate
+          </Button>
+        )}
         <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
         <Popconfirm title="Delete this template?" onConfirm={() => onDelete(r.id)} okText="Delete" okButtonProps={{ danger: true }}>
           <Button size="small" danger icon={<DeleteOutlined />} />
@@ -135,9 +148,10 @@ export default function CheckSheetsPage() {
       <Button size="small" type="link" onClick={() => navigate(`/quality/check-sheets/${r.id}`)}>Open</Button>
     ),
   };
-  const columns  = [...baseColumns, openColumn, ...(canWrite ? [actionColumn] : [])];
-  const total    = records.length;
-  const active   = records.filter((r) => r.status === 'active').length;
+  const columns     = [...baseColumns, openColumn, ...(canWrite ? [actionColumn] : [])];
+  const total       = records.length;
+  const active      = records.filter((r) => r.status === 'active').length;
+  const invalidated = records.filter((r) => r.sheet_status === 'invalidated').length;
   const filtered = records.filter((r) =>
     !search ||
     r.template_code?.toLowerCase().includes(search.toLowerCase()) ||
@@ -160,6 +174,7 @@ export default function CheckSheetsPage() {
       <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 16 }}>
         <Tag color="blue">Total: {total}</Tag>
         <Tag color="green">Active: {active}</Tag>
+        <Tag color="red">Invalidated: {invalidated}</Tag>
       </div>
 
       <Card

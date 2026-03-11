@@ -17,6 +17,7 @@ import {
   KeyOutlined,
   ControlOutlined,
   SolutionOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth }        from '../../context/AuthContext';
@@ -140,6 +141,7 @@ const NAV_ITEMS_DEF = [
           { key: 'q-capa',       label: 'CAPA / 8D',         permission: 'quality-capa-read'       },
           { key: 'q-ncr',        label: 'Internal NCR',       permission: 'quality-ncr-read'        },
           { key: 'q-complaints', label: 'Customer Complaints',permission: 'quality-complaints-read' },
+          { key: 'q-instruments',label: 'Instruments',         permission: 'quality-instruments-read'},
         ],
       },
       // ── NPD / Documents ────────────────────────────────────
@@ -201,8 +203,9 @@ const NAV_ITEMS_DEF = [
         key:   'grp-store-inventory',
         label: 'Inventory',
         children: [
-          { key: 's-stock-ledger',     label: 'Stock Ledger',     permission: 'store-inventory-stock_ledger-read'     },
-          { key: 's-stock-adjustment', label: 'Stock Adjustment', permission: 'store-inventory-stock_adjustment-read' },
+          { key: 's-inventory-dashboard', label: 'Dashboard',        permission: 'store-inventory-dashboard-read'       },
+          { key: 's-stock-ledger',        label: 'Stock Ledger',     permission: 'store-inventory-stock_ledger-read'     },
+          { key: 's-stock-adjustment',    label: 'Stock Adjustment', permission: 'store-inventory-stock_adjustment-read' },
         ],
       },
     ],
@@ -238,12 +241,12 @@ const NAV_ITEMS_DEF = [
     ],
   },
 
-  // ── Dispatch & Logistics — dispatch_admin, it_admin, plant_head only ─────────
+  // ── Dispatch & Logistics — dispatch_manager, it_admin, plant_head only ─────────
   {
     key:   'dispatch',
     label: 'Dispatch',
     icon:  <CarOutlined />,
-    roles: ['dispatch_admin', 'it_admin', 'plant_head'],
+    roles: ['dispatch_manager', 'it_admin', 'plant_head'],
     children: [
       { key: 'dispatch-transporters', label: 'Transporters'      },
       { key: 'dispatch-orders',       label: 'Dispatch Orders'   },
@@ -265,6 +268,17 @@ const NAV_ITEMS_DEF = [
       { key: 'hr-training-records',  label: 'Training Records'  },
       { key: 'hr-competency-matrix', label: 'Competency Matrix' },
       { key: 'hr-effectiveness',     label: 'Effectiveness'     },
+    ],
+  },
+
+  // ── Admin ────────────────────────────────────────────────────────────────────
+  {
+    key:   'admin',
+    label: 'Admin',
+    icon:  <SettingOutlined />,
+    roles: ['plant_head', 'it_admin'],
+    children: [
+      { key: 'admin-control-room', label: 'Control Room' },
     ],
   },
 ];
@@ -299,11 +313,12 @@ const KEY_TO_PATH = {
   'o-customer-po':    '/orders/customer-po',
   'o-order-tracking': '/orders/tracking',
   // Store module
-  's-grn':              '/store/grn',
-  's-issue-slip':       '/store/issue-slip',
-  's-material-request': '/store/material-request',
-  's-stock-ledger':     '/store/stock-ledger',
-  's-stock-adjustment': '/store/stock-adjustment',
+  's-grn':                '/store/grn',
+  's-issue-slip':         '/store/issue-slip',
+  's-material-request':   '/store/material-request',
+  's-inventory-dashboard':'/store/inventory-dashboard',
+  's-stock-ledger':       '/store/stock-ledger',
+  's-stock-adjustment':   '/store/stock-adjustment',
   // Production module
   'work-orders':           '/production/work-orders',
   'job-cards':             '/production/job-cards',
@@ -317,6 +332,7 @@ const KEY_TO_PATH = {
   'q-capa':         '/quality/capa',
   'q-ncr':          '/quality/ncr',
   'q-complaints':   '/quality/complaints',
+  'q-instruments':  '/quality/instruments',
   'q-drawings':     '/quality/drawings',
   'q-check-sheets': '/quality/check-sheets',
   'q-pfmea':        '/quality/pfmea',
@@ -345,6 +361,8 @@ const KEY_TO_PATH = {
   'dispatch-challans':     '/dispatch/challans',
   'dispatch-tracking':     '/dispatch/tracking',
   'dispatch-reports':      '/dispatch/reports',
+  // Admin
+  'admin-control-room':    '/admin/control-room',
 };
 
 // ── Derive selected key + open keys from current pathname ────────────────────
@@ -380,6 +398,7 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/quality/capa'))         return { selected: 'q-capa',         open: ['quality', 'grp-qms'] };
   if (pathname.startsWith('/quality/ncr'))          return { selected: 'q-ncr',          open: ['quality', 'grp-qms'] };
   if (pathname.startsWith('/quality/complaints'))   return { selected: 'q-complaints',   open: ['quality', 'grp-qms'] };
+  if (pathname.startsWith('/quality/instruments'))   return { selected: 'q-instruments',   open: ['quality', 'grp-qms'] };
   if (pathname.startsWith('/quality/drawings'))     return { selected: 'q-drawings',     open: ['quality', 'grp-npd'] };
   if (pathname.startsWith('/quality/check-sheets')) return { selected: 'q-check-sheets', open: ['quality', 'grp-npd'] };
   if (pathname.startsWith('/quality/pfmea'))        return { selected: 'q-pfmea',        open: ['quality', 'grp-npd'] };
@@ -392,6 +411,7 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/store/grn'))               return { selected: 's-grn',              open: ['store', 'grp-store-transactions'] };
   if (pathname.startsWith('/store/issue-slip'))         return { selected: 's-issue-slip',        open: ['store', 'grp-store-transactions'] };
   if (pathname.startsWith('/store/material-request'))   return { selected: 's-material-request',  open: ['store', 'grp-store-requests']     };
+  if (pathname.startsWith('/store/inventory-dashboard')) return { selected: 's-inventory-dashboard',open: ['store', 'grp-store-inventory']    };
   if (pathname.startsWith('/store/stock-ledger'))       return { selected: 's-stock-ledger',      open: ['store', 'grp-store-inventory']    };
   if (pathname.startsWith('/store/stock-adjustment'))   return { selected: 's-stock-adjustment',  open: ['store', 'grp-store-inventory']    };
   // Production module
@@ -416,6 +436,8 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/accounts/debit-credit-notes')) return { selected: 'acc-debit-credit-notes', open: ['accounts'] };
   if (pathname.startsWith('/accounts/payments'))           return { selected: 'acc-payments',           open: ['accounts'] };
   if (pathname.startsWith('/accounts/copq'))               return { selected: 'acc-copq',              open: ['accounts'] };
+  // Admin
+  if (pathname.startsWith('/admin/control-room')) return { selected: 'admin-control-room', open: ['admin'] };
   // Generic masters fallback
   if (pathname.startsWith('/masters'))               return { selected: 'masters',       open: ['masters'] };
   // HR & Training

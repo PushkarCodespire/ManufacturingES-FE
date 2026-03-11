@@ -127,6 +127,10 @@ export default function NCRPage() {
     { title: 'Qty Def.',  dataIndex: 'qty_defective',     key: 'qty',      width: 90 },
     { title: 'Status',    dataIndex: 'status',            key: 'status',   width: 110,
       render: (v) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{v?.replace(/_/g, ' ')}</Tag> },
+    { title: 'Source', key: 'source', width: 100,
+      render: (_, r) => r.complaint_id ? <Button size="small" type="link" onClick={() => navigate(`/quality/complaints/${r.complaint_id}`)}>Complaint</Button> : '—' },
+    { title: 'CAPA', key: 'capa', width: 100,
+      render: (_, r) => r.capa_id ? <Button size="small" type="link" onClick={() => navigate(`/quality/capa/${r.capa_id}`)}>View CAPA</Button> : '—' },
     { title: 'Date',      dataIndex: 'detection_date',    key: 'date',     width: 110 },
   ];
 

@@ -160,10 +160,18 @@ export default function LQCPage() {
     } finally { setSaving(false); }
   };
 
-  const onResult = async (id, result) => {
+  const onResult = async (id, result, record) => {
     try {
       await lqcApi.updateResult(id, result);
       message.success(`Result set to ${RESULT_CONFIG[result]?.label || result}`);
+      if (record?.type === 'fpi' && record?.WorkOrder?.wo_no) {
+        const woNo = record.WorkOrder.wo_no;
+        if (result === 'pass') {
+          message.info(`Work Order ${woNo} FPI status updated to Pass — production can start`);
+        } else if (result === 'fail') {
+          message.warning(`Work Order ${woNo} FPI status updated to Fail — production blocked`);
+        }
+      }
       load();
     } catch (err) { message.error(err?.response?.data?.message || 'Update failed'); }
   };
@@ -237,7 +245,7 @@ export default function LQCPage() {
                   ghost
                   icon={<CheckOutlined />}
                   style={{ borderColor: '#16a34a', color: '#16a34a' }}
-                  onClick={() => onResult(r.id, 'pass')}
+                  onClick={() => onResult(r.id, 'pass', r)}
                 />
               </Tooltip>
               <Tooltip title="Fail">
@@ -246,14 +254,14 @@ export default function LQCPage() {
                   danger
                   ghost
                   icon={<CloseOutlined />}
-                  onClick={() => onResult(r.id, 'fail')}
+                  onClick={() => onResult(r.id, 'fail', r)}
                 />
               </Tooltip>
               <Tooltip title="Conditional">
                 <Button
                   size="small"
                   style={{ borderColor: '#d97706', color: '#d97706' }}
-                  onClick={() => onResult(r.id, 'conditional')}
+                  onClick={() => onResult(r.id, 'conditional', r)}
                 >
                   Cond.
                 </Button>

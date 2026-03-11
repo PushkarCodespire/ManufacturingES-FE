@@ -1,5 +1,16 @@
 import api from './axios';
 
+// ── Instruments (Calibration) ────────────────────────────────────────────────
+export const instrumentApi = {
+  getAll:               (params = {}) => api.get('/quality/instruments',                { params }).then((r) => r.data),
+  getById:              (id)          => api.get(`/quality/instruments/${id}`).then((r) => r.data),
+  create:               (data)        => api.post('/quality/instruments',               data).then((r) => r.data),
+  update:               (id, data)    => api.patch(`/quality/instruments/${id}`,        data).then((r) => r.data),
+  delete:               (id)          => api.delete(`/quality/instruments/${id}`).then((r) => r.data),
+  verify:               (id, data)    => api.post(`/quality/instruments/${id}/verify`,  data).then((r) => r.data),
+  getVerificationStatus: ()           => api.get('/quality/instruments/verification-status').then((r) => r.data),
+};
+
 // ── CAPA / 8D ────────────────────────────────────────────────────────────────
 export const capaApi = {
   getAll:            (params = {}) => api.get('/quality/capa',                    { params }).then((r) => r.data),
@@ -11,6 +22,7 @@ export const capaApi = {
   addEffectiveness:  (id, data)    => api.post(`/quality/capa/${id}/effectiveness`,data).then((r) => r.data),
   close:             (id)          => api.patch(`/quality/capa/${id}/close`,      {}).then((r) => r.data),
   delete:            (id)          => api.delete(`/quality/capa/${id}`).then((r) => r.data),
+  getOverdueEffectiveness: (params = {}) => api.get('/quality/capa/effectiveness/overdue', { params }).then((r) => r.data),
 };
 
 // ── Internal NCR ──────────────────────────────────────────────────────────────
@@ -43,7 +55,8 @@ export const drawingApi = {
   update:     (id, data)    => api.patch(`/npd/drawings/${id}`,       data).then((r) => r.data),
   approve:    (id, data)    => api.patch(`/npd/drawings/${id}/approve`, data).then((r) => r.data),
   obsolete:   (id)          => api.patch(`/npd/drawings/${id}/obsolete`, {}).then((r) => r.data),
-  delete:     (id)          => api.delete(`/npd/drawings/${id}`).then((r) => r.data),
+  delete:       (id)          => api.delete(`/npd/drawings/${id}`).then((r) => r.data),
+  checkCascade: (id)          => api.get(`/npd/drawings/${id}/cascade-check`).then((r) => r.data),
 };
 
 // ── Check Sheet Templates ─────────────────────────────────────────────────────
@@ -54,6 +67,7 @@ export const checkSheetApi = {
   update:            (id, data)    => api.patch(`/npd/check-sheets/${id}`,             data).then((r) => r.data),
   updateDimensions:  (id, data)    => api.put(`/npd/check-sheets/${id}/dimensions`,    data).then((r) => r.data),
   delete:            (id)          => api.delete(`/npd/check-sheets/${id}`).then((r) => r.data),
+  revalidate:        (id)          => api.patch(`/npd/check-sheets/${id}/revalidate`).then((r) => r.data),
 };
 
 // ── PFMEA ─────────────────────────────────────────────────────────────────────

@@ -120,6 +120,10 @@ export default function ComplaintsPage() {
       render: (v) => <Tag color={v === 'critical' ? 'red' : v === 'major' ? 'orange' : 'default'}>{v}</Tag> },
     { title: 'Status',      dataIndex: 'status',               key: 'status', width: 120,
       render: (v) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{v?.replace(/_/g, ' ')}</Tag> },
+    { title: 'NCR', key: 'ncr', width: 100,
+      render: (_, r) => r.ncr_id ? <Button size="small" type="link" onClick={() => navigate(`/quality/ncr/${r.ncr_id}`)}>View NCR</Button> : '—' },
+    { title: 'CAPA', key: 'capa', width: 100,
+      render: (_, r) => r.capa_id ? <Button size="small" type="link" onClick={() => navigate(`/quality/capa/${r.capa_id}`)}>View CAPA</Button> : '—' },
     { title: 'Due',         dataIndex: 'response_due',         key: 'due',    width: 110 },
     { title: 'Received',    dataIndex: 'received_date',        key: 'date',   width: 110 },
   ];

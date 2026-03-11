@@ -30,6 +30,7 @@ export const quotationApi = {
 export const customerOrderApi = {
   getAll:       (params = {}) => api.get('/customer-orders',          { params }).then((r) => r.data),
   getById:      (id)          => api.get(`/customer-orders/${id}`).then((r) => r.data),
+  getDetail:    (id)          => api.get(`/customer-orders/${id}/detail`).then((r) => r.data),
   getTracking:  ()            => api.get('/customer-orders/tracking').then((r) => r.data),
   create:       (data)        => api.post('/customer-orders',          data).then((r) => r.data),
   update:       (id, data)    => api.patch(`/customer-orders/${id}`,   data).then((r) => r.data),

@@ -29,6 +29,13 @@ const STATUS_CONFIG = {
   cancelled:   { color: 'red',        label: 'Cancelled'   },
 };
 
+const FPI_STATUS_CONFIG = {
+  not_required: { color: 'default', label: 'N/A'     },
+  pending:      { color: 'orange',  label: 'FPI Pending' },
+  pass:         { color: 'green',   label: 'FPI Pass'    },
+  fail:         { color: 'red',     label: 'FPI Fail'    },
+};
+
 const STATUS_TRANSITIONS = {
   draft:       ['open', 'cancelled'],
   open:        ['in_progress', 'on_hold', 'cancelled'],
@@ -224,6 +231,14 @@ export default function WorkOrdersPage() {
       },
     },
     {
+      title: 'FPI', dataIndex: 'fpi_status', key: 'fpi_status', width: 100,
+      render: (s) => {
+        if (!s || s === 'not_required') return <Text type="secondary" style={{ fontSize: 11 }}>—</Text>;
+        const cfg = FPI_STATUS_CONFIG[s] || { color: 'default', label: s };
+        return <Tag color={cfg.color}>{cfg.label}</Tag>;
+      },
+    },
+    {
       title: 'Created By', key: 'creator', width: 120,
       render: (_, r) => <Text style={{ fontSize: 12 }}>{r.Creator?.name || '—'}</Text>,
     },
@@ -334,7 +349,7 @@ export default function WorkOrdersPage() {
           columns={columns}
           dataSource={workOrders}
           size="small"
-          scroll={{ x: 1300 }}
+          scroll={{ x: 1400 }}
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
         />
       </Card>

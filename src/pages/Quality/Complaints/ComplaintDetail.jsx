@@ -47,10 +47,11 @@ export default function ComplaintDetailPage() {
     try {
       const vals = await form.validateFields();
       setSaving(true);
-      await complaintApi.acknowledge(id, {
+      const result = await complaintApi.acknowledge(id, {
         response_due: vals.response_due?.format('YYYY-MM-DD'),
       });
       message.success('Complaint acknowledged — response deadline set');
+      if (result?.ncr_no) message.info(`NCR ${result.ncr_no} auto-created for this complaint`);
       load();
     } catch (err) {
       if (err?.errorFields) return;
@@ -161,7 +162,28 @@ export default function ComplaintDetailPage() {
         </Card>
       )}
 
-      {/* Card 3 — Linked CAPA */}
+      {/* Card 3 — Linked NCR */}
+      {complaint.ncr_id && complaint.NCR && (
+        <Card
+          style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16 }}
+          bodyStyle={{ padding: '16px 20px' }}
+          title="Linked NCR"
+          extra={
+            <Button type="link" icon={<LinkOutlined />} onClick={() => navigate(`/quality/ncr/${complaint.ncr_id}`)}>
+              Open NCR
+            </Button>
+          }
+        >
+          <Descriptions bordered size="small" column={2}>
+            <Descriptions.Item label="NCR No.">{complaint.NCR?.ncr_no ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Status">
+              <Tag>{complaint.NCR?.status?.replace(/_/g, ' ') ?? '—'}</Tag>
+            </Descriptions.Item>
+          </Descriptions>
+        </Card>
+      )}
+
+      {/* Card 4 — Linked CAPA */}
       <Card
         style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
         bodyStyle={{ padding: '16px 20px' }}

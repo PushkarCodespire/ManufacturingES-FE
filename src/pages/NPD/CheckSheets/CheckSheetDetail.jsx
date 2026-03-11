@@ -1,15 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Typography, Card, Button, Descriptions, Tag, Space, message,
-  Table, Input, InputNumber, Select,
+  Table, Input, InputNumber, Select, Alert,
 } from 'antd';
 import {
   ArrowLeftOutlined, RightOutlined, PlusOutlined, DeleteOutlined, SaveOutlined,
+  BulbOutlined, UploadOutlined,
 } from '@ant-design/icons';
 import AppLayout         from '../../../components/AppLayout';
 import usePermissions    from '../../../hooks/usePermissions';
 import { checkSheetApi } from '../../../api/quality.api';
+import useAiSuggestion  from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard  from '../../../components/AiSuggestion/AiSuggestionCard';
+import aiApi              from '../../../api/ai.api';
 
 const { Title, Text } = Typography;
 
@@ -58,6 +62,11 @@ export default function CheckSheetDetailPage() {
   const [dims,     setDims]     = useState([]);
   const [saving,   setSaving]   = useState(false);
 
+  // AI dimension extraction
+  const ai        = useAiSuggestion(aiApi.getDimensionExtraction);
+  const [aiFile, setAiFile] = useState(null);
+  const aiFileRef = useRef(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -91,6 +100,33 @@ export default function CheckSheetDetailPage() {
       load();
     } catch (err) { message.error(err?.message || 'Save failed'); }
     finally { setSaving(false); }
+  };
+
+  // ── AI dimension extraction ────────────────────────────────────────────────
+  const handleAiExtract = (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    if (template.drawing_id) fd.append('drawing_id', template.drawing_id);
+    ai.fetch(fd);
+  };
+
+  const applyAiDims = () => {
+    const aiDims = ai.data?.data?.dimensions ?? ai.data?.dimensions ?? [];
+    if (!aiDims.length) { message.warning('No dimensions to apply'); return; }
+    setDims(aiDims.map((d, i) => ({
+      _tempId: ++_tempId,
+      balloon_no: d.balloon_no ?? '',
+      dimension_desc: d.dimension_desc ?? d.description ?? '',
+      nominal: d.nominal ?? 0,
+      usl: d.tolerance_upper ?? d.usl ?? 0,
+      lsl: d.tolerance_lower ?? d.lsl ?? 0,
+      unit: d.unit ?? 'mm',
+      instrument: '',
+      classification: 'major',
+      sample_size: 5,
+      sort_order: i,
+    })));
+    message.success(`${aiDims.length} dimensions applied from AI`);
   };
 
   // ── Column definitions ─────────────────────────────────────────────────────
@@ -237,6 +273,16 @@ export default function CheckSheetDetailPage() {
         </div>
       </div>
 
+      {/* Invalidation Alert */}
+      {template.sheet_status === 'invalidated' && (
+        <Alert
+          type="warning" showIcon
+          message="This check-sheet has been invalidated due to a drawing revision."
+          description="Review the dimensions and revalidate after verifying against the updated drawing."
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
       {/* Card 1 — Template Info */}
       <Card
         style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16 }}
@@ -259,6 +305,76 @@ export default function CheckSheetDetailPage() {
           )}
         </Descriptions>
       </Card>
+
+      {/* AI Extract Dimensions */}
+      {canWrite && (
+        <Card
+          style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16 }}
+          bodyStyle={{ padding: '16px 20px' }}
+          title="AI Extract Dimensions"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <input
+              ref={aiFileRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setAiFile(file);
+                  handleAiExtract(file);
+                }
+                e.target.value = '';
+              }}
+            />
+            <Button icon={<BulbOutlined />} onClick={() => aiFileRef.current?.click()} loading={ai.loading}>
+              AI Extract Dimensions
+            </Button>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {aiFile ? aiFile.name : 'Upload a drawing PDF or image to auto-extract dimensions'}
+            </Text>
+          </div>
+
+          {(ai.data || ai.loading || ai.error) && (
+            <AiSuggestionCard
+              title="AI Extracted Dimensions"
+              loading={ai.loading}
+              error={ai.error}
+              aiAvailable={ai.aiAvailable}
+              cached={ai.cached}
+              onDismiss={() => ai.reset()}
+              onRetry={() => aiFile && handleAiExtract(aiFile)}
+            >
+              {ai.data && (() => {
+                const aiDims = ai.data?.data?.dimensions ?? ai.data?.dimensions ?? [];
+                if (!aiDims.length) return <Text type="secondary">No dimensions extracted.</Text>;
+                return (
+                  <div>
+                    <Table
+                      rowKey={(_, i) => i}
+                      dataSource={aiDims}
+                      size="small"
+                      pagination={false}
+                      columns={[
+                        { title: 'Balloon', dataIndex: 'balloon_no', key: 'bal', width: 70 },
+                        { title: 'Description', key: 'desc', render: (_, d) => d.dimension_desc ?? d.description ?? '—' },
+                        { title: 'Nominal', dataIndex: 'nominal', key: 'nom', width: 80 },
+                        { title: 'USL', key: 'usl', width: 80, render: (_, d) => d.tolerance_upper ?? d.usl ?? '—' },
+                        { title: 'LSL', key: 'lsl', width: 80, render: (_, d) => d.tolerance_lower ?? d.lsl ?? '—' },
+                        { title: 'Unit', dataIndex: 'unit', key: 'unit', width: 60 },
+                      ]}
+                    />
+                    <Button type="primary" size="small" style={{ marginTop: 12 }} onClick={applyAiDims}>
+                      Apply All ({aiDims.length} dimensions)
+                    </Button>
+                  </div>
+                );
+              })()}
+            </AiSuggestionCard>
+          )}
+        </Card>
+      )}
 
       {/* Card 2 — Dimensions */}
       <Card

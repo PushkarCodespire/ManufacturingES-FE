@@ -8,8 +8,12 @@ import {
   ClockCircleOutlined, SyncOutlined, CarOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { WarningOutlined } from '@ant-design/icons';
 import AppLayout          from '../../../components/AppLayout';
 import { customerOrderApi } from '../../../api/orders.api';
+import aiApi              from '../../../api/ai.api';
+import useAiSuggestion    from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard   from '../../../components/AiSuggestion/AiSuggestionCard';
 
 const { Title, Text } = Typography;
 
@@ -30,6 +34,8 @@ export default function OrderTrackingPage() {
   const [tracking,     setTracking]     = useState(null);
   const [loading,      setLoading]      = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
+  const [riskVisible,  setRiskVisible]  = useState(false);
+  const aiRisk = useAiSuggestion(aiApi.getDeliveryRisk);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -217,7 +223,35 @@ export default function OrderTrackingPage() {
           </Text>
           <div style={{ flex: 1 }} />
           <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button>
+          <Button type="dashed" icon={<WarningOutlined />} onClick={() => { setRiskVisible(true); aiRisk.fetch(); }} loading={aiRisk.loading}>
+            Delivery Risk
+          </Button>
         </div>
+
+        {riskVisible && (
+          <AiSuggestionCard
+            title="Delivery Risk Analysis"
+            loading={aiRisk.loading}
+            error={aiRisk.error}
+            aiAvailable={aiRisk.aiAvailable}
+            cached={aiRisk.cached}
+            onDismiss={() => setRiskVisible(false)}
+            onRetry={() => aiRisk.fetch()}
+            style={{ marginBottom: 16 }}
+          >
+            {aiRisk.data?.data && (
+              <div>
+                <Text style={{ fontSize: 12, whiteSpace: 'pre-line' }}>{aiRisk.data.data.summary}</Text>
+                {(aiRisk.data.data.at_risk_orders || []).map((r, i) => (
+                  <div key={i} style={{ marginTop: 6, padding: '4px 8px', background: r.risk_level === 'high' ? '#fff1f0' : r.risk_level === 'medium' ? '#fffbe6' : '#f6ffed', borderRadius: 6, fontSize: 12 }}>
+                    <Tag color={r.risk_level === 'high' ? 'red' : r.risk_level === 'medium' ? 'orange' : 'green'}>{r.risk_level}</Tag>
+                    <strong>{r.order_no}</strong> — {r.customer_name} — {r.risk_reasons?.[0]}
+                  </div>
+                ))}
+              </div>
+            )}
+          </AiSuggestionCard>
+        )}
 
         <Table
           rowKey="id"

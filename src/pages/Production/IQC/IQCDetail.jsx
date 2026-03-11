@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Typography, Card, Button, Tabs, Descriptions, Tag, Table, Select,
   Form, Input, message, Popconfirm, Alert, Space, Row, Col,
@@ -8,13 +8,16 @@ import {
   ArrowLeftOutlined, SaveOutlined, CheckCircleOutlined,
   CloseCircleOutlined, WarningOutlined, ThunderboltOutlined,
   PlusCircleOutlined, MinusCircleOutlined, DownloadOutlined,
+  PrinterOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useReactToPrint } from 'react-to-print';
 import AppLayout        from '../../../components/AppLayout';
 import usePermissions   from '../../../hooks/usePermissions';
 import { iqcApi }       from '../../../api/production.api';
 import { checkSheetApi } from '../../../api/quality.api';
+import IqcReportTemplate from './templates/IqcReportTemplate';
 
 const { Title, Text } = Typography;
 
@@ -58,6 +61,10 @@ export default function IQCDetail() {
 
   const [dispForm]         = Form.useForm();
   const [cascadeLoading,   setCascadeLoading]   = useState(false);
+
+  // ── Print support ──────────────────────────────────────────────────────────
+  const printRef = useRef();
+  const handlePrint = useReactToPrint({ contentRef: printRef });
 
   // ── Load inspection ────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -518,6 +525,12 @@ export default function IQCDetail() {
             {record.Vendor && <Text type="secondary" style={{ fontSize: 13 }}>· {record.Vendor.name}</Text>}
           </Space>
         </div>
+        <Button icon={<PrinterOutlined />} onClick={handlePrint}>Print Report</Button>
+      </div>
+
+      {/* Hidden print template */}
+      <div style={{ display: 'none' }}>
+        <IqcReportTemplate ref={printRef} inspection={record} />
       </div>
 
       <Card

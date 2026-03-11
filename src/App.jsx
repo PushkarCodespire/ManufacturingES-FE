@@ -8,6 +8,7 @@ import ChangePasswordPage from './pages/ChangePassword';
 import DashboardPage from './pages/Dashboard';
 import ProfilePage from './pages/Profile';
 import ResetPasswordPage from './pages/Admin/ResetPassword';
+import ControlRoomPage from './pages/Admin/ControlRoom';
 import EmployeesPage      from './pages/Masters/Employees';
 import EmployeeDetailPage from './pages/Masters/Employees/EmployeeDetail';
 import ConfigurationPage  from './pages/Masters/Configuration';
@@ -35,6 +36,7 @@ import ToolsPage            from './pages/Production/Tools';
 import RFQPage              from './pages/Orders/RFQ';
 import QuotationPage        from './pages/Orders/Quotation';
 import CustomerPOPage       from './pages/Orders/CustomerPO';
+import OrderDetailPage      from './pages/Orders/CustomerPO/OrderDetail';
 import OrderTrackingPage    from './pages/Orders/Tracking';
 import GRNPage              from './pages/Store/GRN';
 import MaterialRequestPage  from './pages/Store/MaterialRequest';
@@ -84,6 +86,8 @@ import SalesInvoicesPage    from './pages/Accounts/SalesInvoices';
 import DebitCreditNotesPage from './pages/Accounts/DebitCreditNotes';
 import PaymentsPage         from './pages/Accounts/Payments';
 import COPQPage             from './pages/Accounts/COPQ';
+import InstrumentsPage         from './pages/Quality/Instruments';
+import InventoryDashboardPage  from './pages/Store/InventoryDashboard';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
@@ -174,6 +178,15 @@ function App() {
                 element={
                   <ProtectedRoute roles={['it_admin', 'plant_head']}>
                     <ResetPasswordPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin/control-room"
+                element={
+                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                    <ControlRoomPage />
                   </ProtectedRoute>
                 }
               />
@@ -438,6 +451,14 @@ function App() {
                 }
               />
               <Route
+                path="/orders/customer-po/:id"
+                element={
+                  <ProtectedRoute permission="plan-orders-customer_po-read">
+                    <OrderDetailPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/orders/tracking"
                 element={
                   <ProtectedRoute permission="plan-orders-order_tracking-read">
@@ -509,6 +530,12 @@ function App() {
               <Route path="/subcontracting/outward" element={<ProtectedRoute permission="plan-subcontracting-outward_challan-read"><OutwardChallanPage /></ProtectedRoute>} />
               <Route path="/subcontracting/inward" element={<ProtectedRoute permission="plan-subcontracting-inward_challan-read"><InwardChallanPage /></ProtectedRoute>} />
 
+              {/* ── Quality — Instruments ──────────────────────────────────────── */}
+              <Route path="/quality/instruments" element={<ProtectedRoute permission="quality-instruments-read"><InstrumentsPage /></ProtectedRoute>} />
+
+              {/* ── Store — Inventory Dashboard ────────────────────────────────── */}
+              <Route path="/store/inventory-dashboard" element={<ProtectedRoute permission="store-inventory-dashboard-read"><InventoryDashboardPage /></ProtectedRoute>} />
+
               {/* ── Quality & NPD Module ──────────────────────────────────────── */}
               <Route path="/quality/capa"           element={<ProtectedRoute permission="quality-capa-read">         <CAPAPage />           </ProtectedRoute>} />
               <Route path="/quality/capa/:id"        element={<ProtectedRoute permission="quality-capa-read">         <CAPADetailPage />      </ProtectedRoute>} />
@@ -565,11 +592,11 @@ function App() {
                 }
               />
 
-              {/* Dispatch & Logistics — dispatch_admin, it_admin, plant_head only */}
+              {/* Dispatch & Logistics — dispatch_manager, it_admin, plant_head only */}
               <Route
                 path="/dispatch/transporters"
                 element={
-                  <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
+                  <ProtectedRoute roles={['dispatch_manager', 'it_admin', 'plant_head']}>
                     <TransportersPage />
                   </ProtectedRoute>
                 }
@@ -577,7 +604,7 @@ function App() {
               <Route
                 path="/dispatch/orders"
                 element={
-                  <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
+                  <ProtectedRoute roles={['dispatch_manager', 'it_admin', 'plant_head']}>
                     <DispatchOrdersPage />
                   </ProtectedRoute>
                 }
@@ -585,7 +612,7 @@ function App() {
               <Route
                 path="/dispatch/orders/:id/documents"
                 element={
-                  <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
+                  <ProtectedRoute roles={['dispatch_manager', 'it_admin', 'plant_head']}>
                     <DispatchDocumentsPage />
                   </ProtectedRoute>
                 }
@@ -593,7 +620,7 @@ function App() {
               <Route
                 path="/dispatch/challans"
                 element={
-                  <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
+                  <ProtectedRoute roles={['dispatch_manager', 'it_admin', 'plant_head']}>
                     <DeliveryChallansPage />
                   </ProtectedRoute>
                 }
@@ -601,7 +628,7 @@ function App() {
               <Route
                 path="/dispatch/tracking"
                 element={
-                  <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
+                  <ProtectedRoute roles={['dispatch_manager', 'it_admin', 'plant_head']}>
                     <ShipmentTrackingPage />
                   </ProtectedRoute>
                 }
@@ -609,7 +636,7 @@ function App() {
               <Route
                 path="/dispatch/reports"
                 element={
-                  <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
+                  <ProtectedRoute roles={['dispatch_manager', 'it_admin', 'plant_head']}>
                     <DispatchReportsPage />
                   </ProtectedRoute>
                 }

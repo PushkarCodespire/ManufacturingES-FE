@@ -35,13 +35,14 @@ const STATUS_OPTIONS = [
 const DispatchOrdersPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const canWrite = ['dispatch_admin', 'it_admin', 'plant_head'].includes(user?.role?.name);
+  const canWrite = ['dispatch_manager', 'it_admin', 'plant_head'].includes(user?.role?.name);
 
-  const [records,      setRecords]      = useState([]);
-  const [customers,    setCustomers]    = useState([]);
-  const [transporters, setTransporters] = useState([]);
-  const [items,        setItems]        = useState([]);
-  const [warehouses,   setWarehouses]   = useState([]);
+  const [records,        setRecords]        = useState([]);
+  const [customers,      setCustomers]      = useState([]);
+  const [customerOrders, setCustomerOrders] = useState([]);
+  const [transporters,   setTransporters]   = useState([]);
+  const [items,          setItems]          = useState([]);
+  const [warehouses,     setWarehouses]     = useState([]);
   const [loading,      setLoading]      = useState(false);
   const [saving,       setSaving]       = useState(false);
   const [view,         setView]         = useState('list');
@@ -64,16 +65,18 @@ const DispatchOrdersPage = () => {
 
   const fetchBase = useCallback(async () => {
     try {
-      const [custRes, transRes, itemRes, whRes] = await Promise.all([
+      const [custRes, transRes, itemRes, whRes, coRes] = await Promise.all([
         api.get('/vendors', { params: { is_active: true } }).then((r) => r.data),
         transporterApi.getAll({ is_active: true }),
         api.get('/items').then((r) => r.data),
         api.get('/warehouses').then((r) => r.data),
+        api.get('/customer-orders').then((r) => r.data),
       ]);
       setCustomers(custRes?.data ?? custRes ?? []);
       setTransporters(transRes?.data ?? transRes ?? []);
       setItems(itemRes?.data ?? itemRes ?? []);
       setWarehouses(whRes?.data ?? whRes ?? []);
+      setCustomerOrders((coRes?.data?.orders ?? coRes?.data ?? coRes ?? []).filter(o => ['ready', 'in_production', 'active'].includes(o.status)));
     } catch { message.error('Failed to load reference data'); }
   }, []);
 
@@ -287,6 +290,15 @@ const DispatchOrdersPage = () => {
               <Text strong style={{ fontSize: 13, color: '#374151' }}>Order Details</Text>
               <Divider style={{ margin: '10px 0 20px' }} />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0 20px' }}>
+                <Form.Item name="customer_order_id" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Customer Order</span>}>
+                  <Select showSearch allowClear placeholder="Link to Customer Order"
+                    filterOption={(input, opt) => opt.label.toLowerCase().includes(input.toLowerCase())}
+                    onChange={(coId) => {
+                      const co = customerOrders.find(o => o.id === coId);
+                      if (co) form.setFieldsValue({ customer_id: co.customer_id || co.Customer?.id });
+                    }}
+                    options={customerOrders.map((co) => ({ value: co.id, label: `${co.order_no} — ${co.Customer?.name || ''}` }))} />
+                </Form.Item>
                 <Form.Item name="customer_id" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Customer</span>}>
                   <Select showSearch allowClear placeholder="Select customer"
                     filterOption={(input, opt) => opt.label.toLowerCase().includes(input.toLowerCase())}

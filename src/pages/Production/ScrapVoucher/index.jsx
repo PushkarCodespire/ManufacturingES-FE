@@ -147,8 +147,14 @@ export default function ScrapVoucherPage() {
 
   const onAuthorize = async (id) => {
     try {
-      await scrapApi.authorize(id);
+      const res = await scrapApi.authorize(id);
+      const body = res?.data ?? res;
       message.success('Scrap voucher authorized');
+      if (body?.copq_id) {
+        const voucher = vouchers.find((v) => v.id === id);
+        const cost = voucher ? formatInr(parseFloat(voucher.total_cost) || 0) : '';
+        message.info(`COPQ entry created${cost ? `: ${cost}` : ''} — linked to Cost of Poor Quality`);
+      }
       load();
     } catch (err) { message.error(err?.response?.data?.message || 'Authorization failed'); }
   };

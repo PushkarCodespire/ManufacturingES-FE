@@ -5,7 +5,7 @@ import {
   Tabs, Form, Select, DatePicker, Input, Popconfirm, Alert,
 } from 'antd';
 import {
-  ArrowLeftOutlined, RightOutlined, CheckCircleOutlined,
+  ArrowLeftOutlined, RightOutlined, CheckCircleOutlined, LinkOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout    from '../../../components/AppLayout';
@@ -65,11 +65,12 @@ export default function NCRDetailPage() {
     try {
       const vals = await form.validateFields();
       setSaving(true);
-      await ncrApi.addDisposition(id, {
+      const result = await ncrApi.addDisposition(id, {
         ...vals,
         decision_date: vals.decision_date?.format('YYYY-MM-DD'),
       });
       message.success('Disposition recorded');
+      if (result?.capa_no) message.info(`CAPA ${result.capa_no} auto-created for this NCR`);
       load();
     } catch (err) {
       if (err?.errorFields) return;
@@ -276,6 +277,21 @@ export default function NCRDetailPage() {
           </Text>
         </div>
       </div>
+
+      {(ncr.complaint_id || ncr.capa_id) && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {ncr.complaint_id && (
+            <Button size="small" icon={<LinkOutlined />} onClick={() => navigate(`/quality/complaints/${ncr.complaint_id}`)}>
+              Source Complaint
+            </Button>
+          )}
+          {ncr.capa_id && (
+            <Button size="small" icon={<LinkOutlined />} onClick={() => navigate(`/quality/capa/${ncr.capa_id}`)}>
+              Linked CAPA
+            </Button>
+          )}
+        </div>
+      )}
 
       <Tabs items={tabItems} defaultActiveKey="details" />
     </AppLayout>

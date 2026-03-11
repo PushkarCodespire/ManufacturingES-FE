@@ -6,7 +6,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
-  DeleteOutlined, RightOutlined,
+  DeleteOutlined, RightOutlined, EyeOutlined,
   PlusCircleOutlined, MinusCircleOutlined,
   StopOutlined,
 } from '@ant-design/icons';
@@ -49,6 +49,11 @@ export default function InwardChallanPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [saving,     setSaving]     = useState(false);
   const [lineItems,  setLineItems]  = useState([emptyLine()]);
+
+  // Detail drawer
+  const [detailOpen,    setDetailOpen]    = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailRecord,  setDetailRecord]  = useState(null);
 
   const [form] = Form.useForm();
 
@@ -93,6 +98,17 @@ export default function InwardChallanPage() {
     form.setFieldsValue({ challan_date: dayjs() });
     setLineItems([emptyLine()]);
     setDrawerOpen(true);
+  };
+
+  const openDetail = async (record) => {
+    setDetailRecord(record);
+    setDetailOpen(true);
+    setDetailLoading(true);
+    try {
+      const res = await subcontractApi.getById(record.id);
+      setDetailRecord(res?.data ?? res);
+    } catch { /* keep list-level data */ }
+    finally { setDetailLoading(false); }
   };
 
   const onSave = async () => {
@@ -157,7 +173,14 @@ export default function InwardChallanPage() {
   const columns = [
     {
       title: 'Challan No', dataIndex: 'challan_no', key: 'challan_no', width: 160,
-      render: (no) => <Text style={{ color: '#1d4ed8', fontWeight: 600 }}>{no}</Text>,
+      render: (no, r) => (
+        <Text
+          style={{ color: '#1d4ed8', fontWeight: 600, cursor: 'pointer' }}
+          onClick={() => openDetail(r)}
+        >
+          {no}
+        </Text>
+      ),
     },
     {
       title: 'Vendor', key: 'vendor', width: 200,
@@ -435,6 +458,90 @@ export default function InwardChallanPage() {
             Add Item
           </Button>
         </Form>
+      </Drawer>
+
+      {/* ── Detail Drawer ──────────────────────────────────────────────────── */}
+      <Drawer
+        title={detailRecord?.challan_no || 'Challan Details'}
+        open={detailOpen}
+        onClose={() => { setDetailOpen(false); setDetailRecord(null); }}
+        width={600}
+      >
+        {detailLoading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>
+        ) : detailRecord ? (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px', marginBottom: 20 }}>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11 }}>Challan No</Text>
+                <div><Text strong>{detailRecord.challan_no}</Text></div>
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11 }}>Status</Text>
+                <div>
+                  <Tag color={STATUS_CONFIG[detailRecord.status]?.color || 'default'}>
+                    {STATUS_CONFIG[detailRecord.status]?.label || detailRecord.status}
+                  </Tag>
+                </div>
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11 }}>Vendor</Text>
+                <div><Text>{detailRecord.Vendor?.name || '—'}</Text></div>
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11 }}>Received Date</Text>
+                <div><Text>{detailRecord.challan_date ? dayjs(detailRecord.challan_date).format('DD MMM YYYY') : '—'}</Text></div>
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11 }}>Work Order</Text>
+                <div><Text>{detailRecord.WorkOrder?.wo_no || '—'}</Text></div>
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11 }}>Created By</Text>
+                <div><Text>{detailRecord.Creator?.name || '—'}</Text></div>
+              </div>
+              {detailRecord.notes && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <Text type="secondary" style={{ fontSize: 11 }}>Notes</Text>
+                  <div><Text>{detailRecord.notes}</Text></div>
+                </div>
+              )}
+            </div>
+
+            <Divider orientation="left" style={{ fontSize: 13, fontWeight: 600, color: '#374151', margin: '12px 0' }}>
+              Items ({(detailRecord.Items || []).length})
+            </Divider>
+
+            <Table
+              rowKey="id"
+              dataSource={detailRecord.Items || []}
+              size="small"
+              pagination={false}
+              columns={[
+                {
+                  title: 'Item', key: 'item', width: 220,
+                  render: (_, it) => (
+                    <div>
+                      <Text style={{ fontWeight: 500, fontSize: 13 }}>{it.Item?.name || '—'}</Text>
+                      {it.Item?.code && (
+                        <div><Text type="secondary" style={{ fontSize: 11 }}>{it.Item.code}</Text></div>
+                      )}
+                    </div>
+                  ),
+                },
+                { title: 'Qty', dataIndex: 'qty', key: 'qty', width: 80, align: 'right',
+                  render: (v) => <Text strong>{v ?? '—'}</Text>,
+                },
+                { title: 'Unit', key: 'unit', width: 70,
+                  render: (_, it) => <Text>{it.unit || it.Item?.unit || 'pcs'}</Text>,
+                },
+                { title: 'Notes', dataIndex: 'notes', key: 'notes', ellipsis: true,
+                  render: (v) => v || '—',
+                },
+              ]}
+            />
+          </>
+        ) : null}
       </Drawer>
     </AppLayout>
   );

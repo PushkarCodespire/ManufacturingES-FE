@@ -16,6 +16,9 @@ import usePermissions   from '../../../hooks/usePermissions';
 import { rfqApi, uploadApi } from '../../../api/orders.api';
 import { vendorApi }    from '../../../api/vendor.api';
 import { itemApi }      from '../../../api/item.api';
+import aiApi            from '../../../api/ai.api';
+import useAiSuggestion  from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard from '../../../components/AiSuggestion/AiSuggestionCard';
 
 const { Title, Text } = Typography;
 
@@ -63,6 +66,35 @@ export default function RFQPage() {
   const currentUploadKey  = useRef(null);
 
   const [form] = Form.useForm();
+  const [aiVisible, setAiVisible] = useState(false);
+  const ai = useAiSuggestion(aiApi.suggestRfqFill);
+
+  const handleAiFill = async () => {
+    const customerId = form.getFieldValue('customer_id');
+    if (!customerId) { message.warning('Select a customer first'); return; }
+    setAiVisible(true);
+    ai.fetch({ customer_id: customerId });
+  };
+
+  const applyAiSuggestion = (suggestion) => {
+    if (!suggestion?.suggestions?.length) return;
+    const newItems = suggestion.suggestions.map((s, i) => ({
+      _key: Date.now() + i,
+      item_id: s.item_id || null,
+      qty: s.suggested_qty || 0,
+      unit: s.unit || null,
+      description: s.item_name || '',
+      customer_item_code: '',
+      target_price: null,
+      notes: s.reason || '',
+      drawing_url: null,
+      drawing_name: null,
+    }));
+    setLineItems(newItems);
+    if (suggestion.notes_suggestion) form.setFieldValue('notes', suggestion.notes_suggestion);
+    message.success('AI suggestions applied — review and adjust');
+    setAiVisible(false);
+  };
 
   // ── Load data ────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -435,6 +467,40 @@ export default function RFQPage() {
               </Form.Item>
             </Col>
           </Row>
+
+          {!editing && (
+            <Button size="small" type="dashed" onClick={handleAiFill} loading={ai.loading} style={{ marginBottom: 12 }}>
+              Madad: Auto-fill from history
+            </Button>
+          )}
+
+          {aiVisible && (
+            <AiSuggestionCard
+              loading={ai.loading}
+              error={ai.error}
+              aiAvailable={ai.aiAvailable}
+              cached={ai.cached}
+              onDismiss={() => setAiVisible(false)}
+              onRetry={handleAiFill}
+              style={{ marginBottom: 12 }}
+            >
+              {ai.data?.data && (
+                <div>
+                  <Text style={{ fontSize: 12, color: '#374151' }}>{ai.data.data.summary}</Text>
+                  <div style={{ marginTop: 8 }}>
+                    {(ai.data.data.suggestions || []).map((s, i) => (
+                      <Tag key={i} color={s.confidence === 'high' ? 'green' : s.confidence === 'medium' ? 'orange' : 'default'} style={{ marginBottom: 4 }}>
+                        {s.item_name} × {s.suggested_qty}
+                      </Tag>
+                    ))}
+                  </div>
+                  <Button size="small" type="primary" onClick={() => applyAiSuggestion(ai.data.data)} style={{ marginTop: 8 }}>
+                    Apply Suggestions
+                  </Button>
+                </div>
+              )}
+            </AiSuggestionCard>
+          )}
 
           <Form.Item name="subject" label="Subject">
             <Input placeholder="Brief description of the RFQ" />

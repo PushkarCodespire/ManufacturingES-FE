@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Drawer,
   Form, Select, DatePicker, Divider, message, Tooltip,
@@ -8,15 +8,22 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   DeleteOutlined, RightOutlined, PlusCircleOutlined,
   MinusCircleOutlined, CheckOutlined, CloseOutlined,
-  FileDoneOutlined, SafetyCertificateOutlined,
+  FileDoneOutlined, SafetyCertificateOutlined, PrinterOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useReactToPrint } from 'react-to-print';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { oqcApi, workOrderApi } from '../../../api/production.api';
 import { itemApi }    from '../../../api/item.api';
 import { userApi }    from '../../../api/user.api';
 import { vendorApi }  from '../../../api/vendor.api';
+import aiApi          from '../../../api/ai.api';
+import useAiSuggestion from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard from '../../../components/AiSuggestion/AiSuggestionCard';
+import OqcTestCertTemplate from './templates/OqcTestCertTemplate';
+import OqcCOCTemplate      from './templates/OqcCOCTemplate';
+import '../../../pages/Dispatch/DispatchDocuments/printStyles.css';
 
 const { Title, Text } = Typography;
 
@@ -55,6 +62,60 @@ export default function OQCPage() {
   const [params,     setParams]     = useState([emptyParam()]);
 
   const [form] = Form.useForm();
+  const [priorityMap, setPriorityMap] = useState({});
+  const aiPriority = useAiSuggestion(aiApi.getOqcPriority);
+  const aiStandards = useAiSuggestion(aiApi.detectStandards);
+  const [standardsVisible, setStandardsVisible] = useState(false);
+
+  // Load AI priority on mount
+  useEffect(() => {
+    aiPriority.fetch();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Build priority map from AI response
+  useEffect(() => {
+    if (aiPriority.data?.data?.prioritized) {
+      const map = {};
+      aiPriority.data.data.prioritized.forEach((p) => { map[p.inspection_id] = p; });
+      setPriorityMap(map);
+    }
+  }, [aiPriority.data]);
+
+  const handleDetectStandards = () => {
+    const itemId = form.getFieldValue('item_id');
+    if (!itemId) { message.warning('Select an item first'); return; }
+    setStandardsVisible(true);
+    aiStandards.fetch({ item_id: itemId, parameters: params });
+  };
+
+  // ── Print state ───────────────────────────────────────────────────────────
+  const [printData,  setPrintData]  = useState(null);
+  const [printType,  setPrintType]  = useState(null); // 'cert' | 'coc'
+  const tcRef  = useRef(null);
+  const cocRef = useRef(null);
+
+  const handlePrintTC  = useReactToPrint({ contentRef: tcRef,  documentTitle: `TC-${printData?.cert_no || ''}` });
+  const handlePrintCOC = useReactToPrint({ contentRef: cocRef, documentTitle: `COC-${printData?.coc_no || ''}` });
+
+  const onPrint = async (id, type) => {
+    try {
+      const res = await oqcApi.getById(id);
+      const data = res?.data || res;
+      setPrintData(data);
+      setPrintType(type);
+    } catch { message.error('Failed to load inspection data for printing'); }
+  };
+
+  useEffect(() => {
+    if (!printData || !printType) return;
+    const timer = setTimeout(() => {
+      if (printType === 'cert') handlePrintTC();
+      else handlePrintCOC();
+      setPrintData(null);
+      setPrintType(null);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [printData, printType]);
 
   // ── Load inspections ───────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -172,7 +233,15 @@ export default function OQCPage() {
   const columns = [
     {
       title: 'Inspection No', dataIndex: 'inspection_no', key: 'no', width: 155,
-      render: (no) => <Text style={{ color: '#1d4ed8', fontWeight: 600 }}>{no}</Text>,
+      render: (no, rec) => {
+        const prio = priorityMap[rec.id];
+        return (
+          <Space size={4}>
+            {prio && <Tag color={prio.priority === 'urgent' ? 'red' : prio.priority === 'high' ? 'orange' : 'default'} style={{ fontSize: 10, lineHeight: '16px', height: 16, margin: 0 }}>{prio.priority}</Tag>}
+            <Text style={{ color: '#1d4ed8', fontWeight: 600 }}>{no}</Text>
+          </Space>
+        );
+      },
     },
     {
       title: 'Date', dataIndex: 'inspection_date', key: 'date', width: 110,
@@ -206,16 +275,22 @@ export default function OQCPage() {
       },
     },
     {
-      title: 'Test Cert', key: 'cert', width: 110, align: 'center',
+      title: 'Test Cert', key: 'cert', width: 130, align: 'center',
       render: (_, r) => r.cert_generated
-        ? <Tag color="green">{r.cert_no}</Tag>
-        : <Tag color="default">Not Generated</Tag>,
+        ? <Space size={4}>
+            <Tag color="green">{r.cert_no}</Tag>
+            <Tooltip title="Print TC"><Button size="small" type="text" icon={<PrinterOutlined />} onClick={() => onPrint(r.id, 'cert')} /></Tooltip>
+          </Space>
+        : <Tag color="default">—</Tag>,
     },
     {
-      title: 'COC', key: 'coc', width: 110, align: 'center',
+      title: 'COC', key: 'coc', width: 130, align: 'center',
       render: (_, r) => r.coc_generated
-        ? <Tag color="green">{r.coc_no}</Tag>
-        : <Tag color="default">Not Generated</Tag>,
+        ? <Space size={4}>
+            <Tag color="green">{r.coc_no}</Tag>
+            <Tooltip title="Print COC"><Button size="small" type="text" icon={<PrinterOutlined />} onClick={() => onPrint(r.id, 'coc')} /></Tooltip>
+          </Space>
+        : <Tag color="default">—</Tag>,
     },
     ...(canWrite ? [{
       title: 'Actions', key: 'actions', width: 220, fixed: 'right',
@@ -433,9 +508,44 @@ export default function OQCPage() {
             <Input.TextArea rows={2} placeholder="Observations, notes…" />
           </Form.Item>
 
-          <Divider orientation="left" style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
-            Inspection Parameters
-          </Divider>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Divider orientation="left" style={{ fontSize: 13, fontWeight: 600, color: '#374151', flex: 1 }}>
+              Inspection Parameters
+            </Divider>
+            <Button size="small" type="dashed" onClick={handleDetectStandards} loading={aiStandards.loading} style={{ marginLeft: 8 }}>
+              Detect Standards
+            </Button>
+          </div>
+
+          {standardsVisible && (
+            <AiSuggestionCard
+              title="QMS Standards"
+              loading={aiStandards.loading}
+              error={aiStandards.error}
+              aiAvailable={aiStandards.aiAvailable}
+              onDismiss={() => setStandardsVisible(false)}
+              onRetry={handleDetectStandards}
+              style={{ marginBottom: 8 }}
+            >
+              {aiStandards.data?.data && (
+                <div style={{ fontSize: 12 }}>
+                  {(aiStandards.data.data.suggested_standards || []).map((s, i) => (
+                    <Tag key={i} color={s.relevance === 'high' ? 'blue' : 'default'} style={{ marginBottom: 4 }}>
+                      {s.standard} {s.clause && `(${s.clause})`}
+                    </Tag>
+                  ))}
+                  {(aiStandards.data.data.missing_parameters || []).length > 0 && (
+                    <div style={{ marginTop: 6 }}>
+                      <Text type="warning" style={{ fontSize: 11 }}>Missing parameters: </Text>
+                      {aiStandards.data.data.missing_parameters.map((p, i) => (
+                        <Tag key={i} color="orange" style={{ fontSize: 10, marginBottom: 2 }}>{p.parameter_name}</Tag>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </AiSuggestionCard>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 100px 28px', gap: 6, marginBottom: 6 }}>
             {['Parameter Name', 'Specification', 'Actual Value', 'Result', ''].map((h) => (
@@ -465,6 +575,12 @@ export default function OQCPage() {
           </Button>
         </Form>
       </Drawer>
+
+      {/* Hidden print templates */}
+      <div style={{ display: 'none' }}>
+        <OqcTestCertTemplate ref={tcRef}  inspection={printData} />
+        <OqcCOCTemplate      ref={cocRef} inspection={printData} />
+      </div>
     </AppLayout>
   );
 }

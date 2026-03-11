@@ -1,20 +1,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Typography, Card, Button, Input, Table, Tag, Space, Drawer,
+  Typography, Card, Button, Input, Table, Tag, Space, Drawer, Modal,
   Form, Select, DatePicker, InputNumber, Divider, message, Tooltip,
   Popconfirm, Badge, Row, Col,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
-  EditOutlined, DeleteOutlined, RightOutlined,
+  EditOutlined, DeleteOutlined, RightOutlined, EyeOutlined,
   PlusCircleOutlined, MinusCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
+import { UploadOutlined } from '@ant-design/icons';
+import { Upload } from 'antd';
 import AppLayout            from '../../../components/AppLayout';
 import usePermissions       from '../../../hooks/usePermissions';
 import { customerOrderApi, quotationApi } from '../../../api/orders.api';
 import { vendorApi }        from '../../../api/vendor.api';
 import { itemApi }          from '../../../api/item.api';
+import aiApi                from '../../../api/ai.api';
+import useAiSuggestion      from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionCard';
 
 const { Title, Text } = Typography;
 
@@ -34,6 +40,7 @@ const emptyItem = () => ({
 });
 
 export default function CustomerPOPage() {
+  const navigate = useNavigate();
   const { can } = usePermissions();
   const canWrite = can('plan-orders-customer_po-create_edit_delete');
 
@@ -50,6 +57,39 @@ export default function CustomerPOPage() {
   const [lineItems,    setLineItems]    = useState([emptyItem()]);
 
   const [form] = Form.useForm();
+  const [poExtractVisible, setPoExtractVisible] = useState(false);
+  const aiExtract = useAiSuggestion(aiApi.extractPo);
+
+  const handlePoUpload = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    setPoExtractVisible(true);
+    aiExtract.fetch(formData);
+    return false; // prevent default upload
+  };
+
+  const applyPoExtraction = (data) => {
+    if (!data) return;
+    if (data.customer_po_no) form.setFieldValue('customer_po_no', data.customer_po_no);
+    if (data.order_date) form.setFieldValue('order_date', dayjs(data.order_date));
+    if (data.delivery_date) form.setFieldValue('delivery_date', dayjs(data.delivery_date));
+    if (data.matched_customer?.id) form.setFieldValue('customer_id', data.matched_customer.id);
+    if (data.terms) form.setFieldValue('terms', data.terms);
+    if (data.items?.length) {
+      const newItems = data.items.map((it, i) => ({
+        _key: Date.now() + i,
+        item_id: it.matched_item_id || null,
+        description: it.description || '',
+        qty_ordered: it.qty || 0,
+        unit: it.unit || 'pcs',
+        unit_price: it.unit_price || 0,
+        gst_rate: 18,
+      }));
+      setLineItems(newItems);
+    }
+    message.success('PO data extracted — review and save');
+    setPoExtractVisible(false);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -156,8 +196,27 @@ export default function CustomerPOPage() {
         await customerOrderApi.update(editing.id, payload);
         message.success('Order updated');
       } else {
-        await customerOrderApi.create(payload);
+        const result = await customerOrderApi.create(payload);
         message.success('Customer Order created');
+        if (result?.warnings?.length) {
+          Modal.warning({
+            title: 'Price Mismatch Warning',
+            width: 520,
+            content: (
+              <div>
+                <p style={{ marginBottom: 8 }}>The following items have prices that differ more than 2% from the linked quotation:</p>
+                <ul style={{ paddingLeft: 20 }}>
+                  {result.warnings.map((w, i) => (
+                    <li key={i} style={{ marginBottom: 4 }}>
+                      <strong>{w.item}</strong>: Quotation ₹{w.quotation_price} vs PO ₹{w.order_price} ({w.difference_pct}% diff)
+                    </li>
+                  ))}
+                </ul>
+                <p style={{ marginTop: 8, color: '#666' }}>The order has been created. Please verify the prices.</p>
+              </div>
+            ),
+          });
+        }
       }
       setDrawerOpen(false);
       load();
@@ -266,21 +325,26 @@ export default function CustomerPOPage() {
         return <Tag color={cfg.color}>{cfg.label}</Tag>;
       },
     },
-    ...(canWrite ? [{
+    {
       title: 'Actions',
       key: 'actions',
-      width: 90,
+      width: canWrite ? 120 : 50,
       render: (_, r) => (
         <Space size={4}>
-          <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
-          {(r.status === 'active' || r.status === 'cancelled') && (
-            <Popconfirm title="Delete this order?" onConfirm={() => onDelete(r.id)} okText="Delete" okType="danger">
-              <Tooltip title="Delete"><Button size="small" danger icon={<DeleteOutlined />} /></Tooltip>
-            </Popconfirm>
+          <Tooltip title="View Details"><Button size="small" icon={<EyeOutlined />} onClick={() => navigate(`/orders/customer-po/${r.id}`)} /></Tooltip>
+          {canWrite && (
+            <>
+              <Tooltip title="Edit"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
+              {(r.status === 'active' || r.status === 'cancelled') && (
+                <Popconfirm title="Delete this order?" onConfirm={() => onDelete(r.id)} okText="Delete" okType="danger">
+                  <Tooltip title="Delete"><Button size="small" danger icon={<DeleteOutlined />} /></Tooltip>
+                </Popconfirm>
+              )}
+            </>
           )}
         </Space>
       ),
-    }] : []),
+    },
   ];
 
   return (
@@ -362,6 +426,39 @@ export default function CustomerPOPage() {
           </div>
         }
       >
+        {!editing && (
+          <div style={{ marginBottom: 16 }}>
+            <Upload beforeUpload={handlePoUpload} accept=".pdf,.png,.jpg,.jpeg" showUploadList={false} maxCount={1}>
+              <Button icon={<UploadOutlined />} type="dashed" loading={aiExtract.loading}>
+                Upload PO PDF — Madad will extract data
+              </Button>
+            </Upload>
+            {poExtractVisible && (
+              <AiSuggestionCard
+                title="PO Data Extraction"
+                loading={aiExtract.loading}
+                error={aiExtract.error}
+                aiAvailable={aiExtract.aiAvailable}
+                onDismiss={() => setPoExtractVisible(false)}
+                onRetry={() => {}}
+                style={{ marginTop: 8 }}
+              >
+                {aiExtract.data?.data && (
+                  <div>
+                    <Text style={{ fontSize: 12 }}>
+                      Found: {aiExtract.data.data.customer_po_no || 'PO#'} | {aiExtract.data.data.items?.length || 0} items | Quality: {aiExtract.data.data.extraction_quality}
+                    </Text>
+                    <br />
+                    <Button size="small" type="primary" onClick={() => applyPoExtraction(aiExtract.data.data)} style={{ marginTop: 6 }}>
+                      Apply Extracted Data
+                    </Button>
+                  </div>
+                )}
+              </AiSuggestionCard>
+            )}
+          </div>
+        )}
+
         <Form form={form} layout="vertical">
           <Row gutter={16}>
             <Col span={12}>

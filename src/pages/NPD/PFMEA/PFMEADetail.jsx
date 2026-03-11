@@ -6,12 +6,16 @@ import {
 } from 'antd';
 import {
   ArrowLeftOutlined, RightOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
+  BulbOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { pfmeaApi }   from '../../../api/quality.api';
 import { userApi }    from '../../../api/user.api';
+import useAiSuggestion  from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard  from '../../../components/AiSuggestion/AiSuggestionCard';
+import aiApi              from '../../../api/ai.api';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -36,6 +40,9 @@ export default function PFMEADetailPage() {
   const [pfmea,         setPfmea]         = useState(null);
   const [users,         setUsers]         = useState([]);
   const [loading,       setLoading]       = useState(true);
+
+  // AI failure mode suggestion
+  const aiFailureMode = useAiSuggestion(aiApi.getFailureModeSuggestion);
 
   // Item (process step) drawer
   const [itemDrawer,  setItemDrawer]  = useState(false);
@@ -289,6 +296,65 @@ export default function PFMEADetailPage() {
           )}
         </Descriptions>
       </Card>
+
+      {/* AI Failure Mode Suggestions */}
+      {canWrite && (
+        <div style={{ marginBottom: 16 }}>
+          <Button icon={<BulbOutlined />} onClick={() => aiFailureMode.fetch(id)}>
+            AI Suggest Failure Modes
+          </Button>
+        </div>
+      )}
+      {(aiFailureMode.data || aiFailureMode.loading || aiFailureMode.error) && (
+        <AiSuggestionCard
+          title="AI Failure Mode Suggestions"
+          loading={aiFailureMode.loading}
+          error={aiFailureMode.error}
+          aiAvailable={aiFailureMode.aiAvailable}
+          cached={aiFailureMode.cached}
+          onDismiss={() => aiFailureMode.reset()}
+          onRetry={() => aiFailureMode.fetch(id)}
+          style={{ marginBottom: 16 }}
+        >
+          {aiFailureMode.data?.data?.suggestions && (
+            <div>
+              {aiFailureMode.data.data.suggestions.map((s, i) => (
+                <div key={i} style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: 8, marginBottom: 8 }}>
+                  <div style={{ fontSize: 13 }}>
+                    <Text strong>Mode: </Text>{s.failure_mode}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>
+                    Effect: {s.failure_effect} | Cause: {s.failure_cause}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>
+                    S: {s.severity} / O: {s.occurrence} / D: {s.detection} | Controls: {s.current_controls}
+                  </div>
+                  {canWrite && (
+                    <Button size="small" type="dashed" style={{ marginTop: 4 }}
+                      onClick={() => {
+                        itemForm.setFieldsValue({
+                          process_step: s.process_step ?? '',
+                          failure_mode: s.failure_mode,
+                          failure_effect: s.failure_effect,
+                          failure_cause: s.failure_cause,
+                          severity: s.severity ?? 5,
+                          occurrence: s.occurrence ?? 5,
+                          detection: s.detection ?? 5,
+                          current_controls: s.current_controls ?? '',
+                        });
+                        setEditingItem(null);
+                        setItemDrawer(true);
+                        message.success('Suggestion loaded into form');
+                      }}>
+                      Use This
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </AiSuggestionCard>
+      )}
 
       {/* Card 2 — Process Steps */}
       <Card

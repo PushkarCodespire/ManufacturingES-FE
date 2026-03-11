@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Drawer,
   Form, Select, Modal, InputNumber, message, Tooltip,
-  Popconfirm, Row, Col,
+  Popconfirm, Row, Col, Alert,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
@@ -361,8 +361,25 @@ export default function JobCardsPage() {
               showSearch
               placeholder="Select work order"
               optionFilterProp="label"
-              options={workOrders.map((wo) => ({ value: wo.id, label: wo.wo_no }))}
+              options={workOrders.map((wo) => ({
+                value: wo.id,
+                label: `${wo.wo_no}${wo.fpi_status === 'pending' ? ' (FPI Pending)' : wo.fpi_status === 'fail' ? ' (FPI Failed)' : ''}`,
+              }))}
             />
+          </Form.Item>
+
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.work_order_id !== cur.work_order_id}>
+            {() => {
+              const woId = form.getFieldValue('work_order_id');
+              const wo = workOrders.find((w) => w.id === woId);
+              if (wo?.fpi_status === 'pending') {
+                return <Alert type="warning" message="FPI not yet completed for this Work Order" showIcon style={{ marginBottom: 16 }} />;
+              }
+              if (wo?.fpi_status === 'fail') {
+                return <Alert type="error" message="FPI failed — resolve before starting production" showIcon style={{ marginBottom: 16 }} />;
+              }
+              return null;
+            }}
           </Form.Item>
 
           <Row gutter={16}>

@@ -6,7 +6,7 @@ import {
 } from 'antd';
 import {
   ArrowLeftOutlined, RightOutlined, UploadOutlined,
-  CheckOutlined, StopOutlined,
+  CheckOutlined, StopOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
@@ -64,12 +64,43 @@ export default function DrawingDetailPage() {
       if (!selectedFile) { message.error('Please choose a file first'); return; }
       setSaving(true);
 
+      // Check cascade impact on check-sheets before proceeding
+      let cascadeInfo = null;
+      try {
+        cascadeInfo = await drawingApi.checkCascade(id);
+      } catch { /* ignore cascade check failures */ }
+
+      if (cascadeInfo && cascadeInfo.count > 0) {
+        const confirmed = await new Promise((resolve) => {
+          Modal.confirm({
+            title: 'Check-Sheet Cascade Warning',
+            icon: <ExclamationCircleOutlined />,
+            content: (
+              <div>
+                <p>Uploading a new revision will <strong>invalidate {cascadeInfo.count} check-sheet(s)</strong>:</p>
+                <ul style={{ maxHeight: 160, overflow: 'auto', paddingLeft: 20, margin: '8px 0' }}>
+                  {(cascadeInfo.affected_check_sheets ?? []).map((cs, i) => (
+                    <li key={i} style={{ fontSize: 13, marginBottom: 2 }}>{cs.template_code ?? cs}</li>
+                  ))}
+                </ul>
+                <p>These check-sheets will need to be reviewed and revalidated after this revision.</p>
+              </div>
+            ),
+            okText: 'Proceed with Upload',
+            cancelText: 'Cancel',
+            onOk: () => resolve(true),
+            onCancel: () => resolve(false),
+          });
+        });
+        if (!confirmed) { setSaving(false); return; }
+      }
+
       const fd = new FormData();
       fd.append('file', selectedFile);
       const uploadRes = await uploadApi.uploadDrawing(fd);
       const filePath  = uploadRes?.file_path ?? uploadRes?.path ?? uploadRes?.url ?? String(uploadRes);
 
-      await drawingApi.addVersion(id, {
+      const result = await drawingApi.addVersion(id, {
         revision:     vals.revision,
         drawn_by:     vals.drawn_by,
         drawing_date: vals.drawing_date?.format('YYYY-MM-DD'),
@@ -78,7 +109,12 @@ export default function DrawingDetailPage() {
         file_name:    selectedFile.name,
         file_size:    selectedFile.size,
       });
-      message.success('Revision uploaded successfully');
+      const affectedCount = result?.affected_check_sheets ?? cascadeInfo?.count ?? 0;
+      message.success(
+        affectedCount > 0
+          ? `Revision uploaded successfully — ${affectedCount} check-sheet(s) invalidated`
+          : 'Revision uploaded successfully'
+      );
       setDrawerOpen(false);
       setSelectedFile(null);
       form.resetFields();

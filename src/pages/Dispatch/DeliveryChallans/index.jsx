@@ -26,7 +26,7 @@ const STATUS_OPTIONS = [
 
 const DeliveryChallansPage = () => {
   const { user } = useAuth();
-  const canWrite = ['dispatch_admin', 'it_admin', 'plant_head'].includes(user?.role?.name);
+  const canWrite = ['dispatch_manager', 'it_admin', 'plant_head'].includes(user?.role?.name);
 
   const [records,      setRecords]      = useState([]);
   const [orders,       setOrders]       = useState([]);

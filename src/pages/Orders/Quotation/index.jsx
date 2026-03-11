@@ -15,6 +15,9 @@ import usePermissions   from '../../../hooks/usePermissions';
 import { quotationApi, rfqApi } from '../../../api/orders.api';
 import { vendorApi }    from '../../../api/vendor.api';
 import { itemApi }      from '../../../api/item.api';
+import aiApi            from '../../../api/ai.api';
+import useAiSuggestion  from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard from '../../../components/AiSuggestion/AiSuggestionCard';
 
 const { Title, Text } = Typography;
 
@@ -53,6 +56,21 @@ export default function QuotationPage() {
   const [lineItems,    setLineItems]    = useState([emptyItem()]);
 
   const [form] = Form.useForm();
+  const [priceHint, setPriceHint] = useState(null);
+  const aiPrice = useAiSuggestion(aiApi.suggestPrice);
+
+  const handlePriceSuggest = async (itemId, idx) => {
+    if (!itemId) return;
+    const customerId = form.getFieldValue('customer_id');
+    aiPrice.fetch({ item_id: itemId, customer_id: customerId });
+  };
+
+  // Show price hint when AI returns
+  useEffect(() => {
+    if (aiPrice.data?.data?.suggested_price != null) {
+      setPriceHint(aiPrice.data.data);
+    }
+  }, [aiPrice.data]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -430,8 +448,15 @@ export default function QuotationPage() {
                 onChange={(v) => updateLine(row._key, 'qty', v)} style={{ width: '100%' }} />
               <Input size="small" value={row.unit}
                 onChange={(e) => updateLine(row._key, 'unit', e.target.value)} />
-              <InputNumber size="small" min={0} precision={2} value={row.unit_price}
-                onChange={(v) => updateLine(row._key, 'unit_price', v)} style={{ width: '100%' }} />
+              <Space.Compact style={{ width: '100%' }}>
+                <InputNumber size="small" min={0} precision={2} value={row.unit_price}
+                  onChange={(v) => updateLine(row._key, 'unit_price', v)} style={{ width: '100%' }} />
+                <Tooltip title={priceHint && priceHint.summary ? `${priceHint.summary} (₹${priceHint.suggested_price})` : 'Get AI price suggestion'}>
+                  <Button size="small" type="text" onClick={() => handlePriceSuggest(row.item_id)} loading={aiPrice.loading} style={{ fontSize: 11, padding: '0 4px' }}>
+                    AI
+                  </Button>
+                </Tooltip>
+              </Space.Compact>
               <InputNumber size="small" min={0} max={100} precision={1} value={row.discount}
                 onChange={(v) => updateLine(row._key, 'discount', v)} style={{ width: '100%' }} />
               <InputNumber size="small" min={0} precision={1} value={row.gst_rate}

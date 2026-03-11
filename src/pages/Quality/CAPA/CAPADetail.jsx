@@ -7,13 +7,16 @@ import {
 } from 'antd';
 import {
   ArrowLeftOutlined, RightOutlined, PlusOutlined, DeleteOutlined,
-  SaveOutlined, CheckCircleOutlined, EditOutlined,
+  SaveOutlined, CheckCircleOutlined, EditOutlined, BulbOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout    from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { capaApi }  from '../../../api/quality.api';
 import { userApi }  from '../../../api/user.api';
+import useAiSuggestion  from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard  from '../../../components/AiSuggestion/AiSuggestionCard';
+import aiApi              from '../../../api/ai.api';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea }               = Input;
@@ -91,6 +94,10 @@ export default function CAPADetailPage() {
   // ── D8 Closure ─────────────────────────────────────────────────────────────
   const [closureNotes, setClosureNotes] = useState('');
   const [closeSaving,  setCloseSaving]  = useState(false);
+
+  // ── AI Hooks ──────────────────────────────────────────────────────────────
+  const aiRootCause     = useAiSuggestion(aiApi.getRootCauseSuggestion);
+  const aiEffectiveness = useAiSuggestion(aiApi.getEffectivenessPrediction);
 
   // ─────────────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -412,6 +419,92 @@ export default function CAPADetailPage() {
       label: 'D4 Root Cause',
       children: (
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          {/* AI Root Cause Suggestion */}
+          {canWrite && (
+            <div style={{ marginBottom: 0 }}>
+              <Button icon={<BulbOutlined />} onClick={() => aiRootCause.fetch(id)}>
+                AI Suggest Root Causes
+              </Button>
+            </div>
+          )}
+          {(aiRootCause.data || aiRootCause.loading || aiRootCause.error) && (
+            <AiSuggestionCard
+              title="AI Root Cause Analysis"
+              loading={aiRootCause.loading}
+              error={aiRootCause.error}
+              aiAvailable={aiRootCause.aiAvailable}
+              cached={aiRootCause.cached}
+              onDismiss={() => aiRootCause.reset()}
+              onRetry={() => aiRootCause.fetch(id)}
+              style={{ marginBottom: 0 }}
+            >
+              {aiRootCause.data?.data && (() => {
+                const d = aiRootCause.data.data;
+                const fiveWhys = d.five_whys ?? [];
+                const fishboneData = d.fishbone ?? {};
+                return (
+                  <>
+                    {fiveWhys.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text strong style={{ display: 'block', marginBottom: 6 }}>5-Why Suggestions</Text>
+                        {fiveWhys.map((w, i) => (
+                          <div key={i} style={{ fontSize: 12, marginBottom: 4 }}>
+                            <Text strong>Why {i + 1}:</Text> {w.question} → <Text type="secondary">{w.answer}</Text>
+                          </div>
+                        ))}
+                        <Button size="small" type="dashed" style={{ marginTop: 8 }}
+                          onClick={() => {
+                            setWhys(fiveWhys.map((w, i) => ({
+                              _id: ++_wId,
+                              why_level: i + 1,
+                              why_question: w.question,
+                              why_answer: w.answer,
+                              is_root: i === fiveWhys.length - 1,
+                            })));
+                            message.success('AI 5-Why suggestions applied');
+                          }}>
+                          Apply 5-Why
+                        </Button>
+                      </div>
+                    )}
+                    {Object.keys(fishboneData).length > 0 && (
+                      <div>
+                        <Text strong style={{ display: 'block', marginBottom: 6 }}>Fishbone Suggestions</Text>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                          {Object.entries(fishboneData).map(([cat, causes]) => (
+                            <div key={cat} style={{ fontSize: 12 }}>
+                              <Text strong>{cat}:</Text>
+                              {(Array.isArray(causes) ? causes : []).map((c, i) => (
+                                <div key={i} style={{ paddingLeft: 8, color: '#6b7280' }}>• {c}</div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                        <Button size="small" type="dashed" style={{ marginTop: 8 }}
+                          onClick={() => {
+                            const newFb = {};
+                            Object.entries(fishboneData).forEach(([cat, causes]) => {
+                              newFb[cat] = Array.isArray(causes) ? causes : [];
+                            });
+                            setFishbone((prev) => {
+                              const merged = { ...prev };
+                              Object.entries(newFb).forEach(([cat, causes]) => {
+                                merged[cat] = [...new Set([...(merged[cat] ?? []), ...causes])];
+                              });
+                              return merged;
+                            });
+                            message.success('AI fishbone suggestions merged');
+                          }}>
+                          Merge Fishbone
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </AiSuggestionCard>
+          )}
+
           {/* 5-Why */}
           <Card
             style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
@@ -505,6 +598,50 @@ export default function CAPADetailPage() {
       label: 'D5-D6 Actions',
       children: (
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          {/* AI Effectiveness Prediction */}
+          {canWrite && (
+            <div style={{ marginBottom: 0 }}>
+              <Button icon={<BulbOutlined />} onClick={() => aiEffectiveness.fetch(id)}>
+                Predict Effectiveness
+              </Button>
+            </div>
+          )}
+          {(aiEffectiveness.data || aiEffectiveness.loading || aiEffectiveness.error) && (
+            <AiSuggestionCard
+              title="Effectiveness Prediction"
+              loading={aiEffectiveness.loading}
+              error={aiEffectiveness.error}
+              aiAvailable={aiEffectiveness.aiAvailable}
+              cached={aiEffectiveness.cached}
+              onDismiss={() => aiEffectiveness.reset()}
+              onRetry={() => aiEffectiveness.fetch(id)}
+              style={{ marginBottom: 0 }}
+            >
+              {aiEffectiveness.data?.data && (() => {
+                const d = aiEffectiveness.data.data;
+                return (
+                  <div style={{ fontSize: 13 }}>
+                    <div style={{ marginBottom: 8 }}>
+                      <Text strong>Confidence: </Text>
+                      <Tag color={d.confidence >= 0.7 ? 'green' : d.confidence >= 0.4 ? 'orange' : 'red'}>
+                        {Math.round((d.confidence ?? 0) * 100)}%
+                      </Tag>
+                    </div>
+                    {d.reasoning && <div style={{ marginBottom: 8 }}><Text strong>Reasoning: </Text><Text type="secondary">{d.reasoning}</Text></div>}
+                    {d.recommendations?.length > 0 && (
+                      <div>
+                        <Text strong>Recommendations:</Text>
+                        {d.recommendations.map((r, i) => (
+                          <div key={i} style={{ paddingLeft: 12, color: '#6b7280', fontSize: 12 }}>• {r}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </AiSuggestionCard>
+          )}
+
           {/* Corrective actions */}
           <Card
             style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
