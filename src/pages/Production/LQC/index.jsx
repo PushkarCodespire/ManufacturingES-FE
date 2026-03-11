@@ -2,12 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Drawer,
   Form, Select, DatePicker, Divider, message, Tooltip,
-  Popconfirm, Row, Col, Radio, Badge, Tabs,
+  Popconfirm, Row, Col, Radio, Badge, Tabs, Spin, Alert,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   DeleteOutlined, RightOutlined, PlusCircleOutlined,
   MinusCircleOutlined, CheckOutlined, CloseOutlined,
+  ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, WarningOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout       from '../../../components/AppLayout';
@@ -56,6 +57,12 @@ export default function LQCPage() {
   const [resultFilter, setResultFilter] = useState(null);
   const [activeTab,    setActiveTab]    = useState('all');
 
+  // ── Tool Wear Trend state (LQC-003) ────────────────────────────────────────
+  const [twMachineId,  setTwMachineId]  = useState(null);
+  const [twItemId,     setTwItemId]     = useState(null);
+  const [trendData,    setTrendData]    = useState(null);
+  const [trendLoading, setTrendLoading] = useState(false);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [saving,     setSaving]     = useState(false);
   const [params,     setParams]     = useState([emptyParam()]);
@@ -64,6 +71,7 @@ export default function LQCPage() {
 
   // ── Load inspections ───────────────────────────────────────────────────────
   const load = useCallback(async () => {
+    if (activeTab === 'tool_wear') return;
     setLoading(true);
     try {
       const p = {};
@@ -79,6 +87,22 @@ export default function LQCPage() {
   }, [search, resultFilter, dateFrom, dateTo, activeTab]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ── Load tool wear trend (LQC-003) ─────────────────────────────────────────
+  const loadTrend = useCallback(async () => {
+    if (!twMachineId && !twItemId) { setTrendData(null); return; }
+    setTrendLoading(true);
+    try {
+      const p = {};
+      if (twMachineId) p.machine_id = twMachineId;
+      if (twItemId)    p.item_id    = twItemId;
+      const res = await lqcApi.getToolWearTrend(p);
+      setTrendData(res?.data ?? res);
+    } catch { message.error('Failed to load trend data'); }
+    finally { setTrendLoading(false); }
+  }, [twMachineId, twItemId]);
+
+  useEffect(() => { if (activeTab === 'tool_wear') loadTrend(); }, [activeTab, loadTrend]);
 
   // ── Load lookups ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -263,10 +287,11 @@ export default function LQCPage() {
   ];
 
   const tabItems = [
-    { key: 'all',    label: 'All'    },
-    { key: 'fpi',    label: 'FPI'    },
-    { key: 'hourly', label: 'Hourly' },
-    { key: 'lpi',    label: 'LPI'    },
+    { key: 'all',       label: 'All'             },
+    { key: 'fpi',       label: 'FPI'             },
+    { key: 'hourly',    label: 'Hourly'          },
+    { key: 'lpi',       label: 'LPI'             },
+    { key: 'tool_wear', label: '⚙ Tool Wear Trend' },
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -285,16 +310,20 @@ export default function LQCPage() {
       </Text>
 
       {/* Stat chips */}
-      <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 16 }}>
-        <Tag color="blue">Total: {total}</Tag>
-        <Tag color="orange">Pending: {countPend}</Tag>
-        <Tag color="green">Pass: {countPass}</Tag>
-        <Tag color="red">Fail: {countFail}</Tag>
-      </div>
+      {activeTab !== 'tool_wear' && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 16 }}>
+          <Tag color="blue">Total: {total}</Tag>
+          <Tag color="orange">Pending: {countPend}</Tag>
+          <Tag color="green">Pass: {countPass}</Tag>
+          <Tag color="red">Fail: {countFail}</Tag>
+        </div>
+      )}
+      {activeTab === 'tool_wear' && <div style={{ marginBottom: 16 }} />}
 
+      {/* ── Tab bar (shared) ─────────────────────────────────────────────────── */}
       <Card
-        style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
-        bodyStyle={{ padding: '0' }}
+        style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16 }}
+        bodyStyle={{ padding: 0 }}
       >
         <Tabs
           activeKey={activeTab}
@@ -303,8 +332,14 @@ export default function LQCPage() {
           style={{ padding: '0 20px' }}
           tabBarStyle={{ marginBottom: 0 }}
         />
+      </Card>
 
-        <div style={{ padding: '16px 20px' }}>
+      {/* ── Inspection list (not tool_wear) ──────────────────────────────────── */}
+      {activeTab !== 'tool_wear' && (
+        <Card
+          style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+          bodyStyle={{ padding: '16px 20px' }}
+        >
           {/* Toolbar */}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <Input
@@ -355,8 +390,153 @@ export default function LQCPage() {
             scroll={{ x: 1300 }}
             pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
           />
-        </div>
-      </Card>
+        </Card>
+      )}
+
+      {/* ── Tool Wear Trend Panel (LQC-003) ──────────────────────────────────── */}
+      {activeTab === 'tool_wear' && (
+        <Card
+          style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+          bodyStyle={{ padding: '16px 20px' }}
+        >
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
+            <Text style={{ fontWeight: 600, fontSize: 14 }}>Dimensional Trend Analysis</Text>
+            <div style={{ flex: 1 }} />
+            <Select
+              showSearch
+              placeholder="Filter by Machine"
+              allowClear
+              value={twMachineId}
+              onChange={setTwMachineId}
+              optionFilterProp="label"
+              options={machines.map((m) => ({ value: m.id, label: m.name }))}
+              style={{ width: 200 }}
+            />
+            <Select
+              showSearch
+              placeholder="Filter by Item"
+              allowClear
+              value={twItemId}
+              onChange={setTwItemId}
+              optionFilterProp="label"
+              options={items.map((i) => ({ value: i.id, label: i.code ? `${i.name} (${i.code})` : i.name }))}
+              style={{ width: 220 }}
+            />
+            <Button icon={<ReloadOutlined />} onClick={loadTrend} loading={trendLoading}>
+              Refresh
+            </Button>
+          </div>
+
+          {!twMachineId && !twItemId && (
+            <Alert
+              type="info"
+              message="Select a machine or item to view dimensional trend data"
+              showIcon
+            />
+          )}
+
+          {(twMachineId || twItemId) && (
+            <Spin spinning={trendLoading}>
+              {trendData ? (
+                <>
+                  <div style={{ marginBottom: 12 }}>
+                    {trendData.machine && (
+                      <Tag color="blue">{trendData.machine.name}</Tag>
+                    )}
+                    {trendData.item && (
+                      <Tag color="purple">{trendData.item.name} ({trendData.item.code})</Tag>
+                    )}
+                    <Tag>Inspections analysed: {trendData.total_inspections}</Tag>
+                  </div>
+
+                  {(!trendData.parameters || trendData.parameters.length === 0) && (
+                    <Alert
+                      type="warning"
+                      message="No dimensional data found. Ensure inspections have numeric actual values recorded."
+                      showIcon
+                    />
+                  )}
+
+                  {(trendData.parameters || []).map((param) => (
+                    <Card
+                      key={param.parameter_name}
+                      size="small"
+                      style={{
+                        marginBottom: 12,
+                        border: param.warn ? '1px solid #fca5a5' : '1px solid #e8eaed',
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <Text style={{ fontWeight: 600, fontSize: 13 }}>{param.parameter_name}</Text>
+                        {param.specification && (
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            Spec: {param.specification}
+                          </Text>
+                        )}
+                        <div style={{ flex: 1 }} />
+                        {param.trend_direction === 'increasing' && (
+                          <Tag color="red" icon={<ArrowUpOutlined />}>Increasing</Tag>
+                        )}
+                        {param.trend_direction === 'decreasing' && (
+                          <Tag color="orange" icon={<ArrowDownOutlined />}>Decreasing</Tag>
+                        )}
+                        {param.trend_direction === 'stable' && (
+                          <Tag color="green" icon={<MinusOutlined />}>Stable</Tag>
+                        )}
+                        {param.warn && (
+                          <Tag color="red" icon={<WarningOutlined />}>Alert</Tag>
+                        )}
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          {param.readings?.length} readings
+                        </Text>
+                      </div>
+                      <Table
+                        size="small"
+                        rowKey={(r, i) => `${r.inspection_no}-${i}`}
+                        dataSource={param.readings || []}
+                        pagination={false}
+                        scroll={{ x: 500 }}
+                        columns={[
+                          {
+                            title: 'Inspection No', dataIndex: 'inspection_no', width: 160,
+                            render: (v) => (
+                              <Text style={{ color: '#1d4ed8', fontWeight: 600, fontSize: 12 }}>{v}</Text>
+                            ),
+                          },
+                          {
+                            title: 'Date', dataIndex: 'inspection_date', width: 130,
+                            render: (d) => d ? dayjs(d).format('DD MMM YYYY') : '—',
+                          },
+                          {
+                            title: 'Actual Value', dataIndex: 'actual_value', width: 120,
+                            render: (v) => <Text style={{ fontWeight: 600 }}>{v}</Text>,
+                          },
+                          {
+                            title: 'Result', dataIndex: 'result', width: 90,
+                            render: (r) => (
+                              <Tag
+                                color={r === 'pass' ? 'green' : r === 'fail' ? 'red' : 'orange'}
+                                style={{ fontSize: 11 }}
+                              >
+                                {r}
+                              </Tag>
+                            ),
+                          },
+                        ]}
+                      />
+                    </Card>
+                  ))}
+                </>
+              ) : (
+                !trendLoading && (
+                  <Alert type="info" message="Click Refresh to load trend data" showIcon />
+                )
+              )}
+            </Spin>
+          )}
+        </Card>
+      )}
 
       {/* ── Create Drawer ──────────────────────────────────────────────────── */}
       <Drawer

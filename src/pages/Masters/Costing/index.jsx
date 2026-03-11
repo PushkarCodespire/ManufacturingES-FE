@@ -415,7 +415,7 @@ const CostingPage = () => {
   // Load vendors + items once
   useEffect(() => {
     vendorApi.getAll({ type: 'vendor' }).then((d) => setVendors(d ?? [])).catch(() => {});
-    itemApi.getAll().then((d) => setItems(d ?? [])).catch(() => {});
+    itemApi.getAll({ limit: 10000 }).then((d) => setItems(d?.data ?? [])).catch(() => {});
   }, []);
 
   // Fetch costings on tab / vendor filter change

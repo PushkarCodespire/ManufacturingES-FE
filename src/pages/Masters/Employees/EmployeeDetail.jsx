@@ -132,6 +132,29 @@ const mastersTreeData = [
   },
 ];
 
+// ── Quality & NPD Access tree ────────────────────────────────────────────────
+const qualityTreeData = [
+  {
+    title: 'Quality Control',
+    key: 'quality',
+    icon: <CheckCircleOutlined />,
+    children: [
+      leaf('quality', 'CAPA',       stdPerms),
+      leaf('quality', 'NCR',        stdPerms),
+      leaf('quality', 'Complaints', stdPerms),
+    ],
+  },
+  {
+    title: 'NPD / Documents',
+    key: 'npd',
+    children: [
+      leaf('npd', 'Drawings',     dlPerms),
+      leaf('npd', 'Check Sheets', stdPerms),
+      leaf('npd', 'PFMEA',        stdPerms),
+    ],
+  },
+];
+
 // ── Store Access tree (from actual app structure) ───────────────────────────
 const storeTreeData = [
   {
@@ -408,6 +431,27 @@ const procurementTreeData = [
       leaf('plan-indent', 'Approve Indent',  ['Read', 'Approve/Reject']),
     ],
   },
+  {
+    title: 'SCAR',
+    key: 'plan-scar',
+    children: [
+      leaf('plan-scar', 'SCAR', stdPerms),
+    ],
+  },
+  {
+    title: 'BOM Explosion',
+    key: 'plan-bom-explosion',
+    children: [
+      leaf('plan-bom-explosion', 'BOM Explosion', ['Read']),
+    ],
+  },
+  {
+    title: 'Supplier Scorecard',
+    key: 'plan-supplier-scorecard',
+    children: [
+      leaf('plan-supplier-scorecard', 'Supplier Scorecard', ['Read']),
+    ],
+  },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -509,6 +553,7 @@ const EmployeeDetailPage = () => {
   const [productionChecked,  setProductionChecked]  = useState([]);
   const [ordersChecked,      setOrdersChecked]      = useState([]);  // sidebar "Orders"
   const [procurementChecked, setProcurementChecked] = useState([]);  // sidebar "Procurement"
+  const [qualityChecked,     setQualityChecked]     = useState([]);  // Quality & NPD
   const [savingPerms,        setSavingPerms]        = useState(false);
 
   // ── Permission key prefix splitters ────────────────────────────────────
@@ -518,6 +563,7 @@ const EmployeeDetailPage = () => {
   const isProdKey      = (k) => k.startsWith('prod-');      // prod- ≠ production- (masters)
   const isOrdersKey    = (k) => k.startsWith('plan-orders') || k.startsWith('plan-sales-order');
   const isProcKey      = (k) => k.startsWith('plan-') && !isOrdersKey(k);
+  const isQualityKey   = (k) => k.startsWith('quality-') || k.startsWith('npd-');
 
   // ── Fetch employee ─────────────────────────────────────────────────────
   const fetchUser = useCallback(async () => {
@@ -532,6 +578,7 @@ const EmployeeDetailPage = () => {
       setProductionChecked(perms.filter(isProdKey));
       setOrdersChecked(perms.filter(isOrdersKey));
       setProcurementChecked(perms.filter(isProcKey));
+      setQualityChecked(perms.filter(isQualityKey));
     } catch {
       message.error('Failed to load employee details');
     } finally {
@@ -597,6 +644,7 @@ const EmployeeDetailPage = () => {
         ...productionChecked,
         ...ordersChecked,
         ...procurementChecked,
+        ...qualityChecked,
       ];
       await userApi.update(id, { permissions });
       message.success(
@@ -1222,6 +1270,26 @@ const EmployeeDetailPage = () => {
           setCheckedKeys={setProcurementChecked}
           title="Procurement Access Permissions"
           description="Control access to purchase orders, subcontracting challans, scheduling and capacity planning."
+          onSave={handleSavePermissions}
+          saving={savingPerms}
+          canWrite={canWrite}
+        />
+      ),
+    },
+    {
+      key:   'quality',
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <CheckCircleOutlined /> Quality &amp; NPD
+        </span>
+      ),
+      children: (
+        <AccessTreeTab
+          treeData={qualityTreeData}
+          checkedKeys={qualityChecked}
+          setCheckedKeys={setQualityChecked}
+          title="Quality & NPD Access Permissions"
+          description="Control access to CAPA, NCR, customer complaints, engineering drawings, check sheets and PFMEA."
           onSave={handleSavePermissions}
           saving={savingPerms}
           canWrite={canWrite}

@@ -126,8 +126,34 @@ const NAV_ITEMS_DEF = [
     ],
   },
 
-  // ── Future top-level modules — shown disabled to admins only ────────────────
-  { key: 'quality', label: 'Quality', icon: <CheckCircleOutlined />, disabled: true, adminOnly: true },
+  // ── Quality & NPD module ──────────────────────────────────────────────────
+  {
+    key:   'quality',
+    label: 'Quality',
+    icon:  <CheckCircleOutlined />,
+    children: [
+      // ── Quality Control ────────────────────────────────────
+      {
+        key:   'grp-qms',
+        label: 'Quality Control',
+        children: [
+          { key: 'q-capa',       label: 'CAPA / 8D',         permission: 'quality-capa-read'       },
+          { key: 'q-ncr',        label: 'Internal NCR',       permission: 'quality-ncr-read'        },
+          { key: 'q-complaints', label: 'Customer Complaints',permission: 'quality-complaints-read' },
+        ],
+      },
+      // ── NPD / Documents ────────────────────────────────────
+      {
+        key:   'grp-npd',
+        label: 'NPD / Documents',
+        children: [
+          { key: 'q-drawings',     label: 'Drawings',      permission: 'npd-drawings-read'     },
+          { key: 'q-check-sheets', label: 'Check Sheets',  permission: 'npd-check_sheets-read' },
+          { key: 'q-pfmea',        label: 'PFMEA',         permission: 'npd-pfmea-read'        },
+        ],
+      },
+    ],
+  },
 
   // ── Procurement module ────────────────────────────────────────────────────
   {
@@ -135,7 +161,10 @@ const NAV_ITEMS_DEF = [
     label: 'Procurement',
     icon:  <ShoppingCartOutlined />,
     children: [
-      { key: 'purchase-orders', label: 'Purchase Orders', permission: 'plan-po-create_po-read' },
+      { key: 'purchase-orders',     label: 'Purchase Orders',     permission: 'plan-po-create_po-read' },
+      { key: 'bom-explosion',       label: 'BOM Explosion',       permission: 'plan-bom-explosion-bom_explosion-read' },
+      { key: 'supplier-scorecard',  label: 'Supplier Scorecard',  permission: 'plan-supplier-scorecard-supplier_scorecard-read' },
+      { key: 'scar',                label: 'SCAR',                permission: 'plan-scar-scar-read' },
       {
         key:   'grp-subcontracting',
         label: 'Subcontracting',
@@ -187,7 +216,10 @@ const NAV_ITEMS_DEF = [
     children: [
       { key: 'work-orders',          label: 'Work Orders',       permission: 'prod-work_centre-manage_work_centre-read'          },
       { key: 'job-cards',            label: 'Job Cards',         permission: 'prod-dpr-daily_production_report-read'             },
+      { key: 'iqc',                  label: 'IQC Inspection',    permission: 'prod-quality_level-iqc-read'                       },
       { key: 'lqc',                  label: 'LQC Inspection',    permission: 'prod-quality_level-iqc-read'                       },
+      { key: 'pqc',                  label: 'PQC Inspection',    permission: 'prod-quality_level-pqc-read'                       },
+      { key: 'oqc',                  label: 'OQC Inspection',    permission: 'prod-quality_level-oqc-read'                       },
       { key: 'production-scheduling',label: 'Scheduling',        permission: 'prod-mrp_expected_production-create_plan-read'     },
       { key: 'scrap-vouchers',       label: 'Scrap Authorization',permission: 'prod-dpr-rejection_entry-read'                   },
     ],
@@ -263,11 +295,24 @@ const KEY_TO_PATH = {
   // Production module
   'work-orders':           '/production/work-orders',
   'job-cards':             '/production/job-cards',
+  'iqc':                   '/production/iqc',
   'lqc':                   '/production/lqc',
+  'pqc':                   '/production/pqc',
+  'oqc':                   '/production/oqc',
   'production-scheduling': '/production/scheduling',
   'scrap-vouchers':        '/production/scrap',
+  // Quality & NPD module
+  'q-capa':         '/quality/capa',
+  'q-ncr':          '/quality/ncr',
+  'q-complaints':   '/quality/complaints',
+  'q-drawings':     '/quality/drawings',
+  'q-check-sheets': '/quality/check-sheets',
+  'q-pfmea':        '/quality/pfmea',
   // Procurement module
-  'purchase-orders': '/procurement/purchase-orders',
+  'purchase-orders':    '/procurement/purchase-orders',
+  'bom-explosion':      '/procurement/bom-explosion',
+  'supplier-scorecard': '/procurement/supplier-scorecard',
+  'scar':               '/procurement/scar',
   'outward-challan': '/subcontracting/outward',
   'inward-challan':  '/subcontracting/inward',
   // HR & Training
@@ -313,6 +358,13 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/masters/planning/sticker-templates')) return { selected: 'm-sticker-templates', open: ['masters', 'grp-planning'] };
   if (pathname.startsWith('/masters/planning/customers'))         return { selected: 'm-customers',         open: ['masters', 'grp-planning'] };
   if (pathname.startsWith('/masters/planning/vendors'))           return { selected: 'm-vendors',           open: ['masters', 'grp-planning'] };
+  // Quality & NPD module
+  if (pathname.startsWith('/quality/capa'))         return { selected: 'q-capa',         open: ['quality', 'grp-qms'] };
+  if (pathname.startsWith('/quality/ncr'))          return { selected: 'q-ncr',          open: ['quality', 'grp-qms'] };
+  if (pathname.startsWith('/quality/complaints'))   return { selected: 'q-complaints',   open: ['quality', 'grp-qms'] };
+  if (pathname.startsWith('/quality/drawings'))     return { selected: 'q-drawings',     open: ['quality', 'grp-npd'] };
+  if (pathname.startsWith('/quality/check-sheets')) return { selected: 'q-check-sheets', open: ['quality', 'grp-npd'] };
+  if (pathname.startsWith('/quality/pfmea'))        return { selected: 'q-pfmea',        open: ['quality', 'grp-npd'] };
   // Orders module
   if (pathname.startsWith('/orders/rfq'))       return { selected: 'o-rfq',            open: ['orders'] };
   if (pathname.startsWith('/orders/quotation')) return { selected: 'o-quotation',      open: ['orders'] };
@@ -327,11 +379,17 @@ const getNavState = (pathname) => {
   // Production module
   if (pathname.startsWith('/production/work-orders'))  return { selected: 'work-orders',           open: ['production'] };
   if (pathname.startsWith('/production/job-cards'))    return { selected: 'job-cards',             open: ['production'] };
+  if (pathname.startsWith('/production/iqc'))          return { selected: 'iqc',                   open: ['production'] };
   if (pathname.startsWith('/production/lqc'))          return { selected: 'lqc',                   open: ['production'] };
+  if (pathname.startsWith('/production/pqc'))          return { selected: 'pqc',                   open: ['production'] };
+  if (pathname.startsWith('/production/oqc'))          return { selected: 'oqc',                   open: ['production'] };
   if (pathname.startsWith('/production/scheduling'))   return { selected: 'production-scheduling', open: ['production'] };
   if (pathname.startsWith('/production/scrap'))        return { selected: 'scrap-vouchers',        open: ['production'] };
   // Procurement module
-  if (pathname.startsWith('/procurement/'))            return { selected: 'purchase-orders',  open: ['procurement']                          };
+  if (pathname.startsWith('/procurement/bom-explosion'))       return { selected: 'bom-explosion',      open: ['procurement'] };
+  if (pathname.startsWith('/procurement/supplier-scorecard'))  return { selected: 'supplier-scorecard', open: ['procurement'] };
+  if (pathname.startsWith('/procurement/scar'))                return { selected: 'scar',               open: ['procurement'] };
+  if (pathname.startsWith('/procurement/'))                    return { selected: 'purchase-orders',    open: ['procurement'] };
   if (pathname.startsWith('/subcontracting/outward'))  return { selected: 'outward-challan',   open: ['procurement', 'grp-subcontracting']    };
   if (pathname.startsWith('/subcontracting/inward'))   return { selected: 'inward-challan',    open: ['procurement', 'grp-subcontracting']    };
   // Generic masters fallback

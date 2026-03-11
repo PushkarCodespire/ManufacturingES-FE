@@ -11,4 +11,5 @@ export const bomApi = {
   finalize:       (id)          => api.post(`/boms/${id}/finalize`).then((r) => r.data),
   /** Delete a draft BOM */
   delete:         (id)          => api.delete(`/boms/${id}`).then((r) => r.data),
+  explode:        (data)        => api.post('/boms/explode', data).then((r) => r.data),
 };

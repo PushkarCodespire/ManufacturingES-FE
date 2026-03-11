@@ -44,9 +44,16 @@ import StockAdjustmentPage  from './pages/Store/StockAdjustment';
 import WorkOrdersPage        from './pages/Production/WorkOrders';
 import JobCardsPage          from './pages/Production/JobCards';
 import LQCPage               from './pages/Production/LQC';
+import IQCPage               from './pages/Production/IQC';
+import IQCDetailPage         from './pages/Production/IQC/IQCDetail';
+import PQCPage               from './pages/Production/PQC';
+import OQCPage               from './pages/Production/OQC';
 import SchedulingPage        from './pages/Production/Scheduling';
 import ScrapVoucherPage      from './pages/Production/ScrapVoucher';
 import PurchaseOrdersPage    from './pages/Procurement/PurchaseOrders';
+import BOMExplosionPage      from './pages/Procurement/BOMExplosion';
+import SupplierScorecardPage from './pages/Procurement/SupplierScorecard';
+import SCARPage              from './pages/Procurement/SCAR';
 import OutwardChallanPage    from './pages/Subcontracting/OutwardChallan';
 import InwardChallanPage     from './pages/Subcontracting/InwardChallan';
 import TrainingTopicsPage   from './pages/HR/TrainingTopics';
@@ -54,6 +61,18 @@ import RoleRequirementsPage from './pages/HR/RoleRequirements';
 import TrainingRecordsPage  from './pages/HR/TrainingRecords';
 import CompetencyMatrixPage from './pages/HR/CompetencyMatrix';
 import EffectivenessPage    from './pages/HR/Effectiveness';
+import CAPAPage             from './pages/Quality/CAPA';
+import CAPADetailPage       from './pages/Quality/CAPA/CAPADetail';
+import NCRPage              from './pages/Quality/NCR';
+import NCRDetailPage        from './pages/Quality/NCR/NCRDetail';
+import ComplaintsPage       from './pages/Quality/Complaints';
+import ComplaintDetailPage  from './pages/Quality/Complaints/ComplaintDetail';
+import DrawingsPage         from './pages/NPD/Drawings';
+import DrawingDetailPage    from './pages/NPD/Drawings/DrawingDetail';
+import CheckSheetsPage      from './pages/NPD/CheckSheets';
+import CheckSheetDetailPage from './pages/NPD/CheckSheets/CheckSheetDetail';
+import PFMEAPage            from './pages/NPD/PFMEA';
+import PFMEADetailPage      from './pages/NPD/PFMEA/PFMEADetail';
 import TransportersPage     from './pages/Dispatch/Transporters';
 import DispatchOrdersPage   from './pages/Dispatch/DispatchOrders';
 import DeliveryChallansPage from './pages/Dispatch/DeliveryChallans';
@@ -466,16 +485,37 @@ function App() {
               {/* ── Production Module ─────────────────────────────────────────── */}
               <Route path="/production/work-orders" element={<ProtectedRoute permission="prod-work_centre-manage_work_centre-read"><WorkOrdersPage /></ProtectedRoute>} />
               <Route path="/production/job-cards" element={<ProtectedRoute permission="prod-dpr-daily_production_report-read"><JobCardsPage /></ProtectedRoute>} />
+              <Route path="/production/iqc" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><IQCPage /></ProtectedRoute>} />
+              <Route path="/production/iqc/:id" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><IQCDetailPage /></ProtectedRoute>} />
               <Route path="/production/lqc" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><LQCPage /></ProtectedRoute>} />
+              <Route path="/production/pqc" element={<ProtectedRoute permission="prod-quality_level-pqc-read"><PQCPage /></ProtectedRoute>} />
+              <Route path="/production/oqc" element={<ProtectedRoute permission="prod-quality_level-oqc-read"><OQCPage /></ProtectedRoute>} />
               <Route path="/production/scheduling" element={<ProtectedRoute permission="prod-mrp_expected_production-create_plan-read"><SchedulingPage /></ProtectedRoute>} />
               <Route path="/production/scrap" element={<ProtectedRoute permission="prod-dpr-rejection_entry-read"><ScrapVoucherPage /></ProtectedRoute>} />
 
               {/* ── Procurement Module ─────────────────────────────────────────── */}
-              <Route path="/procurement/purchase-orders" element={<ProtectedRoute permission="plan-po-create_po-read"><PurchaseOrdersPage /></ProtectedRoute>} />
+              <Route path="/procurement/purchase-orders"    element={<ProtectedRoute permission="plan-po-create_po-read"><PurchaseOrdersPage /></ProtectedRoute>} />
+              <Route path="/procurement/bom-explosion"      element={<ProtectedRoute permission="plan-bom-explosion-bom_explosion-read"><BOMExplosionPage /></ProtectedRoute>} />
+              <Route path="/procurement/supplier-scorecard" element={<ProtectedRoute permission="plan-supplier-scorecard-supplier_scorecard-read"><SupplierScorecardPage /></ProtectedRoute>} />
+              <Route path="/procurement/scar"               element={<ProtectedRoute permission="plan-scar-scar-read"><SCARPage /></ProtectedRoute>} />
 
               {/* ── Subcontracting Module ──────────────────────────────────────── */}
               <Route path="/subcontracting/outward" element={<ProtectedRoute permission="plan-subcontracting-outward_challan-read"><OutwardChallanPage /></ProtectedRoute>} />
               <Route path="/subcontracting/inward" element={<ProtectedRoute permission="plan-subcontracting-inward_challan-read"><InwardChallanPage /></ProtectedRoute>} />
+
+              {/* ── Quality & NPD Module ──────────────────────────────────────── */}
+              <Route path="/quality/capa"           element={<ProtectedRoute permission="quality-capa-read">         <CAPAPage />           </ProtectedRoute>} />
+              <Route path="/quality/capa/:id"        element={<ProtectedRoute permission="quality-capa-read">         <CAPADetailPage />      </ProtectedRoute>} />
+              <Route path="/quality/ncr"            element={<ProtectedRoute permission="quality-ncr-read">          <NCRPage />            </ProtectedRoute>} />
+              <Route path="/quality/ncr/:id"         element={<ProtectedRoute permission="quality-ncr-read">          <NCRDetailPage />       </ProtectedRoute>} />
+              <Route path="/quality/complaints"     element={<ProtectedRoute permission="quality-complaints-read">   <ComplaintsPage />     </ProtectedRoute>} />
+              <Route path="/quality/complaints/:id"  element={<ProtectedRoute permission="quality-complaints-read">   <ComplaintDetailPage /> </ProtectedRoute>} />
+              <Route path="/quality/drawings"       element={<ProtectedRoute permission="npd-drawings-read">         <DrawingsPage />       </ProtectedRoute>} />
+              <Route path="/quality/drawings/:id"    element={<ProtectedRoute permission="npd-drawings-read">         <DrawingDetailPage />   </ProtectedRoute>} />
+              <Route path="/quality/check-sheets"   element={<ProtectedRoute permission="npd-check_sheets-read">     <CheckSheetsPage />    </ProtectedRoute>} />
+              <Route path="/quality/check-sheets/:id" element={<ProtectedRoute permission="npd-check_sheets-read">   <CheckSheetDetailPage /></ProtectedRoute>} />
+              <Route path="/quality/pfmea"          element={<ProtectedRoute permission="npd-pfmea-read">            <PFMEAPage />          </ProtectedRoute>} />
+              <Route path="/quality/pfmea/:id"       element={<ProtectedRoute permission="npd-pfmea-read">            <PFMEADetailPage />     </ProtectedRoute>} />
 
               {/* HR & Training — hr_admin, it_admin, plant_head only */}
               <Route
