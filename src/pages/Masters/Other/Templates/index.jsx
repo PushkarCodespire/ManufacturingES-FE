@@ -182,13 +182,7 @@ const SectionCard = ({
   onUpdate, onDelete, onMoveUp, onMoveDown,
 }) => {
   const [labelEditing, setLabelEditing] = useState(!section.label);
-  const [labelVal,     setLabelVal]     = useState(section.label || '');
   const [collapsed,    setCollapsed]    = useState(false);
-
-  const confirmLabel = () => {
-    onUpdate({ label: labelVal.trim() });
-    setLabelEditing(false);
-  };
 
   const addField = () => {
     onUpdate({ fields: [...section.fields, makeField()] });
@@ -236,9 +230,9 @@ const SectionCard = ({
         {labelEditing ? (
           <>
             <Input
-              value={labelVal}
-              onChange={(e) => setLabelVal(e.target.value)}
-              onPressEnter={confirmLabel}
+              value={section.label}
+              onChange={(e) => onUpdate({ label: e.target.value })}
+              onPressEnter={() => setLabelEditing(false)}
               placeholder="Section label"
               style={{ flex: 1, maxWidth: 320, borderRadius: 6, fontWeight: 600, textTransform: 'uppercase' }}
               autoFocus
@@ -247,7 +241,7 @@ const SectionCard = ({
               type="text"
               size="small"
               icon={<CheckOutlined style={{ color: '#1d4ed8' }} />}
-              onClick={confirmLabel}
+              onClick={() => setLabelEditing(false)}
             />
           </>
         ) : (
@@ -260,7 +254,7 @@ const SectionCard = ({
                 type="text"
                 size="small"
                 icon={<EditOutlined style={{ color: '#9ca3af', fontSize: 12 }} />}
-                onClick={() => { setLabelVal(section.label || ''); setLabelEditing(true); }}
+                onClick={() => setLabelEditing(true)}
               />
             )}
           </>
@@ -400,7 +394,7 @@ const TemplateBuilder = ({ template, onBack, onSaved, canWrite }) => {
       name,
       sections: sections.map((s) => ({
         id:     s.id,
-        label:  s.label,
+        label:  (s.label || '').trim(),
         layout: s.layout,
         fields: s.fields.map((f) => ({
           id:       f.id,

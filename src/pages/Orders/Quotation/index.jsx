@@ -161,6 +161,28 @@ export default function QuotationPage() {
   const updateLine = (key, field, value) =>
     setLineItems((p) => p.map((r) => r._key === key ? { ...r, [field]: value } : r));
 
+  // When RFQ selected, auto-populate customer + line items
+  const onRfqSelect = (rfqId) => {
+    if (!rfqId) return;
+    const found = rfqs.find((r) => r.id === rfqId);
+    if (found) {
+      form.setFieldsValue({ customer_id: found.customer_id });
+      if (found.Items?.length) {
+        setLineItems(found.Items.map((it) => ({
+          _key:        Date.now() + Math.random(),
+          item_id:     it.item_id,
+          description: it.description || it.Item?.name || '',
+          qty:         parseFloat(it.qty) || 1,
+          unit:        it.unit || 'pcs',
+          unit_price:  parseFloat(it.target_price) || 0,
+          discount:    0,
+          gst_rate:    parseFloat(it.Item?.gst_rate) || 18,
+          total_price: 0,
+        })));
+      }
+    }
+  };
+
   const onItemSelect = (key, itemId) => {
     const found = items.find((i) => i.id === itemId);
     if (found) {
@@ -353,6 +375,7 @@ export default function QuotationPage() {
               <Form.Item name="rfq_id" label="Against RFQ (optional)">
                 <Select
                   showSearch allowClear optionFilterProp="label" placeholder="Link to RFQ"
+                  onChange={onRfqSelect}
                   options={rfqs.map((r) => ({ value: r.id, label: `${r.rfq_no} — ${r.Customer?.name || ''}` }))}
                 />
               </Form.Item>

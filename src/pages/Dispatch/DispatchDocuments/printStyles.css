@@ -1,0 +1,299 @@
+/* ── Dispatch Document Print Styles ─────────────────────────────────── */
+
+.print-document {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color: #111827;
+  padding: 32px 40px;
+  max-width: 794px; /* A4 width at 96 DPI */
+  margin: 0 auto;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.print-document .doc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 3px solid #1d4ed8;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.print-document .doc-header .company-info {
+  flex: 1;
+}
+
+.print-document .doc-header .company-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1d4ed8;
+  margin: 0 0 2px 0;
+}
+
+.print-document .doc-header .company-detail {
+  font-size: 10px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.print-document .doc-header .doc-title-block {
+  text-align: right;
+}
+
+.print-document .doc-header .doc-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.print-document .doc-header .doc-number {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d4ed8;
+  margin: 2px 0 0;
+}
+
+.print-document .doc-header .doc-date {
+  font-size: 11px;
+  color: #6b7280;
+  margin: 2px 0 0;
+}
+
+/* ── Party Info (From / To blocks) ──────────────────────────────────── */
+.print-document .party-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.print-document .party-block {
+  flex: 1;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
+.print-document .party-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6b7280;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.print-document .party-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 2px;
+}
+
+.print-document .party-detail {
+  font-size: 10px;
+  color: #374151;
+  margin: 0;
+}
+
+/* ── Info Grid (key-value pairs) ────────────────────────────────────── */
+.print-document .info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px 16px;
+  margin-bottom: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px 14px;
+  background: #f9fafb;
+}
+
+.print-document .info-item label {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: #6b7280;
+  letter-spacing: 0.3px;
+  display: block;
+}
+
+.print-document .info-item span {
+  font-size: 12px;
+  font-weight: 500;
+  color: #111827;
+}
+
+/* ── Items Table ────────────────────────────────────────────────────── */
+.print-document .items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 11px;
+}
+
+.print-document .items-table th {
+  background: #1d4ed8;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 6px 10px;
+  text-align: left;
+  border: 1px solid #1d4ed8;
+}
+
+.print-document .items-table th.right { text-align: right; }
+
+.print-document .items-table td {
+  padding: 5px 10px;
+  border: 1px solid #e5e7eb;
+  vertical-align: top;
+}
+
+.print-document .items-table td.right { text-align: right; }
+.print-document .items-table td.center { text-align: center; }
+
+.print-document .items-table tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+.print-document .items-table .total-row td {
+  font-weight: 700;
+  background: #f3f4f6;
+  border-top: 2px solid #d1d5db;
+}
+
+/* ── Totals Block ───────────────────────────────────────────────────── */
+.print-document .totals-block {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.print-document .totals-table {
+  width: 280px;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.print-document .totals-table td {
+  padding: 4px 10px;
+  border: 1px solid #e5e7eb;
+}
+
+.print-document .totals-table td:first-child {
+  font-weight: 500;
+  color: #374151;
+  background: #f9fafb;
+}
+
+.print-document .totals-table td:last-child {
+  text-align: right;
+  font-weight: 600;
+}
+
+.print-document .totals-table .grand-total td {
+  font-weight: 700;
+  font-size: 12px;
+  background: #eff6ff;
+  border-top: 2px solid #1d4ed8;
+}
+
+/* ── Notes / Declaration ────────────────────────────────────────────── */
+.print-document .notes-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 10px;
+  color: #374151;
+}
+
+.print-document .notes-section .notes-title {
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.print-document .declaration {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 10px;
+  color: #374151;
+  background: #f9fafb;
+  font-style: italic;
+}
+
+/* ── Signatures ─────────────────────────────────────────────────────── */
+.print-document .signatures {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+  padding-top: 12px;
+}
+
+.print-document .sig-block {
+  text-align: center;
+  width: 180px;
+}
+
+.print-document .sig-line {
+  border-top: 1px solid #9ca3af;
+  margin-bottom: 4px;
+}
+
+.print-document .sig-label {
+  font-size: 10px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────── */
+.print-document .doc-footer {
+  margin-top: 24px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+  font-size: 9px;
+  color: #9ca3af;
+}
+
+/* ── Print-specific rules ───────────────────────────────────────────── */
+@media print {
+  body * { visibility: hidden !important; }
+  .print-document,
+  .print-document * {
+    visibility: visible !important;
+  }
+  .print-document {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px 30px;
+    margin: 0;
+    box-shadow: none;
+    max-width: none;
+  }
+  .print-document .doc-header {
+    border-bottom-color: #1d4ed8 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-document .items-table th {
+    background: #1d4ed8 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-document .items-table tr:nth-child(even) {
+    background: #f9fafb !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

@@ -224,7 +224,19 @@ const NAV_ITEMS_DEF = [
       { key: 'scrap-vouchers',       label: 'Scrap Authorization',permission: 'prod-dpr-rejection_entry-read'                   },
     ],
   },
-  { key: 'accounts',    label: 'Accounts',    icon: <DollarOutlined />,       disabled: true, adminOnly: true },
+  {
+    key:   'accounts',
+    label: 'Accounts',
+    icon:  <DollarOutlined />,
+    roles: ['accounts_manager', 'accounts_incharge', 'it_admin', 'plant_head'],
+    children: [
+      { key: 'acc-tally-sync',        label: 'Tally Sync'         },
+      { key: 'acc-invoices',           label: 'Sales Invoices'     },
+      { key: 'acc-debit-credit-notes', label: 'Debit/Credit Notes' },
+      { key: 'acc-payments',           label: 'Payments'           },
+      { key: 'acc-copq',              label: 'COPQ'               },
+    ],
+  },
 
   // ── Dispatch & Logistics — dispatch_admin, it_admin, plant_head only ─────────
   {
@@ -321,6 +333,12 @@ const KEY_TO_PATH = {
   'hr-training-records':  '/hr/training-records',
   'hr-competency-matrix': '/hr/competency-matrix',
   'hr-effectiveness':     '/hr/effectiveness',
+  // Accounts
+  'acc-tally-sync':        '/accounts/tally-sync',
+  'acc-invoices':          '/accounts/invoices',
+  'acc-debit-credit-notes':'/accounts/debit-credit-notes',
+  'acc-payments':          '/accounts/payments',
+  'acc-copq':              '/accounts/copq',
   // Dispatch & Logistics
   'dispatch-transporters': '/dispatch/transporters',
   'dispatch-orders':       '/dispatch/orders',
@@ -392,6 +410,12 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/procurement/'))                    return { selected: 'purchase-orders',    open: ['procurement'] };
   if (pathname.startsWith('/subcontracting/outward'))  return { selected: 'outward-challan',   open: ['procurement', 'grp-subcontracting']    };
   if (pathname.startsWith('/subcontracting/inward'))   return { selected: 'inward-challan',    open: ['procurement', 'grp-subcontracting']    };
+  // Accounts module
+  if (pathname.startsWith('/accounts/tally-sync'))        return { selected: 'acc-tally-sync',        open: ['accounts'] };
+  if (pathname.startsWith('/accounts/invoices'))           return { selected: 'acc-invoices',           open: ['accounts'] };
+  if (pathname.startsWith('/accounts/debit-credit-notes')) return { selected: 'acc-debit-credit-notes', open: ['accounts'] };
+  if (pathname.startsWith('/accounts/payments'))           return { selected: 'acc-payments',           open: ['accounts'] };
+  if (pathname.startsWith('/accounts/copq'))               return { selected: 'acc-copq',              open: ['accounts'] };
   // Generic masters fallback
   if (pathname.startsWith('/masters'))               return { selected: 'masters',       open: ['masters'] };
   // HR & Training

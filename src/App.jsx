@@ -78,6 +78,12 @@ import DispatchOrdersPage   from './pages/Dispatch/DispatchOrders';
 import DeliveryChallansPage from './pages/Dispatch/DeliveryChallans';
 import ShipmentTrackingPage from './pages/Dispatch/ShipmentTracking';
 import DispatchReportsPage  from './pages/Dispatch/Reports';
+import DispatchDocumentsPage from './pages/Dispatch/DispatchDocuments';
+import TallySyncPage        from './pages/Accounts/TallySync';
+import SalesInvoicesPage    from './pages/Accounts/SalesInvoices';
+import DebitCreditNotesPage from './pages/Accounts/DebitCreditNotes';
+import PaymentsPage         from './pages/Accounts/Payments';
+import COPQPage             from './pages/Accounts/COPQ';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
@@ -577,6 +583,14 @@ function App() {
                 }
               />
               <Route
+                path="/dispatch/orders/:id/documents"
+                element={
+                  <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
+                    <DispatchDocumentsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/dispatch/challans"
                 element={
                   <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
@@ -597,6 +611,48 @@ function App() {
                 element={
                   <ProtectedRoute roles={['dispatch_admin', 'it_admin', 'plant_head']}>
                     <DispatchReportsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* ── Accounts Module ────────────────────────────────────────────── */}
+              <Route
+                path="/accounts/tally-sync"
+                element={
+                  <ProtectedRoute roles={['accounts_manager', 'accounts_incharge', 'it_admin', 'plant_head']}>
+                    <TallySyncPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/accounts/invoices"
+                element={
+                  <ProtectedRoute roles={['accounts_manager', 'accounts_incharge', 'it_admin', 'plant_head']}>
+                    <SalesInvoicesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/accounts/debit-credit-notes"
+                element={
+                  <ProtectedRoute roles={['accounts_manager', 'accounts_incharge', 'it_admin', 'plant_head']}>
+                    <DebitCreditNotesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/accounts/payments"
+                element={
+                  <ProtectedRoute roles={['accounts_manager', 'accounts_incharge', 'it_admin', 'plant_head']}>
+                    <PaymentsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/accounts/copq"
+                element={
+                  <ProtectedRoute roles={['accounts_manager', 'accounts_incharge', 'it_admin', 'plant_head']}>
+                    <COPQPage />
                   </ProtectedRoute>
                 }
               />
