@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, message,
-  Drawer, Form, Select, DatePicker, Popconfirm,
+  Drawer, Form, Select, DatePicker, Popconfirm, AutoComplete,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
@@ -13,6 +13,7 @@ import AppLayout        from '../../../components/AppLayout';
 import usePermissions   from '../../../hooks/usePermissions';
 import { complaintApi } from '../../../api/quality.api';
 import { vendorApi }    from '../../../api/vendor.api';
+import { itemApi }      from '../../../api/item.api';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -22,11 +23,6 @@ const STATUS_COLOR = {
   resolved: 'cyan',   closed: 'green',       rejected: 'red',
 };
 
-const SEVERITY_OPTS = [
-  { value: 'critical', label: 'Critical' },
-  { value: 'major',    label: 'Major'    },
-  { value: 'minor',    label: 'Minor'    },
-];
 
 export default function ComplaintsPage() {
   const { can }  = usePermissions();
@@ -35,6 +31,7 @@ export default function ComplaintsPage() {
 
   const [records,    setRecords]    = useState([]);
   const [customers,  setCustomers]  = useState([]);
+  const [items,      setItems]      = useState([]);
   const [loading,    setLoading]    = useState(false);
   const [search,     setSearch]     = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -56,25 +53,28 @@ export default function ComplaintsPage() {
   useEffect(() => {
     vendorApi.getAll({ type: 'customer', limit: 500 }).catch(() => [])
       .then((d) => setCustomers(Array.isArray(d) ? d : []));
+    itemApi.getAll({ limit: 500, is_active: true })
+      .then((res) => setItems(Array.isArray(res?.data) ? res.data : []))
+      .catch(() => []);
   }, []);
 
   // ── Drawer helpers ────────────────────────────────────────────────────────
   const openAdd = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ received_date: dayjs() });
     setDrawerOpen(true);
   };
 
   const openEdit = (r) => {
     setEditing(r);
     form.setFieldsValue({
-      customer_id:            r.customer_id,
-      customer_name:          r.customer_name,
-      received_date:          r.received_date ? dayjs(r.received_date) : null,
-      complaint_description:  r.complaint_description,
-      severity:               r.severity,
-      vehicle_reg_no:         r.vehicle_reg_no,
+      customer_name:  r.customer_name,
+      customer_ref:   r.customer_ref,
+      item_id:        r.item_id,
+      part_no_ext:    r.part_no_ext,
+      qty_affected:   r.qty_affected,
+      defect_desc:    r.defect_desc,
+      delivery_date:  r.delivery_date ? dayjs(r.delivery_date) : null,
     });
     setDrawerOpen(true);
   };
@@ -85,7 +85,7 @@ export default function ComplaintsPage() {
       setSaving(true);
       const payload = {
         ...vals,
-        received_date: vals.received_date?.format('YYYY-MM-DD'),
+        delivery_date: vals.delivery_date?.format('YYYY-MM-DD'),
       };
       if (editing) {
         await complaintApi.update(editing.id, payload);
@@ -112,20 +112,21 @@ export default function ComplaintsPage() {
 
   // ── Table columns ─────────────────────────────────────────────────────────
   const baseColumns = [
-    { title: 'No.',         dataIndex: 'complaint_no',         key: 'no',     width: 150 },
-    { title: 'Customer',    key: 'customer', width: 160,
-      render: (_, r) => r.Customer?.name ?? r.customer_name ?? '—' },
-    { title: 'Description', dataIndex: 'complaint_description',key: 'desc',   ellipsis: true },
-    { title: 'Severity',    dataIndex: 'severity',             key: 'sev',    width: 90,
-      render: (v) => <Tag color={v === 'critical' ? 'red' : v === 'major' ? 'orange' : 'default'}>{v}</Tag> },
-    { title: 'Status',      dataIndex: 'status',               key: 'status', width: 120,
+    { title: 'No.',         dataIndex: 'complaint_no', key: 'no',     width: 145 },
+    { title: 'Customer',    key: 'customer',           width: 140,
+      render: (_, r) => r.customer_name ?? '—' },
+    { title: 'Item',        key: 'item',               width: 130,
+      render: (_, r) => r.Item ? `${r.Item.name} (${r.Item.code})` : '—' },
+    { title: 'Description', dataIndex: 'defect_desc',  key: 'desc',   ellipsis: true, minWidth: 160 },
+    { title: 'Status',      dataIndex: 'status',       key: 'status', width: 110,
       render: (v) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{v?.replace(/_/g, ' ')}</Tag> },
-    { title: 'NCR', key: 'ncr', width: 100,
-      render: (_, r) => r.ncr_id ? <Button size="small" type="link" onClick={() => navigate(`/quality/ncr/${r.ncr_id}`)}>View NCR</Button> : '—' },
-    { title: 'CAPA', key: 'capa', width: 100,
-      render: (_, r) => r.capa_id ? <Button size="small" type="link" onClick={() => navigate(`/quality/capa/${r.capa_id}`)}>View CAPA</Button> : '—' },
-    { title: 'Due',         dataIndex: 'response_due',         key: 'due',    width: 110 },
-    { title: 'Received',    dataIndex: 'received_date',        key: 'date',   width: 110 },
+    { title: 'NCR',  key: 'ncr',  width: 85,
+      render: (_, r) => r.ncr_id  ? <Button size="small" type="link" onClick={() => navigate(`/quality/ncr/${r.ncr_id}`)}>View</Button>  : '—' },
+    { title: 'CAPA', key: 'capa', width: 85,
+      render: (_, r) => r.capa_id ? <Button size="small" type="link" onClick={() => navigate(`/quality/capa/${r.capa_id}`)}>View</Button> : '—' },
+    { title: 'Due',      dataIndex: 'response_due', key: 'due',  width: 100 },
+    { title: 'Logged',   dataIndex: 'created_at',   key: 'date', width: 100,
+      render: (v) => v ? new Date(v).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
   ];
 
   const actionColumn = {
@@ -153,7 +154,8 @@ export default function ComplaintsPage() {
   const filtered = records.filter((r) =>
     !search ||
     r.complaint_no?.toLowerCase().includes(search.toLowerCase()) ||
-    r.complaint_description?.toLowerCase().includes(search.toLowerCase()),
+    r.defect_desc?.toLowerCase().includes(search.toLowerCase()) ||
+    r.customer_name?.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -201,6 +203,7 @@ export default function ComplaintsPage() {
           columns={columns}
           loading={loading}
           size="small"
+          scroll={{ x: 1100 }}
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
         />
       </Card>
@@ -221,33 +224,44 @@ export default function ComplaintsPage() {
         }
       >
         <Form form={form} layout="vertical" requiredMark={false}>
-          <Form.Item name="customer_id" label="Customer (from master)">
-            <Select
-              showSearch allowClear placeholder="Select customer..."
-              filterOption={(input, opt) => opt?.label?.toLowerCase().includes(input.toLowerCase())}
-              options={customers.map((c) => ({ value: c.id, label: c.name }))}
+          <Form.Item name="customer_name" label="Customer Name"
+            rules={[{ required: true, message: 'Customer name is required' }]}>
+            <AutoComplete
+              allowClear
+              placeholder="Type or select customer name..."
+              options={customers.map((c) => ({ value: c.name }))}
+              filterOption={(input, opt) => opt?.value?.toLowerCase().includes(input.toLowerCase())}
             />
           </Form.Item>
 
-          <Form.Item name="customer_name" label="Customer Name (if not in master)">
-            <Input placeholder="Type customer name..." />
+          <Form.Item name="customer_ref" label="Customer PO / Reference No.">
+            <Input placeholder="e.g. PO-2024-1234" />
           </Form.Item>
 
-          <Form.Item name="received_date" label="Received Date" rules={[{ required: true }]}>
+          <Form.Item name="item_id" label="Item / Part"
+            rules={[{ required: true, message: 'Item is required' }]}>
+            <Select
+              showSearch allowClear placeholder="Select item..."
+              filterOption={(input, opt) => opt?.label?.toLowerCase().includes(input.toLowerCase())}
+              options={items.map((i) => ({ value: i.id, label: `${i.name} (${i.code})` }))}
+            />
+          </Form.Item>
+
+          <Form.Item name="part_no_ext" label="Customer Part No. (if different)">
+            <Input placeholder="Customer's part number..." />
+          </Form.Item>
+
+          <Form.Item name="qty_affected" label="Qty Affected">
+            <Input type="number" min={0} placeholder="0" style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Form.Item name="defect_desc" label="Defect Description"
+            rules={[{ required: true, min: 10, message: 'Min 10 characters required' }]}>
+            <TextArea rows={4} placeholder="Describe the defect / complaint in detail..." />
+          </Form.Item>
+
+          <Form.Item name="delivery_date" label="Delivery Date (when parts were delivered)">
             <DatePicker style={{ width: '100%' }} format="DD-MMM-YYYY" />
-          </Form.Item>
-
-          <Form.Item name="severity" label="Severity" rules={[{ required: true }]}>
-            <Select options={SEVERITY_OPTS} placeholder="Select severity" />
-          </Form.Item>
-
-          <Form.Item name="complaint_description" label="Complaint Description"
-            rules={[{ required: true, min: 10, message: 'Min 10 characters' }]}>
-            <TextArea rows={4} placeholder="Describe the complaint in detail..." />
-          </Form.Item>
-
-          <Form.Item name="vehicle_reg_no" label="Vehicle Reg. No. (if applicable)">
-            <Input placeholder="e.g. MH12AB1234" />
           </Form.Item>
         </Form>
       </Drawer>
