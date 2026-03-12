@@ -227,6 +227,42 @@ const NAV_ITEMS_DEF = [
       { key: 'scrap-vouchers',       label: 'Scrap Authorization',permission: 'prod-dpr-rejection_entry-read'                   },
     ],
   },
+
+  // ── Maintenance ─────────────────────────────────────────────────────────────
+  {
+    key:   'maintenance',
+    label: 'Maintenance',
+    icon:  <ToolOutlined />,
+    children: [
+      { key: 'mnt-equipment',   label: 'Equipment Master',       permission: 'mnt-equipment-read'   },
+      { key: 'mnt-health',      label: 'Health Dashboard',       permission: 'mnt-health-read'      },
+      { key: 'mnt-breakdown',   label: 'Breakdown / Corrective', permission: 'mnt-breakdown-read'   },
+      { key: 'mnt-downtime',    label: 'Downtime Log',           permission: 'mnt-downtime-read'    },
+      { key: 'mnt-pm',          label: 'PM Schedule',            permission: 'mnt-pm-read'          },
+      { key: 'mnt-spare-parts', label: 'Spare Parts',            permission: 'mnt-spare_parts-read' },
+      { key: 'mnt-loto',        label: 'LOTO & Safety',          permission: 'mnt-loto-read'        },
+      { key: 'mnt-kpi',         label: 'KPI Dashboard',          permission: 'mnt-kpi-read'         },
+    ],
+  },
+  // ── Mold Management ────────────────────────────────────────────────────────
+  {
+    key:   'mold',
+    label: 'Mold Management',
+    icon:  <ToolOutlined />,
+    children: [
+      { key: 'mol-master',       label: 'Mold Master',       permission: 'mold-master-read' },
+      { key: 'mol-cavities',     label: 'Cavity Tracking',   permission: 'mold-cavities-read' },
+      { key: 'mol-shot-count',   label: 'Shot Count',        permission: 'mold-shot_count-read' },
+      { key: 'mol-life',         label: 'Life Management',   permission: 'mold-life_management-read' },
+      { key: 'mol-issue-return', label: 'Issue / Return',    permission: 'mold-issue_return-read' },
+      { key: 'mol-store',        label: 'Mold Store',        permission: 'mold-store_dashboard-read' },
+      { key: 'mol-pm',           label: 'PM Schedule',       permission: 'mold-pm-read' },
+      { key: 'mol-repair',       label: 'Repair',            permission: 'mold-repair-read' },
+      { key: 'mol-trial',        label: 'Trials',            permission: 'mold-trial-read' },
+      { key: 'mol-cost',         label: 'Cost Tracking',     permission: 'mold-cost-read' },
+      { key: 'mol-documents',    label: 'Documents',         permission: 'mold-documents-read' },
+    ],
+  },
   {
     key:   'accounts',
     label: 'Accounts',
@@ -363,6 +399,27 @@ const KEY_TO_PATH = {
   'dispatch-reports':      '/dispatch/reports',
   // Admin
   'admin-control-room':    '/admin/control-room',
+  // Maintenance
+  'mnt-equipment':   '/maintenance/equipment',
+  'mnt-health':      '/maintenance/health',
+  'mnt-breakdown':   '/maintenance/breakdown',
+  'mnt-downtime':    '/maintenance/downtime',
+  'mnt-pm':          '/maintenance/pm',
+  'mnt-spare-parts': '/maintenance/spare-parts',
+  'mnt-loto':        '/maintenance/loto',
+  'mnt-kpi':         '/maintenance/kpi',
+  // Mold Management
+  'mol-master':       '/mold/master',
+  'mol-cavities':     '/mold/cavities',
+  'mol-shot-count':   '/mold/shot-count',
+  'mol-life':         '/mold/life',
+  'mol-issue-return': '/mold/issue-return',
+  'mol-store':        '/mold/store',
+  'mol-pm':           '/mold/pm',
+  'mol-repair':       '/mold/repair',
+  'mol-trial':        '/mold/trial',
+  'mol-cost':         '/mold/cost',
+  'mol-documents':    '/mold/documents',
 };
 
 // ── Derive selected key + open keys from current pathname ────────────────────
@@ -438,6 +495,27 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/accounts/copq'))               return { selected: 'acc-copq',              open: ['accounts'] };
   // Admin
   if (pathname.startsWith('/admin/control-room')) return { selected: 'admin-control-room', open: ['admin'] };
+  // Maintenance
+  if (pathname.startsWith('/maintenance/equipment'))   return { selected: 'mnt-equipment',   open: ['maintenance'] };
+  if (pathname.startsWith('/maintenance/health'))      return { selected: 'mnt-health',      open: ['maintenance'] };
+  if (pathname.startsWith('/maintenance/breakdown'))   return { selected: 'mnt-breakdown',   open: ['maintenance'] };
+  if (pathname.startsWith('/maintenance/downtime'))    return { selected: 'mnt-downtime',    open: ['maintenance'] };
+  if (pathname.startsWith('/maintenance/pm'))          return { selected: 'mnt-pm',          open: ['maintenance'] };
+  if (pathname.startsWith('/maintenance/spare-parts')) return { selected: 'mnt-spare-parts', open: ['maintenance'] };
+  if (pathname.startsWith('/maintenance/loto'))        return { selected: 'mnt-loto',        open: ['maintenance'] };
+  if (pathname.startsWith('/maintenance/kpi'))         return { selected: 'mnt-kpi',         open: ['maintenance'] };
+  // Mold Management
+  if (pathname.startsWith('/mold/master'))       return { selected: 'mol-master',       open: ['mold'] };
+  if (pathname.startsWith('/mold/cavities'))     return { selected: 'mol-cavities',     open: ['mold'] };
+  if (pathname.startsWith('/mold/shot-count'))   return { selected: 'mol-shot-count',   open: ['mold'] };
+  if (pathname.startsWith('/mold/life'))         return { selected: 'mol-life',         open: ['mold'] };
+  if (pathname.startsWith('/mold/issue-return')) return { selected: 'mol-issue-return', open: ['mold'] };
+  if (pathname.startsWith('/mold/store'))        return { selected: 'mol-store',        open: ['mold'] };
+  if (pathname.startsWith('/mold/pm'))           return { selected: 'mol-pm',           open: ['mold'] };
+  if (pathname.startsWith('/mold/repair'))       return { selected: 'mol-repair',       open: ['mold'] };
+  if (pathname.startsWith('/mold/trial'))        return { selected: 'mol-trial',        open: ['mold'] };
+  if (pathname.startsWith('/mold/cost'))         return { selected: 'mol-cost',         open: ['mold'] };
+  if (pathname.startsWith('/mold/documents'))    return { selected: 'mol-documents',    open: ['mold'] };
   // Generic masters fallback
   if (pathname.startsWith('/masters'))               return { selected: 'masters',       open: ['masters'] };
   // HR & Training

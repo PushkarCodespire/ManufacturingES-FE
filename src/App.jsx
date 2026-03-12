@@ -89,6 +89,30 @@ import COPQPage             from './pages/Accounts/COPQ';
 import InstrumentsPage         from './pages/Quality/Instruments';
 import InventoryDashboardPage  from './pages/Store/InventoryDashboard';
 
+// Mold Management — Sprint 3
+import MoldMasterPage      from './pages/Mold/MoldMaster';
+import MoldDetailPage      from './pages/Mold/MoldMaster/MoldDetail';
+import CavityTrackingPage  from './pages/Mold/CavityTracking';
+import ShotCountPage       from './pages/Mold/ShotCount';
+import LifeManagementPage  from './pages/Mold/LifeManagement';
+import IssueReturnPage     from './pages/Mold/IssueReturn';
+import StoreDashboardPage  from './pages/Mold/StoreDashboard';
+// Mold Management — Sprint 5
+import PMSchedulePage      from './pages/Mold/PMSchedule';
+import RepairPage          from './pages/Mold/Repair';
+import TrialsPage          from './pages/Mold/Trials';
+import CostTrackingPage    from './pages/Mold/CostTracking';
+import MoldDocumentsPage   from './pages/Mold/Documents';
+// Maintenance
+import EquipmentPage        from './pages/Maintenance/Equipment';
+import HealthDashboardPage  from './pages/Maintenance/HealthDashboard';
+import BreakdownPage        from './pages/Maintenance/Breakdown';
+import MntDowntimePage      from './pages/Maintenance/Downtime';
+import MntPMSchedulePage    from './pages/Maintenance/PMSchedule';
+import MntSparePartsPage    from './pages/Maintenance/SpareParts';
+import MntLOTOPage          from './pages/Maintenance/LOTO';
+import MntKpiDashboardPage  from './pages/Maintenance/KpiDashboard';
+
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
   algorithm: antTheme.defaultAlgorithm,
@@ -683,6 +707,31 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
+              {/* ── Mold Management Module ───────────────────────────────────────── */}
+              <Route path="/mold/master"       element={<ProtectedRoute permission="mold-master-read"><MoldMasterPage /></ProtectedRoute>} />
+              <Route path="/mold/master/:id"   element={<ProtectedRoute permission="mold-master-read"><MoldDetailPage /></ProtectedRoute>} />
+              <Route path="/mold/cavities"     element={<ProtectedRoute permission="mold-cavities-read"><CavityTrackingPage /></ProtectedRoute>} />
+              <Route path="/mold/shot-count"   element={<ProtectedRoute permission="mold-shot_count-read"><ShotCountPage /></ProtectedRoute>} />
+              <Route path="/mold/life"         element={<ProtectedRoute permission="mold-life_management-read"><LifeManagementPage /></ProtectedRoute>} />
+              <Route path="/mold/issue-return" element={<ProtectedRoute permission="mold-issue_return-read"><IssueReturnPage /></ProtectedRoute>} />
+              <Route path="/mold/store"        element={<ProtectedRoute permission="mold-store_dashboard-read"><StoreDashboardPage /></ProtectedRoute>} />
+              {/* Mold Management — Sprint 5 */}
+              <Route path="/mold/pm"           element={<ProtectedRoute permission="mold-pm-read"><PMSchedulePage /></ProtectedRoute>} />
+              <Route path="/mold/repair"       element={<ProtectedRoute permission="mold-repair-read"><RepairPage /></ProtectedRoute>} />
+              <Route path="/mold/trial"        element={<ProtectedRoute permission="mold-trial-read"><TrialsPage /></ProtectedRoute>} />
+              <Route path="/mold/cost"         element={<ProtectedRoute permission="mold-cost-read"><CostTrackingPage /></ProtectedRoute>} />
+              <Route path="/mold/documents"    element={<ProtectedRoute permission="mold-documents-read"><MoldDocumentsPage /></ProtectedRoute>} />
+
+              {/* Maintenance */}
+              <Route path="/maintenance/equipment"    element={<ProtectedRoute permission="mnt-equipment-read"><EquipmentPage /></ProtectedRoute>} />
+              <Route path="/maintenance/health"       element={<ProtectedRoute permission="mnt-health-read"><HealthDashboardPage /></ProtectedRoute>} />
+              <Route path="/maintenance/breakdown"    element={<ProtectedRoute permission="mnt-breakdown-read"><BreakdownPage /></ProtectedRoute>} />
+              <Route path="/maintenance/downtime"     element={<ProtectedRoute permission="mnt-downtime-read"><MntDowntimePage /></ProtectedRoute>} />
+              <Route path="/maintenance/pm"           element={<ProtectedRoute permission="mnt-pm-read"><MntPMSchedulePage /></ProtectedRoute>} />
+              <Route path="/maintenance/spare-parts"  element={<ProtectedRoute permission="mnt-spare_parts-read"><MntSparePartsPage /></ProtectedRoute>} />
+              <Route path="/maintenance/loto"         element={<ProtectedRoute permission="mnt-loto-read"><MntLOTOPage /></ProtectedRoute>} />
+              <Route path="/maintenance/kpi"          element={<ProtectedRoute permission="mnt-kpi-read"><MntKpiDashboardPage /></ProtectedRoute>} />
 
               {/* Catch-all */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
