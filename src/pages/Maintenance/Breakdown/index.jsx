@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Button, Tag, Space, Modal, Form, Input, Select,
   Typography, Row, Col, Statistic, Drawer, Descriptions, Divider,
-  message, Steps, List, Alert,
+  message, Steps, List, Alert, Progress, Tooltip,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, ToolOutlined, CheckCircleOutlined,
   ExclamationCircleOutlined, ThunderboltOutlined, ClockCircleOutlined,
+  BulbOutlined, CheckOutlined,
 } from '@ant-design/icons';
-import { breakdownApi, equipmentApi } from '../../../api/maintenance.api';
+import { breakdownApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 
 const { Title, Text } = Typography;
@@ -43,6 +44,30 @@ export default function BreakdownPage() {
   const [diagForm] = Form.useForm();
   const [taskForm] = Form.useForm();
   const [completeForm] = Form.useForm();
+  // MNT-007: AI root cause suggestion state
+  const [aiSuggestions, setAiSuggestions] = useState(null); // { suggestions[], symptoms }
+  const [aiLoading, setAiLoading]         = useState(false);
+
+  // MNT-007: Analyze symptoms and suggest root cause
+  const analyzeBreakdown = async (bdId, autoSave = false) => {
+    setAiLoading(true);
+    setAiSuggestions(null);
+    try {
+      const res = await maintenanceAiApi.getRootCauseSuggestion(bdId, autoSave);
+      const data = res?.data ?? res;
+      setAiSuggestions(data);
+      if (autoSave && data?.saved) {
+        message.success('AI suggestion saved to breakdown record');
+        // Refresh breakdown detail
+        const updated = await breakdownApi.getBreakdownById(bdId);
+        setSelected(updated?.id ? updated : (updated?.data ?? updated));
+      }
+    } catch {
+      message.error('AI analysis failed');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const loadBreakdowns = useCallback(async () => {
     setLoading(true);
@@ -267,7 +292,7 @@ export default function BreakdownPage() {
       </Modal>
 
       {/* Breakdown Detail Drawer */}
-      <Drawer title="Breakdown Details" width={580} open={bdDrawer} onClose={() => setBdDrawer(false)} destroyOnClose>
+      <Drawer title="Breakdown Details" width={580} open={bdDrawer} onClose={() => { setBdDrawer(false); setAiSuggestions(null); }} destroyOnClose>
         {selected && (
           <>
             <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
@@ -282,6 +307,102 @@ export default function BreakdownPage() {
                   <Tag color="purple">AI</Tag> {selected.ai_suggested_cause}
                 </Descriptions.Item>
               )}
+            </Descriptions>
+
+            {/* ── MNT-007: AI Root Cause Analysis ─────────────────────────── */}
+            {['open', 'assigned', 'in_progress'].includes(selected.status) && (
+              <div style={{ marginBottom: 16 }}>
+                <Divider orientation="left" style={{ margin: '8px 0' }}>
+                  <Space size={4}><BulbOutlined style={{ color: '#7c3aed' }} /><span style={{ color: '#7c3aed', fontSize: 13 }}>AI Root Cause Analysis</span></Space>
+                </Divider>
+                <Space wrap style={{ marginBottom: 8 }}>
+                  <Button
+                    icon={<BulbOutlined />}
+                    loading={aiLoading}
+                    onClick={() => analyzeBreakdown(selected.id, false)}
+                    style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
+                    size="small"
+                  >
+                    Analyze Symptoms
+                  </Button>
+                  {aiSuggestions?.suggestions?.length > 0 && (
+                    <Button
+                      icon={<CheckOutlined />}
+                      size="small"
+                      type="primary"
+                      loading={aiLoading}
+                      onClick={() => analyzeBreakdown(selected.id, true)}
+                      style={{ background: '#7c3aed', borderColor: '#7c3aed' }}
+                    >
+                      Apply Top Suggestion
+                    </Button>
+                  )}
+                </Space>
+
+                {aiSuggestions && (
+                  aiSuggestions.suggestions?.length > 0 ? (
+                    <div>
+                      {aiSuggestions.historical_wo_count > 0 && (
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
+                          Based on {aiSuggestions.historical_wo_count} historical WOs for this equipment
+                          {aiSuggestions.five_why_template && <Tag color="purple" style={{ marginLeft: 6, fontSize: 10 }}>5-Why Available</Tag>}
+                        </Text>
+                      )}
+                      {aiSuggestions.suggestions.map((s, i) => (
+                        <Card
+                          key={s.failure_code_id}
+                          size="small"
+                          style={{ marginBottom: 6, borderColor: i === 0 ? '#7c3aed' : '#e5e7eb' }}
+                        >
+                          <Row justify="space-between" align="top">
+                            <Col flex="auto">
+                              <Space size={4} wrap>
+                                {i === 0 && <Tag color="purple">Best Match</Tag>}
+                                <Text strong style={{ fontSize: 13 }}>[{s.code}] {s.name}</Text>
+                                {s.history_count > 0 && <Tag color="orange">{s.history_count}× historical</Tag>}
+                              </Space>
+                              {s.typical_cause && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{s.typical_cause}</div>}
+                            </Col>
+                            <Col style={{ minWidth: 80, textAlign: 'right' }}>
+                              <Tooltip title="Confidence score based on keyword match + historical frequency">
+                                <Progress
+                                  type="circle"
+                                  percent={s.confidence}
+                                  width={36}
+                                  strokeColor={s.confidence >= 60 ? '#7c3aed' : s.confidence >= 30 ? '#d97706' : '#9ca3af'}
+                                  format={(p) => <span style={{ fontSize: 10 }}>{p}%</span>}
+                                />
+                              </Tooltip>
+                            </Col>
+                          </Row>
+                        </Card>
+                      ))}
+                      {/* MNT-014: 5-Why template (shown when ≥5 historical WOs) */}
+                      {aiSuggestions.five_why_template && (
+                        <div style={{ marginTop: 10 }}>
+                          <Divider orientation="left" style={{ margin: '6px 0', fontSize: 12 }}>
+                            <Space size={4}><BulbOutlined style={{ color: '#7c3aed' }} /><span style={{ fontSize: 12, color: '#7c3aed' }}>5-Why Analysis Template</span></Space>
+                          </Divider>
+                          {aiSuggestions.five_why_template.map((step) => (
+                            <div key={step.level} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-start' }}>
+                              <Tag color="purple" style={{ minWidth: 32, textAlign: 'center', flexShrink: 0 }}>W{step.level}</Tag>
+                              <div>
+                                <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{step.question}</Text>
+                                <Text style={{ fontSize: 12 }}>{step.answer}</Text>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <Alert message="No matching failure codes found. Add failure codes for this equipment category." type="info" showIcon />
+                  )
+                )}
+              </div>
+            )}
+
+            <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
               {selected.resolved_at && (
                 <Descriptions.Item label="Resolved At" span={2}>{new Date(selected.resolved_at).toLocaleString()}</Descriptions.Item>
               )}

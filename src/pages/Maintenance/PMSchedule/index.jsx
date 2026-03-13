@@ -2,13 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Button, Tag, Space, Modal, Form, Input, Select,
   InputNumber, Typography, Row, Col, Statistic, Drawer, Descriptions,
-  Divider, message, Tabs, List, Badge, Checkbox,
+  Divider, message, Tabs, List, Badge, Checkbox, Tooltip, Alert,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, ToolOutlined, CheckCircleOutlined,
   ClockCircleOutlined, PlayCircleOutlined, ThunderboltOutlined,
+  BulbOutlined, WarningOutlined, ArrowUpOutlined, ArrowDownOutlined,
+  UserOutlined, RiseOutlined,
 } from '@ant-design/icons';
-import { maintenancePmApi, equipmentApi } from '../../../api/maintenance.api';
+import { maintenancePmApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 
 const { Title, Text } = Typography;
@@ -38,6 +40,13 @@ export default function PMSchedulePage() {
   const [generating, setGenerating] = useState(false);
   const [form] = Form.useForm();
   const [schedForm] = Form.useForm();
+  // MNT-005: PM optimization recommendations (schedule_id → recommendation)
+  const [pmOptMap, setPmOptMap] = useState({});
+  // MNT-004 + MNT-015: Wave 3 AI
+  const [techSuggestions, setTechSuggestions] = useState(null);
+  const [techLoading, setTechLoading]         = useState(false);
+  const [smartSchedule, setSmartSchedule]     = useState(null);
+  const [smartLoading, setSmartLoading]       = useState(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -56,18 +65,54 @@ export default function PMSchedulePage() {
   }, []);
 
   useEffect(() => {
+    // MNT-005: load PM optimization silently
+    maintenanceAiApi.getPmOptimization()
+      .then((res) => {
+        const list = res?.data ?? res ?? [];
+        const map = {};
+        (Array.isArray(list) ? list : []).forEach((r) => { map[r.schedule_id] = r; });
+        setPmOptMap(map);
+      })
+      .catch(() => {});
+  }, []); // run once
+
+  useEffect(() => {
     loadAll();
     equipmentApi.getAll()
       .then((r) => setEquipment(Array.isArray(r) ? r : (r?.data ?? [])))
       .catch((err) => message.error(err?.message ?? 'Failed to load equipment'));
   }, [loadAll]);
 
+  // MNT-004: Load technician suggestions for a WO
+  const loadTechSuggestions = async (equipmentId, templateId) => {
+    setTechLoading(true);
+    setTechSuggestions(null);
+    try {
+      const res = await maintenanceAiApi.getTechnicianSuggestion(equipmentId, templateId);
+      setTechSuggestions(res?.data ?? res ?? []);
+    } catch { /* silent */ }
+    finally { setTechLoading(false); }
+  };
+
+  // MNT-015: Load smart schedule
+  const loadSmartSchedule = async () => {
+    setSmartLoading(true);
+    try {
+      const res = await maintenanceAiApi.getSmartSchedule();
+      setSmartSchedule(res?.data ? res : { data: res?.data ?? res ?? [], summary: res?.summary });
+    } catch { message.error('Failed to load smart schedule'); }
+    finally { setSmartLoading(false); }
+  };
+
   const openWo = async (woId) => {
     try {
       const res = await maintenancePmApi.getWorkOrder(woId);
-      // res IS the WO object after double-unwrap
-      setSelectedWo(res?.id ? res : (res?.data ?? res));
+      const wo = res?.id ? res : (res?.data ?? res);
+      setSelectedWo(wo);
+      setTechSuggestions(null); // reset on each open
       setWoDrawer(true);
+      // MNT-004: silently preload technician suggestions
+      if (wo?.equipment_id) loadTechSuggestions(wo.equipment_id, wo.template_id);
     } catch (err) { message.error(err?.message ?? 'Failed to load work order'); }
   };
 
@@ -173,6 +218,25 @@ export default function PMSchedulePage() {
     }},
     { title: 'Last Completed', dataIndex: 'last_completed_date', render: (v) => v || '—' },
     { title: 'Status', dataIndex: 'status', render: (v) => <Tag color={SCHED_COLOR[v]}>{v?.toUpperCase()}</Tag> },
+    {
+      title: <Space size={4}><BulbOutlined style={{ color: '#7c3aed' }} /><span>AI Insight</span></Space>,
+      key: 'ai',
+      render: (_, r) => {
+        const opt = pmOptMap[r.id];
+        if (!opt) return <Tag color="default" style={{ fontSize: 11 }}>—</Tag>;
+        const cfg = {
+          tighten:          { color: 'red',    icon: <ArrowDownOutlined />, label: `Tighten → ${opt.suggested_interval_days}d` },
+          extend:           { color: 'green',  icon: <ArrowUpOutlined />,  label: `Can extend → ${opt.suggested_interval_days}d` },
+          scheduling_issue: { color: 'orange', icon: <WarningOutlined />,  label: 'Scheduling issue' },
+          maintain:         { color: 'blue',   icon: <CheckCircleOutlined />, label: 'Interval OK' },
+        }[opt.action] || { color: 'default', icon: null, label: opt.action };
+        return (
+          <Tooltip title={opt.reason}>
+            <Tag color={cfg.color} icon={cfg.icon} style={{ fontSize: 11, cursor: 'help' }}>{cfg.label}</Tag>
+          </Tooltip>
+        );
+      },
+    },
   ];
 
   const tmplColumns = [
@@ -222,6 +286,114 @@ export default function PMSchedulePage() {
             children: <Table columns={schedColumns} dataSource={schedules} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />,
           },
           {
+            key: 'smart-schedule',
+            label: <Space size={4}><RiseOutlined style={{ color: '#7c3aed' }} /><span>Smart Schedule</span></Space>,
+            children: (
+              <div>
+                {!smartSchedule ? (
+                  <div style={{ textAlign: 'center', padding: 32 }}>
+                    <Button
+                      type="primary"
+                      icon={<RiseOutlined />}
+                      loading={smartLoading}
+                      onClick={loadSmartSchedule}
+                      style={{ background: '#7c3aed', borderColor: '#7c3aed' }}
+                    >
+                      Generate Smart Schedule
+                    </Button>
+                    <div style={{ marginTop: 8, color: '#6b7280', fontSize: 12 }}>
+                      Ranks open PM WOs by production gaps, equipment risk, technician availability, and spare parts readiness
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Space style={{ marginBottom: 12 }} wrap>
+                      {smartSchedule?.summary && (
+                        <>
+                          <Tag color="red">{smartSchedule.summary.overdue_count} Overdue</Tag>
+                          <Tag color="orange">{smartSchedule.summary.parts_not_ready} Parts Not Ready</Tag>
+                          {smartSchedule.summary.batch_groups?.length > 0 && (
+                            <Tag color="blue">{smartSchedule.summary.batch_groups.length} Batch Opportunities</Tag>
+                          )}
+                        </>
+                      )}
+                      <Button size="small" icon={<ReloadOutlined />} loading={smartLoading} onClick={loadSmartSchedule}>Refresh</Button>
+                    </Space>
+                    <Table
+                      size="small"
+                      rowKey="wo_id"
+                      dataSource={smartSchedule?.data ?? []}
+                      pagination={{ pageSize: 15 }}
+                      columns={[
+                        {
+                          title: 'Priority',
+                          width: 60,
+                          render: (_, r, idx) => (
+                            <Tag color={r.is_overdue ? 'red' : idx < 3 ? 'orange' : 'default'} style={{ fontSize: 11 }}>
+                              #{idx + 1}
+                            </Tag>
+                          ),
+                        },
+                        {
+                          title: 'WO',
+                          render: (_, r) => (
+                            <>
+                              <Text strong style={{ fontSize: 12 }}>{r.wo_number}</Text>
+                              <br />
+                              <Text type="secondary" style={{ fontSize: 11 }}>{r.equipment_code} — {r.equipment_name}</Text>
+                            </>
+                          ),
+                        },
+                        {
+                          title: 'Criticality',
+                          dataIndex: 'criticality',
+                          width: 80,
+                          render: (v) => <Tag color={v === 'A' ? 'red' : v === 'B' ? 'orange' : 'default'}>{v}</Tag>,
+                        },
+                        {
+                          title: 'Planned Date',
+                          width: 110,
+                          render: (_, r) => (
+                            <Tooltip title={r.is_overdue ? 'Overdue — schedule ASAP' : `${r.days_until_due} days until due`}>
+                              <Text style={{ color: r.is_overdue ? '#dc2626' : undefined, fontSize: 12 }}>
+                                {r.recommended_date}
+                              </Text>
+                            </Tooltip>
+                          ),
+                        },
+                        {
+                          title: <Tooltip title="Score: 40% production gap + 25% equipment risk + 20% technician + 10% parts + 5% batch"><span>Score</span></Tooltip>,
+                          width: 70,
+                          render: (_, r) => (
+                            <Tooltip title={`Gap:${Math.round(r.score_breakdown?.production_gap * 100)}% Risk:${Math.round(r.score_breakdown?.equipment_risk * 100)}% Tech:${Math.round(r.score_breakdown?.technician_load * 100)}%`}>
+                              <Tag color={r.composite_score >= 0.7 ? 'green' : r.composite_score >= 0.4 ? 'gold' : 'default'} style={{ fontSize: 11 }}>
+                                {Math.round(r.composite_score * 100)}%
+                              </Tag>
+                            </Tooltip>
+                          ),
+                        },
+                        {
+                          title: 'Flags',
+                          render: (_, r) => (
+                            <Space size={2} wrap>
+                              {r.is_overdue && <Tag color="red" style={{ fontSize: 10 }}>Overdue</Tag>}
+                              {!r.parts_ready && <Tag color="orange" style={{ fontSize: 10 }}>Parts Short</Tag>}
+                              {r.batch_eligible && <Tag color="blue" style={{ fontSize: 10 }}>Batchable</Tag>}
+                            </Space>
+                          ),
+                        },
+                        {
+                          title: '', width: 70,
+                          render: (_, r) => <Button size="small" onClick={() => openWo(r.wo_id)}>View</Button>,
+                        },
+                      ]}
+                    />
+                  </>
+                )}
+              </div>
+            ),
+          },
+          {
             key: 'templates',
             label: `Templates (${templates.length})`,
             children: (
@@ -268,6 +440,38 @@ export default function PMSchedulePage() {
               <Descriptions.Item label="Assigned To">{selectedWo.AssignedTo?.name || 'Unassigned'}</Descriptions.Item>
               {selectedWo.started_at && <Descriptions.Item label="Started At" span={2}>{new Date(selectedWo.started_at).toLocaleString()}</Descriptions.Item>}
             </Descriptions>
+
+            {/* MNT-004: AI Technician Suggestion */}
+            {(techSuggestions !== null || techLoading) && (
+              <div style={{ marginBottom: 16 }}>
+                <Divider orientation="left" style={{ margin: '8px 0' }}>
+                  <Space size={4}><UserOutlined style={{ color: '#7c3aed' }} /><span style={{ fontSize: 13, color: '#7c3aed' }}>Suggested Technicians</span></Space>
+                </Divider>
+                {techLoading ? (
+                  <Text type="secondary" style={{ fontSize: 12 }}>Loading suggestions...</Text>
+                ) : (Array.isArray(techSuggestions) && techSuggestions.length > 0) ? (
+                  techSuggestions.map((t, i) => (
+                    <div key={t.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #f3f4f6' }}>
+                      <Space size={6}>
+                        {i === 0 && <Tag color="purple" style={{ fontSize: 10 }}>Best</Tag>}
+                        <UserOutlined style={{ color: '#6b7280' }} />
+                        <Text style={{ fontSize: 13 }}>{t.name}</Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>({t.employee_id})</Text>
+                      </Space>
+                      <Space size={4}>
+                        {t.experience_count > 0 && <Tag color="blue" style={{ fontSize: 10 }}>{t.experience_count} past WOs</Tag>}
+                        {t.avg_duration_minutes && <Tag color="green" style={{ fontSize: 10 }}>{t.avg_duration_minutes}m avg</Tag>}
+                        <Tag color={t.open_wo_count === 0 ? 'green' : t.open_wo_count < 3 ? 'gold' : 'red'} style={{ fontSize: 10 }}>
+                          {t.open_wo_count} open WOs
+                        </Tag>
+                      </Space>
+                    </div>
+                  ))
+                ) : (
+                  <Text type="secondary" style={{ fontSize: 12 }}>No technician history found for this equipment/template combination</Text>
+                )}
+              </div>
+            )}
 
             <Divider orientation="left">Checklist ({(selectedWo.Checklist || []).length} items)</Divider>
             <List

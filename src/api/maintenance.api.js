@@ -98,11 +98,19 @@ export const maintenanceKpiApi = {
   logCost:         (data)        => api.post('/maintenance/kpi/costs',                               data).then((r) => r.data),
 };
 
-// ── AI Features (MNT-013, 014, 015) — Sprint 6 ───────────────────────────────
+// ── AI Features (Wave 1: MNT-001, MNT-010, MNT-011 + future waves) ───────────
 export const maintenanceAiApi = {
-  getPredictions:          (params = {}) => api.get('/maintenance/ai/predictions',                  { params }).then((r) => r.data),
-  getPrediction:           (equipId)     => api.get(`/maintenance/ai/predictions/${equipId}`).then((r) => r.data),
-  submitFeedback:          (equipId, data) => api.post(`/maintenance/ai/predictions/${equipId}/feedback`, data).then((r) => r.data),
-  getRootCauseSuggestions: (woId)        => api.get(`/maintenance/ai/root-cause/${woId}`).then((r) => r.data),
-  getOptimizedSchedule:    (params = {}) => api.get('/maintenance/ai/schedule-optimizer',           { params }).then((r) => r.data),
+  // ── Wave 1: rule-based, 100% local ────────────────────────────────────────
+  getCriticalitySuggestion: (equipId)      => api.get(`/maintenance/ai/criticality-suggestion/${equipId}`).then((r) => r.data),
+  getSparePartAnomalies:    ()             => api.get('/maintenance/ai/spare-part-anomalies').then((r) => r.data),
+  getLotoSuggestion:        (equipmentId)  => api.get('/maintenance/ai/loto-suggestion', { params: { equipment_id: equipmentId } }).then((r) => r.data),
+  // ── Wave 2: pattern detection, 100% local ─────────────────────────────────
+  getRootCauseSuggestion: (breakdownId, save = false) => api.get(`/maintenance/ai/root-cause/${breakdownId}`, { params: { save } }).then((r) => r.data),
+  getFailurePatterns:     (equipmentId)  => api.get('/maintenance/ai/failure-patterns',   equipmentId ? { params: { equipment_id: equipmentId } } : undefined).then((r) => r.data),
+  getPmOptimization:      ()             => api.get('/maintenance/ai/pm-optimization').then((r) => r.data),
+  getDowntimePatterns:    (days = 90)    => api.get('/maintenance/ai/downtime-patterns',  { params: { days } }).then((r) => r.data),
+  // ── Wave 3: multi-factor optimization, 100% local ─────────────────────────
+  getTechnicianSuggestion: (equipmentId, templateId) => api.get('/maintenance/ai/technician-suggestion', { params: { equipment_id: equipmentId, template_id: templateId } }).then((r) => r.data),
+  getSpareDemandForecast:  (equipmentId)  => api.get('/maintenance/ai/spare-demand-forecast',  { params: { equipment_id: equipmentId } }).then((r) => r.data),
+  getSmartSchedule:        ()             => api.get('/maintenance/ai/smart-schedule').then((r) => r.data),
 };

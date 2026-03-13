@@ -112,6 +112,7 @@ import MntPMSchedulePage    from './pages/Maintenance/PMSchedule';
 import MntSparePartsPage    from './pages/Maintenance/SpareParts';
 import MntLOTOPage          from './pages/Maintenance/LOTO';
 import MntKpiDashboardPage  from './pages/Maintenance/KpiDashboard';
+import MadadPage            from './pages/Madad';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
@@ -732,6 +733,9 @@ function App() {
               <Route path="/maintenance/spare-parts"  element={<ProtectedRoute permission="mnt-spare_parts-read"><MntSparePartsPage /></ProtectedRoute>} />
               <Route path="/maintenance/loto"         element={<ProtectedRoute permission="mnt-loto-read"><MntLOTOPage /></ProtectedRoute>} />
               <Route path="/maintenance/kpi"          element={<ProtectedRoute permission="mnt-kpi-read"><MntKpiDashboardPage /></ProtectedRoute>} />
+
+              {/* Madad full-page chat */}
+              <Route path="/madad" element={<ProtectedRoute><MadadPage /></ProtectedRoute>} />
 
               {/* Catch-all */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

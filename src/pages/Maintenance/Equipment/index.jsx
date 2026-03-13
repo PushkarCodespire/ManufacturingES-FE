@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Button, Tag, Space, Modal, Form, Input, Select,
   Typography, Row, Col, Statistic, Drawer, Descriptions, Divider,
-  message, Tree, Tabs, InputNumber,
+  message, Tree, Tabs, InputNumber, Progress, Tooltip,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, ToolOutlined, CheckCircleOutlined,
   ExclamationCircleOutlined, ApartmentOutlined, FileTextOutlined, EditOutlined,
+  BulbOutlined,
 } from '@ant-design/icons';
-import { equipmentApi } from '../../../api/maintenance.api';
+import { equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 
 const { Title, Text } = Typography;
@@ -37,6 +38,26 @@ export default function EquipmentPage() {
   const [editModal, setEditModal]       = useState(false);
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
+  const [critSuggesting, setCritSuggesting] = useState(false);
+  const [critSuggestion, setCritSuggestion] = useState(null); // { suggested_criticality, reasons[] }
+
+  // ── AI: suggest criticality for an existing equipment ─────────────────────
+  const suggestCriticality = async (equipId, targetForm) => {
+    if (!equipId) { message.warning('Save the equipment first before getting an AI suggestion.'); return; }
+    setCritSuggesting(true);
+    setCritSuggestion(null);
+    try {
+      const res = await maintenanceAiApi.getCriticalitySuggestion(equipId);
+      const data = res?.data ?? res;
+      setCritSuggestion(data);
+      if (targetForm) targetForm.setFieldsValue({ criticality: data.suggested_criticality });
+      message.success(`AI suggests Criticality ${data.suggested_criticality} — applied`);
+    } catch {
+      message.error('AI suggestion failed — check network');
+    } finally {
+      setCritSuggesting(false);
+    }
+  };
 
   const loadEquipment = useCallback(async () => {
     setLoading(true);
@@ -159,9 +180,22 @@ export default function EquipmentPage() {
     {
       title: 'Health',
       dataIndex: 'current_health_score',
+      width: 130,
       render: (v) => {
-        const color = v >= 70 ? '#16a34a' : v >= 40 ? '#d97706' : '#dc2626';
-        return <Text strong style={{ color }}>{v ?? 100}</Text>;
+        const score = v ?? 100;
+        const color = score >= 70 ? '#16a34a' : score >= 40 ? '#d97706' : '#dc2626';
+        return (
+          <Tooltip title={`Health Score: ${score}/100`}>
+            <div style={{ width: 110 }}>
+              <Progress
+                percent={score}
+                size="small"
+                strokeColor={color}
+                format={(p) => <span style={{ color, fontSize: 11, fontWeight: 600 }}>{p}</span>}
+              />
+            </div>
+          </Tooltip>
+        );
       },
     },
     { title: 'Location', dataIndex: 'location', render: (v) => v || '—' },
@@ -238,7 +272,18 @@ export default function EquipmentPage() {
           </Row>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="criticality" label="Criticality" initialValue="B">
+              <Form.Item
+                name="criticality"
+                label={
+                  <Space size={4}>
+                    <span>Criticality</span>
+                    <Tooltip title="AI suggests criticality based on breakdown history & downtime (only for existing equipment)">
+                      <BulbOutlined style={{ color: '#1d4ed8', cursor: 'help' }} />
+                    </Tooltip>
+                  </Space>
+                }
+                initialValue="B"
+              >
                 <Select options={['A','B','C'].map((v) => ({ value: v, label: `${v} — ${v === 'A' ? 'Critical' : v === 'B' ? 'Major' : 'Minor'}` }))} />
               </Form.Item>
             </Col>
@@ -306,7 +351,16 @@ export default function EquipmentPage() {
                 {(() => {
                   const v = selected.current_health_score ?? 100;
                   const color = v >= 70 ? '#16a34a' : v >= 40 ? '#d97706' : '#dc2626';
-                  return <Text strong style={{ color, fontSize: 18 }}>{v} / 100</Text>;
+                  const label = v >= 70 ? 'Good' : v >= 40 ? 'Warning' : 'Critical';
+                  return (
+                    <div style={{ width: '100%' }}>
+                      <Progress
+                        percent={v}
+                        strokeColor={color}
+                        format={(p) => <span style={{ color, fontWeight: 700 }}>{p} <span style={{ fontSize: 11, fontWeight: 400 }}>({label})</span></span>}
+                      />
+                    </div>
+                  );
                 })()}
               </Descriptions.Item>
             </Descriptions>
@@ -352,7 +406,7 @@ export default function EquipmentPage() {
       </Drawer>
 
       {/* Edit Modal */}
-      <Modal title="Edit Equipment" open={editModal} onCancel={() => setEditModal(false)} footer={null} width={520}>
+      <Modal title="Edit Equipment" open={editModal} onCancel={() => { setEditModal(false); setCritSuggestion(null); }} footer={null} width={520}>
         <Form form={editForm} layout="vertical" onFinish={updateEquipment}>
           <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
           <Row gutter={16}>
@@ -360,6 +414,20 @@ export default function EquipmentPage() {
               <Form.Item name="criticality" label="Criticality">
                 <Select options={['A','B','C'].map((v) => ({ value: v, label: v }))} />
               </Form.Item>
+              <Button
+                size="small"
+                icon={<BulbOutlined />}
+                loading={critSuggesting}
+                onClick={() => suggestCriticality(selected?.id, editForm)}
+                style={{ marginTop: -8, marginBottom: 12, color: '#1d4ed8', borderColor: '#1d4ed8' }}
+              >
+                AI Suggest
+              </Button>
+              {critSuggestion && (
+                <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>
+                  {critSuggestion.reasons.map((r, i) => <div key={i}>• {r}</div>)}
+                </div>
+              )}
             </Col>
             <Col span={12}>
               <Form.Item name="status" label="Status">

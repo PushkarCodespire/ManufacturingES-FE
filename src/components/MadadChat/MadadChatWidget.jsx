@@ -1,29 +1,81 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Button, Input, Typography, Spin } from 'antd';
+import { Button, Input, Typography, Spin, Tooltip } from 'antd';
 import {
   MessageOutlined,
   SendOutlined,
   CloseOutlined,
+  DeleteOutlined,
+  ExpandAltOutlined,
 } from '@ant-design/icons';
+import { useLocation, useNavigate } from 'react-router-dom';
 import madadApi from '../../api/madad.api';
 import ChatMessage from './ChatMessage';
 
 const { Text } = Typography;
 
+// ── localStorage keys ─────────────────────────────────────────────────────────
+const LS_MESSAGES   = 'madad_messages';
+const LS_SESSION_ID = 'madad_session_id';
+const LS_OPEN       = 'madad_open';
+const MAX_STORED    = 100; // keep last 100 messages
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const now = () =>
   new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
+function lsGet(key, fallback) {
+  try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+function lsSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* quota */ }
+}
+
 // ── MadadChatWidget ───────────────────────────────────────────────────────────
 const MadadChatWidget = () => {
-  const [open, setOpen]         = useState(false);
-  const [messages, setMessages] = useState([]);
+  // Restore from localStorage on first render
+  const [open, setOpen]         = useState(() => lsGet(LS_OPEN, false));
+  const [messages, setMessages] = useState(() => lsGet(LS_MESSAGES, []));
   const [input, setInput]       = useState('');
   const [loading, setLoading]   = useState(false);
 
-  const sessionId    = useRef(Date.now().toString());
-  const listRef      = useRef(null);
+  // Stable session ID — reuse across navigations/refreshes
+  const sessionId = useRef(
+    lsGet(LS_SESSION_ID, null) || Date.now().toString(),
+  );
+
+  const location       = useLocation();
+  const navigate       = useNavigate();
+  const listRef        = useRef(null);
+  const containerRef   = useRef(null);
+  const fabRef         = useRef(null);
   const historyFetched = useRef(false);
+
+  // ── Close on navigation ────────────────────────────────────────────────────
+  useEffect(() => { setOpen(false); }, [location.pathname]);
+
+  // ── Close on outside click ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!open) return;
+    const handleMouseDown = (e) => {
+      const insideChat = containerRef.current?.contains(e.target);
+      const insideFab  = fabRef.current?.contains(e.target);
+      if (!insideChat && !insideFab) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [open]);
+
+  // Persist session ID once
+  useEffect(() => { lsSet(LS_SESSION_ID, sessionId.current); }, []);
+
+  // Persist messages whenever they change
+  useEffect(() => {
+    lsSet(LS_MESSAGES, messages.slice(-MAX_STORED));
+  }, [messages]);
+
+  // Persist open state whenever it changes
+  useEffect(() => { lsSet(LS_OPEN, open); }, [open]);
 
   // ── Auto-scroll to bottom ──────────────────────────────────────────────────
   const scrollToBottom = useCallback(() => {
@@ -34,14 +86,18 @@ const MadadChatWidget = () => {
     });
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, loading, scrollToBottom]);
+  useEffect(() => { scrollToBottom(); }, [messages, loading, scrollToBottom]);
 
-  // ── Load chat history on first open ────────────────────────────────────────
+  // When chat opens, wait one frame for the list div to mount, then scroll to bottom
+  useEffect(() => {
+    if (open) requestAnimationFrame(() => scrollToBottom());
+  }, [open, scrollToBottom]);
+
+  // ── Load chat history from API (only if localStorage is empty) ─────────────
   useEffect(() => {
     if (!open || historyFetched.current) return;
     historyFetched.current = true;
+    if (messages.length > 0) return; // already have local history
 
     madadApi
       .getHistory({ session_id: sessionId.current })
@@ -57,10 +113,18 @@ const MadadChatWidget = () => {
           );
         }
       })
-      .catch(() => {
-        // Silently ignore — first conversation
-      });
-  }, [open]);
+      .catch(() => { /* Silently ignore — first conversation */ });
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Clear chat ─────────────────────────────────────────────────────────────
+  const handleClear = () => {
+    setMessages([]);
+    // Reset session so server also starts fresh
+    const newSid = Date.now().toString();
+    sessionId.current = newSid;
+    lsSet(LS_SESSION_ID, newSid);
+    historyFetched.current = false;
+  };
 
   // ── Send message ───────────────────────────────────────────────────────────
   const handleSend = async () => {
@@ -86,7 +150,7 @@ const MadadChatWidget = () => {
         timestamp: now(),
       };
       setMessages((prev) => [...prev, aiMsg]);
-    } catch (err) {
+    } catch {
       setMessages((prev) => [
         ...prev,
         {
@@ -114,6 +178,7 @@ const MadadChatWidget = () => {
       {/* ── Chat window ──────────────────────────────────────────────────── */}
       {open && (
         <div
+          ref={containerRef}
           style={{
             position:      'fixed',
             bottom:        90,
@@ -145,13 +210,33 @@ const MadadChatWidget = () => {
             <Text strong style={{ color: '#ffffff', fontSize: 15 }}>
               Madad
             </Text>
-            <Button
-              type="text"
-              size="small"
-              icon={<CloseOutlined style={{ color: '#ffffff', fontSize: 14 }} />}
-              onClick={() => setOpen(false)}
-              style={{ color: '#ffffff' }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Tooltip title="Full page mein kholein">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<ExpandAltOutlined style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14 }} />}
+                  onClick={() => navigate(`/madad?session=${sessionId.current}`)}
+                  style={{ color: '#ffffff' }}
+                />
+              </Tooltip>
+              <Tooltip title="Chat saaf karo">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<DeleteOutlined style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14 }} />}
+                  onClick={handleClear}
+                  style={{ color: '#ffffff' }}
+                />
+              </Tooltip>
+              <Button
+                type="text"
+                size="small"
+                icon={<CloseOutlined style={{ color: '#ffffff', fontSize: 14 }} />}
+                onClick={() => setOpen(false)}
+                style={{ color: '#ffffff' }}
+              />
+            </div>
           </div>
 
           {/* Message list */}
@@ -231,6 +316,7 @@ const MadadChatWidget = () => {
 
       {/* ── Floating action button ───────────────────────────────────────── */}
       <Button
+        ref={fabRef}
         type="primary"
         shape="circle"
         size="large"

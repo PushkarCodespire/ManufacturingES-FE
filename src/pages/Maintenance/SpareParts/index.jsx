@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Button, Tag, Space, Modal, Form, Input, Select,
   InputNumber, Typography, Row, Col, Statistic, Drawer, Descriptions,
-  Divider, message, Tabs, Progress, Alert,
+  Divider, message, Tabs, Progress, Alert, Tooltip,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, ToolOutlined, ExclamationCircleOutlined,
-  CheckCircleOutlined, MinusCircleOutlined,
+  CheckCircleOutlined, MinusCircleOutlined, WarningOutlined, BulbOutlined,
+  ArrowUpOutlined,
 } from '@ant-design/icons';
-import { sparePartsApi, equipmentApi } from '../../../api/maintenance.api';
+import { sparePartsApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 
 const { Title, Text } = Typography;
@@ -29,6 +30,10 @@ export default function SparePartsPage() {
   const [form] = Form.useForm();
   const [consumeForm] = Form.useForm();
   const [bomForm] = Form.useForm();
+  const [anomalyMap, setAnomalyMap] = useState({}); // spare_part_id → anomaly data
+  // MNT-009: Demand forecast state
+  const [forecast, setForecast]         = useState(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
 
   const loadParts = useCallback(async () => {
     setLoading(true);
@@ -45,6 +50,15 @@ export default function SparePartsPage() {
     equipmentApi.getAll()
       .then((r) => setEquipment(Array.isArray(r) ? r : (r?.data ?? [])))
       .catch((err) => message.error(err?.message ?? 'Failed to load equipment'));
+    // MNT-010: load anomaly detection silently in background
+    maintenanceAiApi.getSparePartAnomalies()
+      .then((res) => {
+        const list = res?.data ?? res ?? [];
+        const map = {};
+        (Array.isArray(list) ? list : []).forEach((a) => { map[a.spare_part_id] = a; });
+        setAnomalyMap(map);
+      })
+      .catch(() => {}); // silent fail — non-critical
   }, [loadParts]);
 
   const loadBom = async (equipId) => {
@@ -52,6 +66,17 @@ export default function SparePartsPage() {
       const res = await sparePartsApi.getBomFor(equipId);
       setBomItems(Array.isArray(res) ? res : (res?.data ?? []));
     } catch (err) { message.error(err?.message ?? 'Failed to load BOM'); }
+  };
+
+  // MNT-009: Load demand forecast for selected equipment
+  const loadForecast = async (equipId) => {
+    setForecastLoading(true);
+    setForecast(null);
+    try {
+      const res = await maintenanceAiApi.getSpareDemandForecast(equipId);
+      setForecast(res);
+    } catch (err) { message.error(err?.message ?? 'Failed to load demand forecast'); }
+    finally { setForecastLoading(false); }
   };
 
   const createPart = async (values) => {
@@ -98,8 +123,9 @@ export default function SparePartsPage() {
     });
   };
 
-  const lowStockCount  = parts.filter((p) => parseFloat(p.current_stock) <= parseFloat(p.min_stock)).length;
-  const totalParts     = parts.length;
+  const lowStockCount   = parts.filter((p) => parseFloat(p.current_stock) <= parseFloat(p.min_stock)).length;
+  const anomalyCount    = Object.keys(anomalyMap).length;
+  const totalParts      = parts.length;
   const totalStockValue = parts.reduce((s, p) => s + (parseFloat(p.current_stock) * parseFloat(p.unit_cost || 0)), 0);
 
   const partColumns = [
@@ -133,8 +159,20 @@ export default function SparePartsPage() {
     {
       title: 'Status',
       render: (_, r) => {
-        const low = parseFloat(r.current_stock) <= parseFloat(r.min_stock);
-        return <Tag color={low ? 'red' : 'green'}>{low ? 'Low Stock' : 'OK'}</Tag>;
+        const low     = parseFloat(r.current_stock) <= parseFloat(r.min_stock);
+        const anomaly = anomalyMap[r.id];
+        return (
+          <Space size={4} wrap>
+            <Tag color={low ? 'red' : 'green'}>{low ? 'Low Stock' : 'OK'}</Tag>
+            {anomaly && (
+              <Tooltip title={`Consumption anomaly: ${anomaly.recent_30d} used in last 30d vs avg ${anomaly.monthly_avg}/mo (${anomaly.ratio}×)`}>
+                <Tag color="orange" icon={<WarningOutlined />} style={{ cursor: 'help' }}>
+                  {anomaly.ratio}× Spike
+                </Tag>
+              </Tooltip>
+            )}
+          </Space>
+        );
       },
     },
     {
@@ -176,9 +214,21 @@ export default function SparePartsPage() {
       </div>
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={8}><Card><Statistic title="Total Parts" value={totalParts} prefix={<ToolOutlined />} /></Card></Col>
-        <Col xs={8}><Card><Statistic title="Low Stock Alerts" value={lowStockCount} valueStyle={{ color: '#dc2626' }} prefix={<ExclamationCircleOutlined />} /></Card></Col>
-        <Col xs={8}><Card><Statistic title="Total Stock Value" value={`$${totalStockValue.toFixed(0)}`} prefix={<CheckCircleOutlined />} /></Card></Col>
+        <Col xs={6}><Card><Statistic title="Total Parts" value={totalParts} prefix={<ToolOutlined />} /></Card></Col>
+        <Col xs={6}><Card><Statistic title="Low Stock Alerts" value={lowStockCount} valueStyle={{ color: '#dc2626' }} prefix={<ExclamationCircleOutlined />} /></Card></Col>
+        <Col xs={6}>
+          <Tooltip title="Parts with last-30d consumption > 2× 5-month average">
+            <Card style={{ cursor: 'help' }}>
+              <Statistic
+                title="Consumption Anomalies"
+                value={anomalyCount}
+                valueStyle={{ color: anomalyCount > 0 ? '#d97706' : '#16a34a' }}
+                prefix={<WarningOutlined />}
+              />
+            </Card>
+          </Tooltip>
+        </Col>
+        <Col xs={6}><Card><Statistic title="Total Stock Value" value={`$${totalStockValue.toFixed(0)}`} prefix={<CheckCircleOutlined />} /></Card></Col>
       </Row>
 
       {lowStockCount > 0 && (
@@ -186,6 +236,15 @@ export default function SparePartsPage() {
           message={`${lowStockCount} parts are below minimum stock level`}
           type="warning"
           showIcon
+          style={{ marginBottom: 8 }}
+        />
+      )}
+      {anomalyCount > 0 && (
+        <Alert
+          message={`${anomalyCount} spare part(s) show unusual consumption spikes — check Status column for details`}
+          type="warning"
+          showIcon
+          icon={<WarningOutlined />}
           style={{ marginBottom: 16 }}
         />
       )}
@@ -204,19 +263,90 @@ export default function SparePartsPage() {
             label: 'Equipment BOM',
             children: (
               <div>
-                <Space style={{ marginBottom: 16 }}>
+                <Space style={{ marginBottom: 16 }} wrap>
                   <Select
                     showSearch
                     placeholder="Select equipment to view BOM"
                     style={{ width: 320 }}
                     filterOption={(i, o) => o.label.toLowerCase().includes(i.toLowerCase())}
                     options={equipment.map((e) => ({ value: e.id, label: `${e.equipment_code} — ${e.name}` }))}
-                    onChange={(v) => { setSelectedEquip(v); loadBom(v); }}
+                    onChange={(v) => { setSelectedEquip(v); loadBom(v); setForecast(null); }}
                   />
                   {selectedEquip && (
-                    <Button icon={<PlusOutlined />} onClick={() => setBomModal(true)}>Add BOM Item</Button>
+                    <>
+                      <Button icon={<PlusOutlined />} onClick={() => setBomModal(true)}>Add BOM Item</Button>
+                      <Button
+                        icon={<BulbOutlined />}
+                        loading={forecastLoading}
+                        onClick={() => loadForecast(selectedEquip)}
+                        style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
+                      >
+                        Demand Forecast
+                      </Button>
+                    </>
                   )}
                 </Space>
+
+                {/* MNT-009: Demand Forecast Panel */}
+                {forecast && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <Space size={6}>
+                        <BulbOutlined style={{ color: '#7c3aed' }} />
+                        <Text strong style={{ color: '#7c3aed' }}>3-Month Demand Forecast</Text>
+                        {forecast.summary && (
+                          <>
+                            <Tag color="default" style={{ fontSize: 11 }}>Age Factor ×{forecast.summary.age_factor}</Tag>
+                            {forecast.summary.stock_up_count > 0 && <Tag color="red" style={{ fontSize: 11 }}>{forecast.summary.stock_up_count} Parts Need Replenishment</Tag>}
+                            {forecast.summary.total_replenishment_cost > 0 && <Tag color="orange" style={{ fontSize: 11 }}>Est. Cost: ${forecast.summary.total_replenishment_cost}</Tag>}
+                          </>
+                        )}
+                      </Space>
+                    </div>
+                    <Table
+                      size="small"
+                      rowKey="spare_part_id"
+                      dataSource={forecast?.data ?? []}
+                      pagination={false}
+                      columns={[
+                        { title: 'Part', render: (_, r) => <><Text strong style={{ fontSize: 12 }}>{r.part_code}</Text><br /><Text type="secondary" style={{ fontSize: 11 }}>{r.part_name}</Text></> },
+                        { title: 'Stock', dataIndex: 'current_stock', width: 70, render: (v) => <Text strong>{v}</Text> },
+                        { title: 'Consumed 6m', dataIndex: 'consumed_6m', width: 100, render: (v, r) => `${v} ${r.unit_of_measure || ''}` },
+                        { title: 'Monthly Avg', dataIndex: 'monthly_avg', width: 100, render: (v, r) => `${v} ${r.unit_of_measure || ''}` },
+                        {
+                          title: '3-Month Forecast',
+                          dataIndex: 'forecast_3m',
+                          width: 130,
+                          render: (v, r) => (
+                            <Space size={4}>
+                              <Text style={{ color: r.action === 'stock_up' ? '#dc2626' : '#16a34a' }}>{v}</Text>
+                              {r.shortfall > 0 && <Tag color="red" style={{ fontSize: 10 }}>Short {r.shortfall}</Tag>}
+                            </Space>
+                          ),
+                        },
+                        {
+                          title: 'Action',
+                          dataIndex: 'action',
+                          width: 130,
+                          render: (v, r) => {
+                            const cfg = {
+                              stock_up:              { color: 'red',     icon: <ArrowUpOutlined />, label: 'Stock Up' },
+                              monitor:               { color: 'orange',  icon: <WarningOutlined />, label: 'Monitor' },
+                              adequate:              { color: 'green',   icon: <CheckCircleOutlined />, label: 'Adequate' },
+                              no_consumption_history:{ color: 'default', icon: null, label: 'No History' },
+                            }[v] || { color: 'default', icon: null, label: v };
+                            return (
+                              <Tooltip title={r.replenishment_cost ? `Est. replenishment: $${r.replenishment_cost}` : undefined}>
+                                <Tag color={cfg.color} icon={cfg.icon} style={{ fontSize: 11 }}>{cfg.label}</Tag>
+                              </Tooltip>
+                            );
+                          },
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
+
                 {selectedEquip
                   ? <Table columns={bomColumns} dataSource={bomItems} rowKey="id" pagination={{ pageSize: 15 }} />
                   : <Text type="secondary">Select an equipment to view its spare parts BOM</Text>

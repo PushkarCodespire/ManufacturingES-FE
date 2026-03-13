@@ -1,9 +1,50 @@
 import React from 'react';
 import { Avatar } from 'antd';
+import { useNavigate } from 'react-router-dom';
 
-// ── Lightweight markdown helpers ──────────────────────────────────────────────
-// Supports **bold** and bullet-point lines starting with "- " or "* ".
-const renderMarkdown = (text) => {
+// ── Inline token parser: **bold**, [text](url), plain text ───────────────────
+function parseInline(text, navigate) {
+  // Split on **bold** and [link](url)
+  const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g);
+  return parts.map((part, i) => {
+    const boldMatch = part.match(/^\*\*(.+)\*\*$/);
+    if (boldMatch) return <strong key={i}>{boldMatch[1]}</strong>;
+
+    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (linkMatch) {
+      const [, label, href] = linkMatch;
+      const isInternal = href.startsWith('/');
+      if (isInternal) {
+        return (
+          <span
+            key={i}
+            onClick={() => navigate(href)}
+            style={{
+              color:          '#1d4ed8',
+              cursor:         'pointer',
+              textDecoration: 'underline',
+              fontWeight:     500,
+            }}
+          >
+            {label}
+          </span>
+        );
+      }
+      return (
+        <a key={i} href={href} target="_blank" rel="noreferrer"
+          style={{ color: '#1d4ed8', textDecoration: 'underline' }}>
+          {label}
+        </a>
+      );
+    }
+
+    return part;
+  });
+}
+
+// ── Lightweight markdown renderer ─────────────────────────────────────────────
+// Supports: **bold**, [link](url), bullet lines (- / *), _italic_ hints
+const renderMarkdown = (text, navigate) => {
   if (!text) return null;
 
   const lines = text.split('\n');
@@ -14,15 +55,7 @@ const renderMarkdown = (text) => {
     const isBullet = Boolean(bulletMatch);
     const content = isBullet ? bulletMatch[1] : line;
 
-    // Bold: **text**
-    const parts = content.split(/(\*\*[^*]+\*\*)/g);
-    const rendered = parts.map((part, i) => {
-      const boldMatch = part.match(/^\*\*(.+)\*\*$/);
-      if (boldMatch) {
-        return <strong key={i}>{boldMatch[1]}</strong>;
-      }
-      return part;
-    });
+    const rendered = parseInline(content, navigate);
 
     if (isBullet) {
       return (
@@ -44,7 +77,8 @@ const renderMarkdown = (text) => {
 
 // ── ChatMessage ───────────────────────────────────────────────────────────────
 const ChatMessage = ({ role, text, timestamp }) => {
-  const isUser = role === 'user';
+  const isUser   = role === 'user';
+  const navigate = useNavigate();
 
   return (
     <div
@@ -87,7 +121,7 @@ const ChatMessage = ({ role, text, timestamp }) => {
             border:       isUser ? 'none' : '1px solid #e5e7eb',
           }}
         >
-          {renderMarkdown(text)}
+          {renderMarkdown(text, navigate)}
         </div>
 
         {/* Timestamp */}

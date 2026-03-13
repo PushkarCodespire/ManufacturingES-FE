@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Button, Tag, Space, Modal, Form, Input, Select,
   Typography, Row, Col, Statistic, Drawer, Descriptions,
-  Divider, message, Tabs, Timeline, Alert, List,
+  Divider, message, Tabs, Timeline, Alert, List, Tooltip,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, LockOutlined, UnlockOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined, SafetyOutlined,
+  BulbOutlined,
 } from '@ant-design/icons';
-import { lotoApi, equipmentApi } from '../../../api/maintenance.api';
+import { lotoApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import { userApi } from '../../../api/user.api';
 import AppLayout from '../../../components/AppLayout';
 
@@ -38,6 +39,7 @@ export default function LOTOPage() {
   const [initForm] = Form.useForm();
   const [permitForm] = Form.useForm();
   const [lockForm] = Form.useForm();
+  const [lotoSuggestInfo, setLotoSuggestInfo] = useState(null); // { procedure_name, id } auto-loaded
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -304,13 +306,47 @@ export default function LOTOPage() {
       </Modal>
 
       {/* Initiate LOTO Modal */}
-      <Modal title="🔒 Initiate LOTO" open={initiateModal} onCancel={() => setInitiateModal(false)} footer={null}>
+      <Modal
+        title="🔒 Initiate LOTO"
+        open={initiateModal}
+        onCancel={() => { setInitiateModal(false); setLotoSuggestInfo(null); initForm.resetFields(); }}
+        footer={null}
+      >
         <Alert message="Equipment will be isolated for maintenance. Ensure all operators are informed." type="warning" showIcon style={{ marginBottom: 16 }} />
         <Form form={initForm} layout="vertical" onFinish={initiateLoto}>
           <Form.Item name="equipment_id" label="Equipment" rules={[{ required: true }]}>
-            <Select showSearch filterOption={(i, o) => o.label.toLowerCase().includes(i.toLowerCase())} options={equipment.map((e) => ({ value: e.id, label: `${e.equipment_code} — ${e.name}` }))} />
+            <Select
+              showSearch
+              filterOption={(i, o) => o.label.toLowerCase().includes(i.toLowerCase())}
+              options={equipment.map((e) => ({ value: e.id, label: `${e.equipment_code} — ${e.name}` }))}
+              onChange={async (equipId) => {
+                // MNT-011: auto-suggest LOTO procedure for selected equipment
+                setLotoSuggestInfo(null);
+                initForm.setFieldsValue({ procedure_id: undefined });
+                try {
+                  const res = await maintenanceAiApi.getLotoSuggestion(equipId);
+                  const suggested = res?.suggested ?? null;
+                  if (suggested) {
+                    initForm.setFieldsValue({ procedure_id: suggested.id });
+                    setLotoSuggestInfo(suggested);
+                  }
+                } catch { /* silent */ }
+              }}
+            />
           </Form.Item>
-          <Form.Item name="procedure_id" label="LOTO Procedure">
+          <Form.Item
+            name="procedure_id"
+            label={
+              <Space size={4}>
+                <span>LOTO Procedure</span>
+                {lotoSuggestInfo && (
+                  <Tooltip title={`Auto-suggested: "${lotoSuggestInfo.procedure_name}"`}>
+                    <Tag color="blue" icon={<BulbOutlined />} style={{ fontSize: 11 }}>AI Suggested</Tag>
+                  </Tooltip>
+                )}
+              </Space>
+            }
+          >
             <Select allowClear options={procedures.map((p) => ({ value: p.id, label: p.procedure_name }))} />
           </Form.Item>
           <Form.Item name="lock_tag_number" label="Lock/Tag Number"><Input placeholder="e.g. LT-0042" /></Form.Item>

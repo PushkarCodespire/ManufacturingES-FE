@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Button, Tag, Space, Modal, Form, Input, Select,
   Typography, Row, Col, Statistic, Drawer, Descriptions, Divider,
-  message, DatePicker, List,
+  message, DatePicker, List, Progress, Tooltip, Spin,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, ClockCircleOutlined,
-  BarChartOutlined, ExclamationCircleOutlined,
+  BarChartOutlined, ExclamationCircleOutlined, BulbOutlined,
+  FireOutlined, CalendarOutlined,
 } from '@ant-design/icons';
-import { downtimeApi, equipmentApi } from '../../../api/maintenance.api';
+import { downtimeApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 
 const { Title, Text } = Typography;
@@ -30,8 +31,10 @@ export default function DowntimePage() {
   const [total, setTotal]         = useState(0);
   const [page, setPage]           = useState(1);
   const [filters, setFilters]     = useState({});
-  const [activeView, setActiveView] = useState('log');
-  const [logModal, setLogModal]   = useState(false);
+  const [activeView, setActiveView]   = useState('log');
+  const [logModal, setLogModal]       = useState(false);
+  const [patterns, setPatterns]       = useState(null);
+  const [patternLoading, setPatternLoading] = useState(false);
   const [form] = Form.useForm();
 
   const loadLog = useCallback(async (params = {}) => {
@@ -62,10 +65,20 @@ export default function DowntimePage() {
       .catch((err) => message.error(err?.message ?? 'Failed to load equipment'));
   }, []);
 
+  const loadPatterns = useCallback(async () => {
+    setPatternLoading(true);
+    try {
+      const res = await maintenanceAiApi.getDowntimePatterns(90);
+      setPatterns(res?.data ?? res);
+    } catch { message.error('Failed to load pattern analysis'); }
+    finally { setPatternLoading(false); }
+  }, []);
+
   useEffect(() => {
-    if (activeView === 'log')    loadLog();
-    if (activeView === 'pareto') loadPareto();
-  }, [activeView, loadLog, loadPareto]);
+    if (activeView === 'log')      loadLog();
+    if (activeView === 'pareto')   loadPareto();
+    if (activeView === 'patterns') loadPatterns();
+  }, [activeView, loadLog, loadPareto, loadPatterns]);
 
   const logManual = async (values) => {
     try {
@@ -155,6 +168,9 @@ export default function DowntimePage() {
       <Space style={{ marginBottom: 16 }}>
         <Button type={activeView === 'log' ? 'primary' : 'default'} icon={<ClockCircleOutlined />} onClick={() => setActiveView('log')}>Downtime Log</Button>
         <Button type={activeView === 'pareto' ? 'primary' : 'default'} icon={<BarChartOutlined />} onClick={() => setActiveView('pareto')}>Pareto Analysis</Button>
+        <Button type={activeView === 'patterns' ? 'primary' : 'default'} icon={<BulbOutlined />} onClick={() => setActiveView('patterns')} style={activeView === 'patterns' ? {} : { borderColor: '#7c3aed', color: '#7c3aed' }}>
+          Pattern Analysis
+        </Button>
       </Space>
 
       {activeView === 'log' && (
@@ -221,6 +237,132 @@ export default function DowntimePage() {
             </Card>
           </Col>
         </Row>
+      )}
+
+      {activeView === 'patterns' && (
+        <div>
+          {patternLoading ? (
+            <div style={{ textAlign: 'center', padding: 40 }}><Spin size="large" tip="Analyzing patterns..." /></div>
+          ) : patterns ? (
+            <Row gutter={16}>
+              {/* Peak Hours */}
+              <Col xs={24} md={12} style={{ marginBottom: 16 }}>
+                <Card
+                  title={<Space><FireOutlined style={{ color: '#dc2626' }} /><span>Unplanned Downtime by Hour of Day</span></Space>}
+                  size="small"
+                  extra={patterns.peak_hours?.length > 0 && <Tag color="red">Peak: {patterns.peak_hours.map(h => `${String(h).padStart(2,'0')}:00`).join(', ')}</Tag>}
+                >
+                  {(() => {
+                    const maxMin = Math.max(1, ...patterns.by_hour.map(h => h.minutes));
+                    return (
+                      <div style={{ maxHeight: 280, overflowY: 'auto' }}>
+                        {patterns.by_hour.map((h) => (
+                          <div key={h.hour} style={{ marginBottom: 4 }}>
+                            <Row align="middle" gutter={8}>
+                              <Col style={{ width: 48, fontSize: 11, color: '#6b7280' }}>{h.label}</Col>
+                              <Col flex="auto">
+                                <Progress
+                                  percent={Math.round((h.minutes / maxMin) * 100)}
+                                  showInfo={false}
+                                  size="small"
+                                  strokeColor={patterns.peak_hours?.includes(h.hour) ? '#dc2626' : '#3b82f6'}
+                                />
+                              </Col>
+                              <Col style={{ width: 70, fontSize: 11, textAlign: 'right', color: h.minutes > 0 ? '#111' : '#9ca3af' }}>
+                                {h.minutes > 0 ? `${h.minutes}m / ${h.events}x` : '—'}
+                              </Col>
+                            </Row>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </Card>
+              </Col>
+
+              {/* Day of Week */}
+              <Col xs={24} md={12} style={{ marginBottom: 16 }}>
+                <Card
+                  title={<Space><CalendarOutlined style={{ color: '#d97706' }} /><span>Unplanned Downtime by Day of Week</span></Space>}
+                  size="small"
+                  extra={patterns.worst_day && <Tag color="orange">Worst: {patterns.worst_day.day_name}</Tag>}
+                >
+                  {(() => {
+                    const maxMin = Math.max(1, ...patterns.by_day.map(d => d.minutes));
+                    return patterns.by_day.map((d) => (
+                      <div key={d.day} style={{ marginBottom: 8 }}>
+                        <Row align="middle" gutter={8}>
+                          <Col style={{ width: 80, fontSize: 12 }}>{d.day_name}</Col>
+                          <Col flex="auto">
+                            <Progress
+                              percent={Math.round((d.minutes / maxMin) * 100)}
+                              showInfo={false}
+                              size="small"
+                              strokeColor={patterns.worst_day?.day === d.day ? '#d97706' : '#3b82f6'}
+                            />
+                          </Col>
+                          <Col style={{ width: 70, fontSize: 11, textAlign: 'right', color: d.minutes > 0 ? '#111' : '#9ca3af' }}>
+                            {d.minutes > 0 ? `${d.minutes}m / ${d.events}x` : '—'}
+                          </Col>
+                        </Row>
+                      </div>
+                    ));
+                  })()}
+                </Card>
+              </Col>
+
+              {/* Top Equipment */}
+              <Col xs={24} md={12} style={{ marginBottom: 16 }}>
+                <Card title="Top Equipment by Unplanned Downtime (90 days)" size="small">
+                  {patterns.top_equipment?.length > 0 ? (
+                    (() => {
+                      const maxMin = Math.max(1, ...patterns.top_equipment.map(e => e.total_minutes));
+                      return patterns.top_equipment.map((e, i) => (
+                        <div key={e.equipment_id} style={{ marginBottom: 8 }}>
+                          <Row align="middle" gutter={8}>
+                            <Col style={{ width: 26, fontSize: 12, color: '#6b7280' }}>#{i + 1}</Col>
+                            <Col style={{ width: 100, fontSize: 12 }}>
+                              <Tooltip title={e.equipment_name}>
+                                <Text strong style={{ fontSize: 12 }}>{e.equipment_code}</Text>
+                              </Tooltip>
+                            </Col>
+                            <Col flex="auto">
+                              <Progress
+                                percent={Math.round((e.total_minutes / maxMin) * 100)}
+                                showInfo={false}
+                                size="small"
+                                strokeColor={i === 0 ? '#dc2626' : '#f97316'}
+                              />
+                            </Col>
+                            <Col style={{ width: 80, fontSize: 11, textAlign: 'right' }}>
+                              {e.total_minutes}m / {e.event_count}x
+                            </Col>
+                          </Row>
+                        </div>
+                      ));
+                    })()
+                  ) : <span style={{ color: '#9ca3af', fontSize: 13 }}>No unplanned downtime in last 90 days</span>}
+                </Card>
+              </Col>
+
+              {/* Summary */}
+              <Col xs={24} md={12} style={{ marginBottom: 16 }}>
+                <Card title="90-Day Summary" size="small">
+                  <Row gutter={16}>
+                    <Col span={12}><Statistic title="Total Events" value={patterns.total_events} /></Col>
+                    <Col span={12}><Statistic title="Total Downtime (min)" value={patterns.total_unplanned_minutes} valueStyle={{ color: '#dc2626' }} /></Col>
+                    <Col span={12} style={{ marginTop: 12 }}><Statistic title="Avg/Event (min)" value={patterns.total_events > 0 ? Math.round(patterns.total_unplanned_minutes / patterns.total_events) : 0} /></Col>
+                    <Col span={12} style={{ marginTop: 12 }}>
+                      {patterns.worst_day && <Statistic title="Worst Day" value={patterns.worst_day.day_name} valueStyle={{ color: '#d97706', fontSize: 16 }} />}
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
+            </Row>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>Click "Pattern Analysis" to load insights</div>
+          )}
+        </div>
       )}
 
       {/* Log Downtime Modal */}
