@@ -67,9 +67,27 @@ const leaf = (parentKey, label, perms) => ({
   children: perms.map((p) => perm(`${parentKey}-${label.replace(/[\s&]/g, '_').toLowerCase()}`, p)),
 });
 
-const stdPerms   = ['Read', 'Create/Edit/Delete'];
-const dlPerms    = ['Read', 'Create/Edit/Delete', 'Download'];
-const bomPerms   = ['Read', 'Create/Edit/Delete', 'Download', 'Read BOM', 'Create/Edit/Delete BOM', 'Download BOM'];
+const stdPerms     = ['Read', 'Create/Edit/Delete'];
+const dlPerms      = ['Read', 'Create/Edit/Delete', 'Download'];
+const bomPerms     = ['Read', 'Create/Edit/Delete', 'Download', 'Read BOM', 'Create/Edit/Delete BOM', 'Download BOM'];
+const approvalPerms = ['Read', 'Approve/Reject'];
+
+// ── Mold Management Access tree (matches sidebar "Mold Management" module) ──
+const moldTreeData = [
+  { title: 'Mold Master',        key: 'mold-master',          children: stdPerms.map((p) => perm('mold-master', p)) },
+  { title: 'Cavity Tracking',    key: 'mold-cavities',        children: stdPerms.map((p) => perm('mold-cavities', p)) },
+  { title: 'Shot Count',         key: 'mold-shot_count',      children: stdPerms.map((p) => perm('mold-shot_count', p)) },
+  { title: 'Life Management',    key: 'mold-life_management', children: stdPerms.map((p) => perm('mold-life_management', p)) },
+  { title: 'Issue / Return',     key: 'mold-issue_return',    children: stdPerms.map((p) => perm('mold-issue_return', p)) },
+  { title: 'Mold Store',         key: 'mold-store_dashboard', children: stdPerms.map((p) => perm('mold-store_dashboard', p)) },
+  { title: 'PM Schedule',        key: 'mold-pm',              children: stdPerms.map((p) => perm('mold-pm', p)) },
+  { title: 'Repair',             key: 'mold-repair',          children: stdPerms.map((p) => perm('mold-repair', p)) },
+  { title: 'Trials',             key: 'mold-trial',           children: stdPerms.map((p) => perm('mold-trial', p)) },
+  { title: 'Cost Tracking',      key: 'mold-cost',            children: dlPerms.map((p) => perm('mold-cost', p)) },
+  { title: 'Documents',          key: 'mold-documents',       children: dlPerms.map((p) => perm('mold-documents', p)) },
+  { title: 'AI Insights',        key: 'mold-ai_insights',     children: stdPerms.map((p) => perm('mold-ai_insights', p)) },
+  { title: 'Mold Selection',     key: 'mold-selection',       children: stdPerms.map((p) => perm('mold-selection', p)) },
+];
 
 const mastersTreeData = [
   {
@@ -554,6 +572,7 @@ const EmployeeDetailPage = () => {
   const [ordersChecked,      setOrdersChecked]      = useState([]);  // sidebar "Orders"
   const [procurementChecked, setProcurementChecked] = useState([]);  // sidebar "Procurement"
   const [qualityChecked,     setQualityChecked]     = useState([]);  // Quality & NPD
+  const [moldChecked,        setMoldChecked]        = useState([]);  // Mold Management
   const [savingPerms,        setSavingPerms]        = useState(false);
 
   // ── Permission key prefix splitters ────────────────────────────────────
@@ -564,6 +583,7 @@ const EmployeeDetailPage = () => {
   const isOrdersKey    = (k) => k.startsWith('plan-orders') || k.startsWith('plan-sales-order');
   const isProcKey      = (k) => k.startsWith('plan-') && !isOrdersKey(k);
   const isQualityKey   = (k) => k.startsWith('quality-') || k.startsWith('npd-');
+  const isMoldKey      = (k) => k.startsWith('mold-');
 
   // ── Fetch employee ─────────────────────────────────────────────────────
   const fetchUser = useCallback(async () => {
@@ -579,6 +599,7 @@ const EmployeeDetailPage = () => {
       setOrdersChecked(perms.filter(isOrdersKey));
       setProcurementChecked(perms.filter(isProcKey));
       setQualityChecked(perms.filter(isQualityKey));
+      setMoldChecked(perms.filter(isMoldKey));
     } catch {
       message.error('Failed to load employee details');
     } finally {
@@ -645,6 +666,7 @@ const EmployeeDetailPage = () => {
         ...ordersChecked,
         ...procurementChecked,
         ...qualityChecked,
+        ...moldChecked,
       ];
       await userApi.update(id, { permissions });
       message.success(
@@ -1290,6 +1312,26 @@ const EmployeeDetailPage = () => {
           setCheckedKeys={setQualityChecked}
           title="Quality & NPD Access Permissions"
           description="Control access to CAPA, NCR, customer complaints, engineering drawings, check sheets and PFMEA."
+          onSave={handleSavePermissions}
+          saving={savingPerms}
+          canWrite={canWrite}
+        />
+      ),
+    },
+    {
+      key:   'mold',
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <ToolOutlined /> Mold Management
+        </span>
+      ),
+      children: (
+        <AccessTreeTab
+          treeData={moldTreeData}
+          checkedKeys={moldChecked}
+          setCheckedKeys={setMoldChecked}
+          title="Mold Management Access Permissions"
+          description="Control access to mold master, cavity tracking, shot count, life management, issue/return, store, PM, repair, trials, cost, documents, AI insights and mold selection."
           onSave={handleSavePermissions}
           saving={savingPerms}
           canWrite={canWrite}

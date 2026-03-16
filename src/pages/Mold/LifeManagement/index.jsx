@@ -82,7 +82,7 @@ export default function MoldLifeManagementPage() {
       if (search) params.search = search;
       if (stageFilter) params.life_stage = stageFilter;
       const data = await moldLifeApi.getDashboard(params);
-      setDashboard(data?.summary || data);
+      setDashboard(data);
       setMolds(Array.isArray(data?.molds) ? data.molds : (Array.isArray(data) ? data : []));
     } catch { message.error('Failed to load life management dashboard'); }
     finally { setLoading(false); }
@@ -204,7 +204,7 @@ export default function MoldLifeManagementPage() {
     { title: "Alert Type", dataIndex: "alert_type", key: "alert_type", width: 140, render: (val) => { const colors = { warning: "gold", urgent: "orange", critical: "red", eol: "default" }; return <Tag color={colors[val] || "blue"}>{(val || "").replace(/_/g, " ").toUpperCase()}</Tag>; } },
     { title: "Threshold %", dataIndex: "threshold_pct", key: "threshold_pct", width: 100, render: (val) => <Text style={{ fontSize: 12 }}>{val != null ? val + "%" : "—"}</Text> },
     { title: "Shots at Alert", dataIndex: "shot_count_at_alert", key: "shot_count_at_alert", width: 120, render: (val) => <Text style={{ fontSize: 12 }}>{val != null ? Number(val).toLocaleString() : "—"}</Text> },
-    { title: "Status", dataIndex: "status", key: "status", width: 120, render: (val) => { const colors = { active: "red", acknowledged: "blue", resolved: "green" }; return <Tag color={colors[val] || "default"}>{(val || "").toUpperCase()}</Tag>; } },
+    { title: "Status", dataIndex: "status", key: "status", width: 120, render: (val) => { const colors = { triggered: "red", acknowledged: "blue", actioned: "green", dismissed: "default" }; return <Tag color={colors[val] || "default"}>{(val || "").toUpperCase()}</Tag>; } },
     { title: "Created", dataIndex: "created_at", key: "created_at", width: 150, render: (val) => <Text style={{ fontSize: 12 }}>{fmtDateTime(val)}</Text> },
     ...(canWrite ? [{ title: "Action", key: "action", width: 120, render: (_, r) => r.status === "active" ? (<Button size="small" type="link" icon={<CheckCircleOutlined />} onClick={() => handleAcknowledgeAlert(r.id)}>Acknowledge</Button>) : null }] : []),
   ];

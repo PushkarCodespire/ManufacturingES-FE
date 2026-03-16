@@ -2,42 +2,91 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, message,
-  Drawer, Form, Select, Popconfirm,
+  Drawer, Form, Select, Popconfirm, Modal, Spin,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
   EditOutlined, DeleteOutlined, CheckCircleOutlined,
+  EyeOutlined, FilePdfOutlined, FileImageOutlined,
 } from '@ant-design/icons';
 import AppLayout         from '../../../components/AppLayout';
 import usePermissions    from '../../../hooks/usePermissions';
-import { checkSheetApi } from '../../../api/quality.api';
-import { itemApi }       from '../../../api/item.api';
+import { checkSheetApi, drawingApi } from '../../../api/quality.api';
+import { itemApi }                   from '../../../api/item.api';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
 
 const STATUS_COLOR = { active: 'green', inactive: 'default', invalidated: 'red', reviewed: 'blue' };
 
-const STAGE_OPTS = [
-  { value: 'incoming',   label: 'Incoming'   },
-  { value: 'in_process', label: 'In Process' },
-  { value: 'final',      label: 'Final'      },
-  { value: 'dispatch',   label: 'Dispatch'   },
-];
+// Files are stored at /uploads/... and proxied by Vite → localhost:5000
+const toFileUrl = (filePath) => (filePath ? (filePath.startsWith('http') ? filePath : filePath) : null);
+
+// ── Shared file preview modal ──────────────────────────────────────────────────
+function FilePreviewModal({ open, url, name, onClose }) {
+  if (!open) return null;
+  const ext   = (name ?? '').split('.').pop().toLowerCase();
+  const isPdf = ext === 'pdf';
+  const isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
+  return (
+    <Modal
+      open={open}
+      title={
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isPdf ? <FilePdfOutlined style={{ color: '#ef4444' }} /> : <FileImageOutlined style={{ color: '#3b82f6' }} />}
+          {name || 'Drawing Preview'}
+        </span>
+      }
+      onCancel={onClose}
+      footer={
+        <Button type="link" href={url} target="_blank" rel="noreferrer">
+          Open in new tab ↗
+        </Button>
+      }
+      width={900}
+      centered
+      styles={{ body: { padding: 0, minHeight: 480 } }}
+    >
+      {isPdf && (
+        <iframe
+          src={url}
+          title={name}
+          width="100%"
+          height="600px"
+          style={{ border: 'none', display: 'block' }}
+        />
+      )}
+      {isImg && (
+        <div style={{ padding: 16, textAlign: 'center', background: '#f9fafb' }}>
+          <img src={url} alt={name} style={{ maxWidth: '100%', maxHeight: 560, borderRadius: 4 }} />
+        </div>
+      )}
+      {!isPdf && !isImg && (
+        <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>
+          <p>Cannot preview this file type.</p>
+          <Button type="primary" href={url} target="_blank" rel="noreferrer">Download / Open</Button>
+        </div>
+      )}
+    </Modal>
+  );
+}
 
 export default function CheckSheetsPage() {
   const { can }  = usePermissions();
   const canWrite = can('npd-check_sheets-create_edit_delete');
   const navigate = useNavigate();
 
-  const [records,    setRecords]    = useState([]);
-  const [items,      setItems]      = useState([]);
-  const [loading,    setLoading]    = useState(false);
-  const [search,     setSearch]     = useState('');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editing,    setEditing]    = useState(null);
-  const [saving,     setSaving]     = useState(false);
-  const [form]                      = Form.useForm();
+  const [records,          setRecords]          = useState([]);
+  const [items,            setItems]            = useState([]);
+  const [drawings,         setDrawings]         = useState([]);
+  const [loading,          setLoading]          = useState(false);
+  const [search,           setSearch]           = useState('');
+  const [drawerOpen,       setDrawerOpen]       = useState(false);
+  const [editing,          setEditing]          = useState(null);
+  const [saving,           setSaving]           = useState(false);
+  const [previewLoadingId, setPreviewLoadingId] = useState(null);
+  const [previewModal,     setPreviewModal]     = useState({ open: false, url: '', name: '' });
+  const [form]                                  = Form.useForm();
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -53,6 +102,8 @@ export default function CheckSheetsPage() {
   useEffect(() => {
     itemApi.getAll({ limit: 500 }).catch(() => ({ data: [] }))
       .then((r) => setItems(Array.isArray(r) ? r : (r?.data ?? [])));
+    drawingApi.getAll({}).catch(() => [])
+      .then((r) => setDrawings(Array.isArray(r) ? r : []));
   }, []);
 
   // ── Drawer helpers ────────────────────────────────────────────────────────
@@ -65,12 +116,11 @@ export default function CheckSheetsPage() {
   const openEdit = (r) => {
     setEditing(r);
     form.setFieldsValue({
-      template_code: r.template_code,
-      name:          r.name,
-      item_id:       r.item_id,
-      stage:         r.stage,
-      revision:      r.revision,
-      description:   r.description,
+      drawing_id: r.drawing_id,
+      item_id:    r.item_id,
+      name:       r.name,
+      revision:   r.revision,
+      notes:      r.notes,
     });
     setDrawerOpen(true);
   };
@@ -102,15 +152,33 @@ export default function CheckSheetsPage() {
     } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
+  // ── Preview drawing file ──────────────────────────────────────────────────
+  const onPreviewDrawing = async (r) => {
+    if (!r.drawing_id) { message.info('No drawing linked to this check-sheet'); return; }
+    setPreviewLoadingId(r.id);
+    try {
+      const detail   = await drawingApi.getById(r.drawing_id);
+      const versions = detail?.Versions ?? [];
+      const current  = versions.find((v) => v.is_current) ?? versions[versions.length - 1];
+      if (!current?.file_path) {
+        message.info('No file uploaded for the linked drawing yet');
+        return;
+      }
+      const url  = toFileUrl(current.file_path);
+      const name = current.file_name ?? current.file_path.split('/').pop();
+      setPreviewModal({ open: true, url, name });
+    } catch { message.error('Failed to load drawing file'); }
+    finally   { setPreviewLoadingId(null); }
+  };
+
   // ── Table columns ─────────────────────────────────────────────────────────
   const baseColumns = [
-    { title: 'Template Code', dataIndex: 'template_code', key: 'code',  width: 150 },
+    { title: 'Drawing',        key: 'drawing',             width: 150,
+      render: (_, r) => r.Drawing?.drawing_no ?? '—' },
     { title: 'Name',          dataIndex: 'name',          key: 'name',  ellipsis: true },
     { title: 'Part No.',      key: 'part',                width: 130,
-      render: (_, r) => r.Item?.part_no ?? '—' },
+      render: (_, r) => r.Item?.code ?? '—' },
     { title: 'Rev.',          dataIndex: 'revision',      key: 'rev',   width: 60  },
-    { title: 'Stage',         dataIndex: 'stage',         key: 'stage', width: 110,
-      render: (v) => <Tag>{STAGE_OPTS.find((o) => o.value === v)?.label ?? v}</Tag> },
     { title: 'Dimensions',    key: 'dims',                width: 100,
       render: (_, r) => <Tag color="blue">{r.Dimensions?.length ?? 0} dims</Tag> },
     { title: 'Status',        key: 'status', width: 110,
@@ -142,13 +210,27 @@ export default function CheckSheetsPage() {
     ),
   };
 
+  const previewColumn = {
+    title: '', key: 'preview', width: 110,
+    render: (_, r) => (
+      <Button
+        size="small"
+        icon={previewLoadingId === r.id ? <Spin size="small" /> : <EyeOutlined />}
+        disabled={previewLoadingId === r.id}
+        onClick={() => onPreviewDrawing(r)}
+      >
+        Drawing
+      </Button>
+    ),
+  };
+
   const openColumn = {
-    title: '', key: 'open', width: 80,
+    title: '', key: 'open', width: 70,
     render: (_, r) => (
       <Button size="small" type="link" onClick={() => navigate(`/quality/check-sheets/${r.id}`)}>Open</Button>
     ),
   };
-  const columns     = [...baseColumns, openColumn, ...(canWrite ? [actionColumn] : [])];
+  const columns     = [...baseColumns, previewColumn, openColumn, ...(canWrite ? [actionColumn] : [])];
   const total       = records.length;
   const active      = records.filter((r) => r.status === 'active').length;
   const invalidated = records.filter((r) => r.sheet_status === 'invalidated').length;
@@ -223,36 +305,44 @@ export default function CheckSheetsPage() {
         }
       >
         <Form form={form} layout="vertical" requiredMark={false}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Form.Item name="template_code" label="Template Code" rules={[{ required: true }]}>
-              <Input placeholder="e.g. CS-001" />
-            </Form.Item>
-            <Form.Item name="revision" label="Revision">
-              <Input placeholder="e.g. A, B, 01" />
-            </Form.Item>
-          </div>
+          <Form.Item name="drawing_id" label="Drawing" rules={[{ required: true, message: 'Drawing is required' }]}>
+            <Select
+              showSearch allowClear placeholder="Select drawing..."
+              filterOption={(input, opt) => opt?.label?.toLowerCase().includes(input.toLowerCase())}
+              options={drawings.map((d) => ({ value: d.id, label: `${d.drawing_no} — ${d.title ?? ''} (Rev ${d.current_revision ?? '—'})` }))}
+            />
+          </Form.Item>
 
           <Form.Item name="name" label="Template Name" rules={[{ required: true }]}>
             <Input placeholder="e.g. Final Inspection — Bracket" />
           </Form.Item>
 
-          <Form.Item name="item_id" label="Part / Item">
-            <Select
-              showSearch allowClear placeholder="Select part..."
-              filterOption={(input, opt) => opt?.label?.toLowerCase().includes(input.toLowerCase())}
-              options={items.map((i) => ({ value: i.id, label: `${i.part_no} — ${i.name}` }))}
-            />
-          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Form.Item name="item_id" label="Part / Item" rules={[{ required: true, message: 'Item is required' }]}>
+              <Select
+                showSearch allowClear placeholder="Select part..."
+                filterOption={(input, opt) => opt?.label?.toLowerCase().includes(input.toLowerCase())}
+                options={items.map((i) => ({ value: i.id, label: `${i.part_no ?? i.code} — ${i.name}` }))}
+              />
+            </Form.Item>
+            <Form.Item name="revision" label="Revision" rules={[{ required: true }]}>
+              <Input placeholder="e.g. A, B, 01" />
+            </Form.Item>
+          </div>
 
-          <Form.Item name="stage" label="Inspection Stage" rules={[{ required: true }]}>
-            <Select options={STAGE_OPTS} placeholder="Select stage" />
-          </Form.Item>
-
-          <Form.Item name="description" label="Description / Notes">
+          <Form.Item name="notes" label="Notes">
             <TextArea rows={3} placeholder="Optional notes..." />
           </Form.Item>
         </Form>
       </Drawer>
+
+      {/* ── Drawing File Preview Modal ──────────────────────────────────────── */}
+      <FilePreviewModal
+        open={previewModal.open}
+        url={previewModal.url}
+        name={previewModal.name}
+        onClose={() => setPreviewModal((p) => ({ ...p, open: false }))}
+      />
     </AppLayout>
   );
 }

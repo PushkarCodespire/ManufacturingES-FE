@@ -19,17 +19,19 @@ const { Title, Text } = Typography;
 
 // ── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
-  active:       { color: 'green',   label: 'Active'       },
-  inactive:     { color: 'default', label: 'Inactive'     },
-  under_repair: { color: 'orange',  label: 'Under Repair' },
-  condemned:    { color: 'red',     label: 'Condemned'     },
+  active:         { color: 'green',   label: 'Active'         },
+  inactive:       { color: 'default', label: 'Inactive'       },
+  in_calibration: { color: 'orange',  label: 'In Calibration' },
+  scrapped:       { color: 'red',     label: 'Scrapped'       },
 };
 
 const CATEGORY_OPTIONS = [
-  { value: 'measuring',    label: 'Measuring'    },
-  { value: 'testing',      label: 'Testing'      },
-  { value: 'calibration',  label: 'Calibration'  },
-  { value: 'inspection',   label: 'Inspection'   },
+  { value: 'dimensional',  label: 'Dimensional'  },
+  { value: 'electrical',   label: 'Electrical'   },
+  { value: 'pressure',     label: 'Pressure'     },
+  { value: 'temperature',  label: 'Temperature'  },
+  { value: 'force',        label: 'Force'        },
+  { value: 'optical',      label: 'Optical'      },
   { value: 'other',        label: 'Other'        },
 ];
 
@@ -106,18 +108,18 @@ export default function InstrumentsPage() {
   const openEdit = (record) => {
     setEditing(record);
     form.setFieldsValue({
-      instrument_code: record.instrument_code,
-      name:            record.name,
-      category:        record.category,
-      make:            record.make,
-      model:           record.model,
-      serial_no:       record.serial_no,
-      range:           record.range,
-      least_count:     record.least_count,
-      location:        record.location,
-      status:          record.status,
+      instrument_code:            record.instrument_code,
+      name:                       record.name,
+      category:                   record.category,
+      manufacturer:               record.manufacturer,
+      model_no:                   record.model_no,
+      serial_no:                  record.serial_no,
+      measurement_range:          record.measurement_range,
+      accuracy:                   record.accuracy,
+      location:                   record.location,
+      status:                     record.status,
       calibration_frequency_days: record.calibration_frequency_days,
-      remarks:         record.remarks,
+      notes:                      record.notes,
     });
     setDrawerOpen(true);
   };
@@ -189,7 +191,7 @@ export default function InstrumentsPage() {
       render: (v) => <Tag>{v || '—'}</Tag>,
     },
     { title: 'Make / Model', key: 'make', width: 150,
-      render: (_, r) => <Text style={{ fontSize: 12 }}>{[r.make, r.model].filter(Boolean).join(' / ') || '—'}</Text>,
+      render: (_, r) => <Text style={{ fontSize: 12 }}>{[r.manufacturer, r.model_no].filter(Boolean).join(' / ') || '—'}</Text>,
     },
     { title: 'Location', dataIndex: 'location', key: 'location', width: 120, ellipsis: true },
     {
@@ -450,12 +452,12 @@ export default function InstrumentsPage() {
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="make" label="Make">
+              <Form.Item name="manufacturer" label="Make / Manufacturer">
                 <Input placeholder="Manufacturer" />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="model" label="Model">
+              <Form.Item name="model_no" label="Model No.">
                 <Input placeholder="Model no." />
               </Form.Item>
             </Col>
@@ -468,12 +470,12 @@ export default function InstrumentsPage() {
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="range" label="Range">
+              <Form.Item name="measurement_range" label="Range">
                 <Input placeholder="e.g. 0-150mm" />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="least_count" label="Least Count">
+              <Form.Item name="accuracy" label="Accuracy / Least Count">
                 <Input placeholder="e.g. 0.02mm" />
               </Form.Item>
             </Col>
@@ -488,7 +490,7 @@ export default function InstrumentsPage() {
             <Input placeholder="e.g. IQC Lab, Production Floor" />
           </Form.Item>
 
-          <Form.Item name="remarks" label="Remarks">
+          <Form.Item name="notes" label="Remarks">
             <Input.TextArea rows={2} placeholder="Internal notes…" />
           </Form.Item>
         </Form>
@@ -512,7 +514,7 @@ export default function InstrumentsPage() {
             <Text strong>{verifying.name}</Text>
             <br />
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {[verifying.make, verifying.model].filter(Boolean).join(' / ')}
+              {[verifying.manufacturer, verifying.model_no].filter(Boolean).join(' / ')}
               {verifying.serial_no && ` — S/N: ${verifying.serial_no}`}
             </Text>
           </div>

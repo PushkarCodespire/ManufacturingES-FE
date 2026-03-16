@@ -63,11 +63,11 @@ export default function PFMEAPage() {
   const openEdit = (r) => {
     setEditing(r);
     form.setFieldsValue({
-      title:        r.title,
-      process_name: r.process_name,
-      item_id:      r.item_id,
-      revision:     r.revision,
-      scope:        r.scope,
+      title:      r.title,
+      item_id:    r.item_id,
+      drawing_id: r.drawing_id,
+      revision:   r.revision,
+      notes:      r.notes,
     });
     setDrawerOpen(true);
   };
@@ -104,8 +104,7 @@ export default function PFMEAPage() {
     { title: 'PFMEA No.',    dataIndex: 'pfmea_no',    key: 'pfmea_no', width: 140 },
     { title: 'Title',        dataIndex: 'title',       key: 'title',    ellipsis: true },
     { title: 'Part No.',     key: 'part',              width: 130,
-      render: (_, r) => r.Item?.part_no ?? '—' },
-    { title: 'Process',      dataIndex: 'process_name',key: 'process',  width: 150, ellipsis: true },
+      render: (_, r) => r.Item?.code ?? '—' },
     { title: 'Rev.',         dataIndex: 'revision',    key: 'rev',      width: 60  },
     { title: 'Items',        key: 'items',             width: 80,
       render: (_, r) => <Tag color="blue">{r.PfmeaItems?.length ?? 0} items</Tag> },
@@ -148,8 +147,7 @@ export default function PFMEAPage() {
   const filtered = records.filter((r) =>
     !search ||
     r.pfmea_no?.toLowerCase().includes(search.toLowerCase()) ||
-    r.title?.toLowerCase().includes(search.toLowerCase()) ||
-    r.process_name?.toLowerCase().includes(search.toLowerCase()),
+    r.title?.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -221,15 +219,11 @@ export default function PFMEAPage() {
             <Input placeholder="e.g. Bracket Assembly PFMEA" />
           </Form.Item>
 
-          <Form.Item name="process_name" label="Process Name" rules={[{ required: true }]}>
-            <Input placeholder="e.g. Welding, Machining, Assembly" />
-          </Form.Item>
-
-          <Form.Item name="item_id" label="Related Part / Item">
+          <Form.Item name="item_id" label="Related Part / Item" rules={[{ required: true, message: 'Item is required' }]}>
             <Select
               showSearch allowClear placeholder="Select part..."
               filterOption={(input, opt) => opt?.label?.toLowerCase().includes(input.toLowerCase())}
-              options={items.map((i) => ({ value: i.id, label: `${i.part_no} — ${i.name}` }))}
+              options={items.map((i) => ({ value: i.id, label: `${i.code ?? i.part_no} — ${i.name}` }))}
             />
           </Form.Item>
 
@@ -237,8 +231,8 @@ export default function PFMEAPage() {
             <Input placeholder="e.g. A, B, 01" />
           </Form.Item>
 
-          <Form.Item name="scope" label="Scope / Description">
-            <TextArea rows={3} placeholder="Describe the scope of this PFMEA..." />
+          <Form.Item name="notes" label="Notes">
+            <TextArea rows={3} placeholder="Scope, assumptions, or any relevant notes..." />
           </Form.Item>
         </Form>
       </Drawer>

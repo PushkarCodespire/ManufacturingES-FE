@@ -351,32 +351,23 @@ export default function CAPADetailPage() {
         >
           <Descriptions bordered size="small" column={2}>
             <Descriptions.Item label="CAPA No.">{capa.capa_no}</Descriptions.Item>
-            <Descriptions.Item label="Type">
-              <Tag color={capa.capa_type === 'capa' ? 'blue' : 'orange'}>{capa.capa_type?.toUpperCase()}</Tag>
-            </Descriptions.Item>
             <Descriptions.Item label="Source">
-              {SOURCE_LABELS[capa.source] ?? capa.source ?? '—'}
+              {SOURCE_LABELS[capa.source_type] ?? capa.source_type ?? '—'}
             </Descriptions.Item>
             <Descriptions.Item label="Status">
               <Tag color={STATUS_COLOR[capa.status] ?? 'default'}>{capa.status?.replace(/_/g, ' ')}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Champion">{capa.Champion?.name ?? '—'}</Descriptions.Item>
-            <Descriptions.Item label="Target Date">{capa.due_date ?? '—'}</Descriptions.Item>
-            <Descriptions.Item label="Detection Date">{capa.detection_date ?? '—'}</Descriptions.Item>
-            <Descriptions.Item label="Created By">{capa.CreatedBy?.name ?? '—'}</Descriptions.Item>
-            {capa.problem_description && (
-              <Descriptions.Item label="Problem Description" span={2}>
-                {capa.problem_description}
+            <Descriptions.Item label="Target Date">{capa.target_date ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Created By">{capa.Creator?.name ?? '—'}</Descriptions.Item>
+            {capa.problem_title && (
+              <Descriptions.Item label="Problem Title" span={2}>
+                {capa.problem_title}
               </Descriptions.Item>
             )}
-            {capa.problem_statement && (
-              <Descriptions.Item label="Problem Statement (5W2H)" span={2}>
-                {capa.problem_statement}
-              </Descriptions.Item>
-            )}
-            {capa.d1_team_selection && (
-              <Descriptions.Item label="D1 — Team Members" span={2}>
-                {capa.d1_team_selection}
+            {capa.problem_desc && (
+              <Descriptions.Item label="Problem Description (5W2H)" span={2}>
+                {capa.problem_desc}
               </Descriptions.Item>
             )}
           </Descriptions>
@@ -839,7 +830,7 @@ export default function CAPADetailPage() {
             </Tag>
           </div>
           <Text type="secondary" style={{ fontSize: 13 }}>
-            {capa.capa_type?.toUpperCase()} — {SOURCE_LABELS[capa.source] ?? capa.source}
+            {SOURCE_LABELS[capa.source_type] ?? capa.source_type}
           </Text>
         </div>
       </div>

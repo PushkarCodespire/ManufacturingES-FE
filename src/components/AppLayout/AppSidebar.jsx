@@ -261,6 +261,8 @@ const NAV_ITEMS_DEF = [
       { key: 'mol-trial',        label: 'Trials',            permission: 'mold-trial-read' },
       { key: 'mol-cost',         label: 'Cost Tracking',     permission: 'mold-cost-read' },
       { key: 'mol-documents',    label: 'Documents',         permission: 'mold-documents-read' },
+      { key: 'mol-ai-insights',  label: 'AI Insights',       permission: 'mold-ai_insights-read' },
+      { key: 'mol-selection',    label: 'Mold Selection',    permission: 'mold-selection-read' },
     ],
   },
   {
@@ -420,6 +422,8 @@ const KEY_TO_PATH = {
   'mol-trial':        '/mold/trial',
   'mol-cost':         '/mold/cost',
   'mol-documents':    '/mold/documents',
+  'mol-ai-insights':  '/mold/ai-insights',
+  'mol-selection':    '/mold/selection',
 };
 
 // ── Derive selected key + open keys from current pathname ────────────────────
@@ -516,6 +520,8 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/mold/trial'))        return { selected: 'mol-trial',        open: ['mold'] };
   if (pathname.startsWith('/mold/cost'))         return { selected: 'mol-cost',         open: ['mold'] };
   if (pathname.startsWith('/mold/documents'))    return { selected: 'mol-documents',    open: ['mold'] };
+  if (pathname.startsWith('/mold/ai-insights'))  return { selected: 'mol-ai-insights',  open: ['mold'] };
+  if (pathname.startsWith('/mold/selection'))    return { selected: 'mol-selection',    open: ['mold'] };
   // Generic masters fallback
   if (pathname.startsWith('/masters'))               return { selected: 'masters',       open: ['masters'] };
   // HR & Training

@@ -82,17 +82,9 @@ const MoldMasterPage = () => {
   useEffect(() => { fetchMolds(); }, [fetchMolds]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await moldMasterApi.getAll({ pageSize: 9999 });
-        const cats = []; const seen = new Set();
-        (res?.data ?? res ?? []).forEach((m) => {
-          const cat = m.Category ?? m.category;
-          if (cat && !seen.has(cat.id)) { seen.add(cat.id); cats.push(cat); }
-        });
-        setCategories(cats);
-      } catch { /* ignore */ }
-    })();
+    moldMasterApi.getCategories()
+      .then((res) => setCategories(res?.data ?? res ?? []))
+      .catch(() => { /* ignore */ });
   }, []);
 
   useEffect(() => {

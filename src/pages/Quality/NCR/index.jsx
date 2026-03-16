@@ -2,13 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, message,
-  Drawer, Form, Select, DatePicker, InputNumber, Popconfirm,
+  Drawer, Form, Select, InputNumber, Popconfirm,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
   EditOutlined, DeleteOutlined,
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { ncrApi }     from '../../../api/quality.api';
@@ -17,18 +16,21 @@ import { itemApi }    from '../../../api/item.api';
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
 
-const STATUS_COLOR  = { open: 'orange', under_review: 'blue', closed: 'green', cancelled: 'default' };
+const STATUS_COLOR  = { raised: 'orange', under_review: 'blue', dispositioned: 'purple', closed: 'green', cancelled: 'default' };
 const NCR_TYPE_OPTS = [
-  { value: 'process',  label: 'Process'  },
-  { value: 'material', label: 'Material' },
-  { value: 'product',  label: 'Product'  },
-  { value: 'system',   label: 'System'   },
+  { value: 'dimensional',    label: 'Dimensional'    },
+  { value: 'visual',         label: 'Visual'         },
+  { value: 'material',       label: 'Material'       },
+  { value: 'process',        label: 'Process'        },
+  { value: 'documentation',  label: 'Documentation'  },
 ];
 const LOCATION_OPTS = [
-  { value: 'receiving',         label: 'Receiving'         },
-  { value: 'in_process',        label: 'In Process'        },
-  { value: 'final_inspection',  label: 'Final Inspection'  },
-  { value: 'customer',          label: 'Customer'          },
+  { value: 'iqc',        label: 'IQC'        },
+  { value: 'lqc',        label: 'LQC'        },
+  { value: 'pqc',        label: 'PQC'        },
+  { value: 'oqc',        label: 'OQC'        },
+  { value: 'production', label: 'Production' },
+  { value: 'store',      label: 'Store'      },
 ];
 
 export default function NCRPage() {
@@ -65,20 +67,18 @@ export default function NCRPage() {
   const openAdd = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ detection_date: dayjs() });
+    // no default values needed
     setDrawerOpen(true);
   };
 
   const openEdit = (r) => {
     setEditing(r);
     form.setFieldsValue({
-      ncr_type:           r.ncr_type,
-      location_found:     r.location_found,
-      item_id:            r.item_id,
-      defect_description: r.defect_description,
-      detection_date:     r.detection_date ? dayjs(r.detection_date) : null,
-      qty_defective:      parseFloat(r.qty_defective) || 0,
-      qty_inspected:      parseFloat(r.qty_inspected) || 0,
+      ncr_type:      r.ncr_type,
+      location_found:r.location_found,
+      item_id:       r.item_id,
+      defect_desc:   r.defect_desc,
+      qty_affected:  parseFloat(r.qty_affected) || null,
     });
     setDrawerOpen(true);
   };
@@ -87,10 +87,7 @@ export default function NCRPage() {
     try {
       const vals = await form.validateFields();
       setSaving(true);
-      const payload = {
-        ...vals,
-        detection_date: vals.detection_date?.format('YYYY-MM-DD'),
-      };
+      const payload = { ...vals };
       if (editing) {
         await ncrApi.update(editing.id, payload);
         message.success('NCR updated');
@@ -121,17 +118,18 @@ export default function NCRPage() {
       render: (v) => <Tag color={{ process:'purple', material:'gold', product:'red', system:'cyan' }[v] ?? 'default'}>{v}</Tag> },
     { title: 'Location',  dataIndex: 'location_found',    key: 'location', width: 130,
       render: (v) => LOCATION_OPTS.find((o) => o.value === v)?.label ?? v },
-    { title: 'Defect',    dataIndex: 'defect_description',key: 'defect',   ellipsis: true },
+    { title: 'Defect',    dataIndex: 'defect_desc',       key: 'defect',   ellipsis: true },
     { title: 'Raised By', key: 'raised_by', width: 130,
       render: (_, r) => r.RaisedBy?.name ?? '—' },
-    { title: 'Qty Def.',  dataIndex: 'qty_defective',     key: 'qty',      width: 90 },
+    { title: 'Qty Aff.',  dataIndex: 'qty_affected',      key: 'qty',      width: 90 },
     { title: 'Status',    dataIndex: 'status',            key: 'status',   width: 110,
       render: (v) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{v?.replace(/_/g, ' ')}</Tag> },
     { title: 'Source', key: 'source', width: 100,
       render: (_, r) => r.complaint_id ? <Button size="small" type="link" onClick={() => navigate(`/quality/complaints/${r.complaint_id}`)}>Complaint</Button> : '—' },
     { title: 'CAPA', key: 'capa', width: 100,
       render: (_, r) => r.capa_id ? <Button size="small" type="link" onClick={() => navigate(`/quality/capa/${r.capa_id}`)}>View CAPA</Button> : '—' },
-    { title: 'Date',      dataIndex: 'detection_date',    key: 'date',     width: 110 },
+    { title: 'Date',      dataIndex: 'created_at',        key: 'date',     width: 110,
+      render: (v) => v ? new Date(v).toLocaleDateString('en-IN') : '—' },
   ];
 
   const actionColumn = {
@@ -154,12 +152,12 @@ export default function NCRPage() {
   };
   const columns  = [...baseColumns, openColumn, ...(canWrite ? [actionColumn] : [])];
   const total    = records.length;
-  const open     = records.filter((r) => r.status === 'open').length;
+  const open     = records.filter((r) => r.status === 'raised' || r.status === 'under_review').length;
   const closed   = records.filter((r) => r.status === 'closed').length;
   const filtered = records.filter((r) =>
     !search ||
     r.ncr_no?.toLowerCase().includes(search.toLowerCase()) ||
-    r.defect_description?.toLowerCase().includes(search.toLowerCase()),
+    r.defect_desc?.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -240,27 +238,18 @@ export default function NCRPage() {
             <Select
               showSearch allowClear placeholder="Select item..."
               filterOption={(input, opt) => opt?.label?.toLowerCase().includes(input.toLowerCase())}
-              options={items.map((i) => ({ value: i.id, label: `${i.part_no} — ${i.name}` }))}
+              options={items.map((i) => ({ value: i.id, label: `${i.code} — ${i.name}` }))}
             />
           </Form.Item>
 
-          <Form.Item name="defect_description" label="Defect Description"
+          <Form.Item name="defect_desc" label="Defect Description"
             rules={[{ required: true, min: 5, message: 'Min 5 characters' }]}>
             <TextArea rows={3} placeholder="Describe the defect..." />
           </Form.Item>
 
-          <Form.Item name="detection_date" label="Detection Date" rules={[{ required: true }]}>
-            <DatePicker style={{ width: '100%' }} format="DD-MMM-YYYY" />
+          <Form.Item name="qty_affected" label="Qty Affected">
+            <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
           </Form.Item>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Form.Item name="qty_inspected" label="Qty Inspected" rules={[{ required: true }]}>
-              <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
-            </Form.Item>
-            <Form.Item name="qty_defective" label="Qty Defective" rules={[{ required: true }]}>
-              <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
-            </Form.Item>
-          </div>
         </Form>
       </Drawer>
     </AppLayout>

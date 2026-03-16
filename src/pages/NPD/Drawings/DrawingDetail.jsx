@@ -158,17 +158,14 @@ export default function DrawingDetailPage() {
     { title: 'Change Description', dataIndex: 'change_desc', key: 'desc', ellipsis: true },
     { title: 'View', key: 'view', width: 60,
       render: (_, r) => r.file_path
-        ? (
-          <a href={`${import.meta.env.VITE_API_URL ?? ''}/${r.file_path}`}
-            target="_blank" rel="noreferrer">View</a>
-          )
+        ? <a href={r.file_path} target="_blank" rel="noreferrer">View</a>
         : '—' },
   ];
 
   if (loading) return <AppLayout><div style={{ padding: 40, color: '#6b7280' }}>Loading drawing…</div></AppLayout>;
   if (!drawing) return <AppLayout><div style={{ padding: 40, color: '#ef4444' }}>Drawing not found.</div></AppLayout>;
 
-  const versions = drawing.DrawingVersions ?? [];
+  const versions = drawing.Versions ?? [];
 
   return (
     <AppLayout>

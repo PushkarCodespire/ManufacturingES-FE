@@ -3,10 +3,12 @@ import { authApi } from '../api/auth.api';
 
 const AuthContext = createContext(null);
 
-const STORAGE_TOKEN   = 'dt_token';
-const STORAGE_REFRESH = 'dt_refresh_token';
-const STORAGE_USER    = 'dt_user';
-const STORAGE_TIME    = 'dt_login_time';
+const STORAGE_TOKEN = 'dt_token';
+// H-06: refresh token is now stored in an httpOnly cookie by the server.
+// It is never written to or read from localStorage — removing it from JS scope
+// prevents exfiltration via XSS.
+const STORAGE_USER  = 'dt_user';
+const STORAGE_TIME  = 'dt_login_time';
 const SESSION_MS      = 8 * 60 * 60 * 1000; // 8 hours — SYS-004
 
 export const AuthProvider = ({ children }) => {
@@ -15,17 +17,16 @@ export const AuthProvider = ({ children }) => {
 
   // ─── Logout ──────────────────────────────────────────────────────────────
   const logout = useCallback(async (callApi = true) => {
-    const refreshToken = localStorage.getItem(STORAGE_REFRESH);
-
-    // Tell the backend to revoke the session (best-effort)
-    if (callApi && refreshToken) {
+    // H-06: The refresh token lives in an httpOnly cookie — we don't read it
+    // from localStorage. The backend revokes the session by reading the cookie
+    // directly (sent automatically by the browser) and then clears it.
+    if (callApi) {
       try {
-        await authApi.logout({ refresh_token: refreshToken });
+        await authApi.logout();
       } catch (_) { /* silent — we still clear locally */ }
     }
 
     localStorage.removeItem(STORAGE_TOKEN);
-    localStorage.removeItem(STORAGE_REFRESH);
     localStorage.removeItem(STORAGE_USER);
     localStorage.removeItem(STORAGE_TIME);
     setUser(null);
@@ -62,12 +63,14 @@ export const AuthProvider = ({ children }) => {
   // ─── Login ───────────────────────────────────────────────────────────────
   const login = async (employee_id, password) => {
     const res = await authApi.login({ employee_id, password });
-    const { token, refresh_token, user: userData } = res.data;
+    // H-06: refresh_token is delivered via httpOnly cookie — not in the response body
+    const { token, user: userData } = res.data;
 
-    localStorage.setItem(STORAGE_TOKEN,   token);
-    localStorage.setItem(STORAGE_REFRESH, refresh_token);
-    localStorage.setItem(STORAGE_USER,    JSON.stringify(userData));
-    localStorage.setItem(STORAGE_TIME,    Date.now().toString());
+    // H-06: Only the access token is stored in localStorage.
+    // The refresh token is in an httpOnly cookie set by the server.
+    localStorage.setItem(STORAGE_TOKEN, token);
+    localStorage.setItem(STORAGE_USER,  JSON.stringify(userData));
+    localStorage.setItem(STORAGE_TIME,  Date.now().toString());
 
     setUser(userData);
 

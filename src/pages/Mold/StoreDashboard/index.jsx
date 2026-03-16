@@ -2,12 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Modal, Form,
   Select, message, Row, Col, Statistic, Tooltip, Badge, Empty,
-  Timeline, Popover, Divider,
+  Timeline, Popover, Divider, Drawer, Popconfirm, InputNumber,
 } from 'antd';
 import {
   SearchOutlined, ReloadOutlined, RightOutlined, EnvironmentOutlined,
   InboxOutlined, ToolOutlined, SwapOutlined, EditOutlined,
-  CalendarOutlined, DatabaseOutlined,
+  CalendarOutlined, DatabaseOutlined, PlusOutlined, DeleteOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { moldStoreApi, moldMasterApi } from '../../../api/mold.api';
@@ -59,6 +60,54 @@ export default function MoldStoreDashboardPage() {
   const [selectedMoldForLocation, setSelectedMoldForLocation] = useState(null);
   const [newLocationId, setNewLocationId] = useState(null);
   const [locationSaving, setLocationSaving] = useState(false);
+
+  // ── Manage Locations drawer ──────────────────────────────────────────────
+  const [locDrawerOpen, setLocDrawerOpen] = useState(false);
+  const [locForm] = Form.useForm();
+  const [editingLoc, setEditingLoc] = useState(null);
+  const [locSaving, setLocSaving] = useState(false);
+
+  const openAddLoc = () => { setEditingLoc(null); locForm.resetFields(); setLocDrawerOpen(true); };
+  const openEditLoc = (loc) => {
+    setEditingLoc(loc);
+    locForm.setFieldsValue({
+      rack_number:     Number(loc.rack_number),
+      shelf_number:    Number(loc.shelf_number),
+      position_number: Number(loc.position_number),
+      capacity_kg:     loc.capacity_kg != null ? Number(loc.capacity_kg) : null,
+    });
+    setLocDrawerOpen(true);
+  };
+
+  const handleSaveLoc = async () => {
+    try {
+      const values = await locForm.validateFields();
+      setLocSaving(true);
+      if (editingLoc) {
+        await moldStoreApi.updateLocationRecord(editingLoc.id, values);
+        message.success('Location updated');
+      } else {
+        await moldStoreApi.createLocation(values);
+        message.success('Location added');
+      }
+      setLocDrawerOpen(false);
+      locForm.resetFields();
+      setEditingLoc(null);
+      loadRackMap();
+    } catch (err) {
+      if (err?.errorFields) return; // validation error
+      message.error(err?.message ?? 'Failed to save location');
+    } finally { setLocSaving(false); }
+  };
+
+  const handleDeleteLoc = async (id) => {
+    try {
+      await moldStoreApi.deleteLocation(id);
+      message.success('Location deleted');
+      loadRackMap();
+    } catch (err) { message.error(err?.message ?? 'Failed to delete location'); }
+  };
+
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     try {
@@ -177,7 +226,10 @@ export default function MoldStoreDashboardPage() {
       </Row>
 
       {/* Visual Rack Map */}
-      <Card title={<Space><EnvironmentOutlined /><Text style={{ fontWeight: 500 }}>Visual Rack Map</Text></Space>} style={{ border: "1px solid #e8eaed", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 16 }} bodyStyle={{ padding: "16px 20px" }}>
+      <Card
+        title={<Space><EnvironmentOutlined /><Text style={{ fontWeight: 500 }}>Visual Rack Map</Text></Space>}
+        extra={canWrite && <Button size="small" icon={<SettingOutlined />} onClick={() => setLocDrawerOpen(true)}>Manage Locations</Button>}
+        style={{ border: "1px solid #e8eaed", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 16 }} bodyStyle={{ padding: "16px 20px" }}>
         {rackLoading ? (<div style={{ textAlign: "center", padding: 40 }}><Text type="secondary">Loading rack map...</Text></div>) : rackMap.length === 0 ? (<Empty description="No rack data available" />) : (
           <Row gutter={[8, 8]}>
             {rackMap.map((slot, idx) => {
@@ -238,6 +290,81 @@ export default function MoldStoreDashboardPage() {
           </>
         )}
       </Card>
+
+      {/* Manage Storage Locations Drawer */}
+      <Drawer
+        title="Manage Storage Locations"
+        width={620}
+        open={locDrawerOpen}
+        onClose={() => { setLocDrawerOpen(false); setEditingLoc(null); locForm.resetFields(); }}
+        extra={canWrite && <Button type="primary" icon={<PlusOutlined />} onClick={openAddLoc}>Add Location</Button>}
+      >
+        {/* Add / Edit form */}
+        {(editingLoc !== null || locDrawerOpen) && (
+          <Card
+            size="small"
+            title={editingLoc ? `Edit — Rack ${editingLoc.rack_number}-${editingLoc.shelf_number}-${editingLoc.position_number}` : 'New Location'}
+            style={{ marginBottom: 16, border: '1px solid #e8eaed', borderRadius: 8 }}
+            styles={{ body: { padding: '12px 16px' } }}
+          >
+            <Form form={locForm} layout="inline" onFinish={handleSaveLoc} size="small">
+              <Form.Item name="rack_number" label="Rack" rules={[{ required: true, message: 'Required' }]}>
+                <InputNumber min={1} max={999} style={{ width: 70 }} placeholder="1" />
+              </Form.Item>
+              <Form.Item name="shelf_number" label="Shelf" rules={[{ required: true, message: 'Required' }]}>
+                <InputNumber min={1} max={99} style={{ width: 70 }} placeholder="1" />
+              </Form.Item>
+              <Form.Item name="position_number" label="Position" rules={[{ required: true, message: 'Required' }]}>
+                <InputNumber min={1} max={99} style={{ width: 70 }} placeholder="1" />
+              </Form.Item>
+              <Form.Item name="capacity_kg" label="Capacity (kg)">
+                <InputNumber min={0} style={{ width: 100 }} placeholder="Optional" />
+              </Form.Item>
+              <Form.Item style={{ marginTop: 4 }}>
+                <Space>
+                  <Button type="primary" htmlType="submit" loading={locSaving}>{editingLoc ? 'Update' : 'Add'}</Button>
+                  {editingLoc && <Button onClick={() => { setEditingLoc(null); locForm.resetFields(); }}>Cancel</Button>}
+                </Space>
+              </Form.Item>
+            </Form>
+          </Card>
+        )}
+
+        {/* Locations table */}
+        <Table
+          dataSource={rackMap}
+          rowKey="id"
+          size="small"
+          loading={rackLoading}
+          pagination={{ pageSize: 15, showTotal: (t) => `${t} locations` }}
+          columns={[
+            { title: 'Rack', dataIndex: 'rack_number', key: 'rack', width: 60, sorter: (a, b) => a.rack_number - b.rack_number },
+            { title: 'Shelf', dataIndex: 'shelf_number', key: 'shelf', width: 60 },
+            { title: 'Pos', dataIndex: 'position_number', key: 'pos', width: 60 },
+            { title: 'Capacity (kg)', dataIndex: 'capacity_kg', key: 'cap', width: 110, render: (v) => v ?? '—' },
+            { title: 'Status', dataIndex: 'status', key: 'status', width: 100,
+              render: (v) => <Tag color={v === 'available' ? 'green' : v === 'occupied' ? 'blue' : 'orange'}>{(v || '').toUpperCase()}</Tag> },
+            { title: 'Current Mold', key: 'mold', width: 130,
+              render: (_, r) => r.CurrentMold ? <Tag color="blue">{r.CurrentMold.mold_code}</Tag> : '—' },
+            ...(canWrite ? [{
+              title: '', key: 'actions', width: 90,
+              render: (_, r) => (
+                <Space size={4}>
+                  <Button size="small" type="link" icon={<EditOutlined />} onClick={() => openEditLoc(r)} style={{ padding: 0 }} />
+                  <Popconfirm
+                    title={r.status === 'occupied' ? 'This slot is occupied — move the mold first.' : 'Delete this location?'}
+                    onConfirm={() => handleDeleteLoc(r.id)}
+                    okText="Delete" okButtonProps={{ danger: true }}
+                    disabled={r.status === 'occupied'}
+                  >
+                    <Button size="small" type="link" danger icon={<DeleteOutlined />} style={{ padding: 0 }} disabled={r.status === 'occupied'} />
+                  </Popconfirm>
+                </Space>
+              ),
+            }] : []),
+          ]}
+        />
+      </Drawer>
 
       {/* Update Location Modal */}
       <Modal title="Update Mold Location" open={locationModalOpen} onCancel={() => { setLocationModalOpen(false); setSelectedMoldForLocation(null); }} onOk={handleUpdateLocation} confirmLoading={locationSaving} okText="Update Location">

@@ -3,6 +3,7 @@ import api from './axios';
 // ── Mold Master (MOL-001) ───────────────────────────────────────────────────
 export const moldMasterApi = {
   getAll:             (params = {}) => api.get('/mold/masters',                          { params }).then((r) => r.data),
+  getCategories:      ()            => api.get('/mold/masters/categories').then((r) => r.data),
   getById:            (id)          => api.get(`/mold/masters/${id}`).then((r) => r.data),
   create:             (data)        => api.post('/mold/masters',                          data).then((r) => r.data),
   update:             (id, data)    => api.patch(`/mold/masters/${id}`,                   data).then((r) => r.data),
@@ -54,10 +55,13 @@ export const moldIssueReturnApi = {
 
 // ── Mold Store Dashboard (MOL-007) ──────────────────────────────────────────
 export const moldStoreApi = {
-  getDashboard:       (params = {}) => api.get('/mold/store/dashboard',         { params }).then((r) => r.data),
-  getRackMap:         ()            => api.get('/mold/store/rack-map').then((r) => r.data),
-  getMovementForecast:()            => api.get('/mold/store/movement-forecast').then((r) => r.data),
-  updateLocation:     (moldId, data) => api.patch(`/mold/store/${moldId}/location`, data).then((r) => r.data),
+  getDashboard:         (params = {}) => api.get('/mold/store/dashboard',              { params }).then((r) => r.data),
+  getRackMap:           ()            => api.get('/mold/store/rack-map').then((r) => r.data),
+  getMovementForecast:  ()            => api.get('/mold/store/movement-forecast').then((r) => r.data),
+  updateLocation:       (moldId, data) => api.patch(`/mold/store/${moldId}/location`,  data).then((r) => r.data),
+  createLocation:       (data)        => api.post('/mold/store/locations',             data).then((r) => r.data),
+  updateLocationRecord: (id, data)    => api.patch(`/mold/store/locations/${id}`,      data).then((r) => r.data),
+  deleteLocation:       (id)          => api.delete(`/mold/store/locations/${id}`).then((r) => r.data),
 };
 
 // ── PM Schedules (MOL-008) ───────────────────────────────────────────────────
@@ -108,4 +112,19 @@ export const moldDocumentsApi = {
   getHistoryCard:       (moldId)      => api.get(`/mold/documents/${moldId}/history-card`).then((r) => r.data),
   getStatusCertificate: (moldId)      => api.get(`/mold/documents/${moldId}/status-certificate`).then((r) => r.data),
   generateReport:       (params = {}) => api.get('/mold/documents/report',                 { params }).then((r) => r.data),
+};
+
+// ── AI Predictive Life & Selection (MOL-013 & MOL-014) ───────────────────────
+export const moldAiApi = {
+  // MOL-013 — AI Predictive Life Forecasting
+  getDashboard:        ()                        => api.get('/mold/ai/dashboard').then((r) => r.data),
+  getMoldPrediction:   (moldId)                  => api.get(`/mold/ai/${moldId}/prediction`).then((r) => r.data),
+  generatePrediction:  (moldId, data = {})       => api.post(`/mold/ai/${moldId}/prediction/generate`,                       data).then((r) => r.data),
+  submitFeedback:      (moldId, predId, data)    => api.post(`/mold/ai/${moldId}/prediction/${predId}/feedback`,              data).then((r) => r.data),
+
+  // MOL-014 — Mold Selection Optimizer
+  getMoldOptions:      (partId, params = {})     => api.get(`/mold/ai/selection/${partId}`,                                  { params }).then((r) => r.data),
+  getReservations:     ()                        => api.get('/mold/ai/selection/reservations').then((r) => r.data),
+  reserveMold:         (moldId, woId, data = {}) => api.post(`/mold/ai/selection/reserve/${moldId}/${woId}`,                 data).then((r) => r.data),
+  releaseReservation:  (moldId, woId)            => api.delete(`/mold/ai/selection/reserve/${moldId}/${woId}`).then((r) => r.data),
 };

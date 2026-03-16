@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card, Table, Button, Input, Typography, Modal, message,
   Tag, Form, Select, InputNumber, Checkbox, Tabs, Divider,
-  Tooltip, Badge,
+  Tooltip, Badge, Spin,
 } from 'antd';
 import {
   PlusOutlined,
@@ -16,6 +16,8 @@ import {
   PrinterOutlined,
   AppstoreOutlined,
   HistoryOutlined,
+  EyeOutlined,
+  CopyOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { stickerTemplateApi } from '../../../../api/stickerTemplate.api';
@@ -421,7 +423,7 @@ const TemplateModal = ({ record, open, onClose, onSaved, canWrite }) => {
               allowClear
               showSearch
               optionFilterProp="children"
-              disabled={!canWrite || templateFor !== 'Customer'}
+              disabled={!canWrite}
               maxTagCount={2}
             >
               {customers.map((c) => (
@@ -553,6 +555,268 @@ const CtqParamsEditor = ({ form, canWrite, keyOptions }) => {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
+//  PRINT PREVIEW MODAL
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Open-window print: captures outerHTML (all inline styles) into a new tab,
+// waits for images to load, then triggers window.print().
+const printLabelNode = (node, title) => {
+  const win = window.open('', '_blank', 'width=560,height=480');
+  win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px}
+    @media print{@page{margin:10mm}}</style></head>
+    <body>${node.outerHTML}</body></html>`);
+  win.document.close();
+  const images = win.document.querySelectorAll('img');
+  if (!images.length) { win.focus(); win.print(); win.close(); return; }
+  let done = 0;
+  const tryPrint = () => { if (++done === images.length) { win.focus(); win.print(); win.close(); } };
+  images.forEach((img) => { if (img.complete) tryPrint(); else { img.onload = tryPrint; img.onerror = tryPrint; } });
+};
+
+const PrintPreviewModal = ({ record, open, onClose }) => {
+  const [machines,     setMachines]     = useState([]);
+  const [selMachineId, setSelMachineId] = useState(null);
+  const [packData,     setPackData]     = useState({});
+  const [result,       setResult]       = useState(null);
+  const [rendering,    setRendering]    = useState(false);
+  const labelRef = useRef(null);
+
+  // Load machines on open (for Machine templates)
+  useEffect(() => {
+    if (!open) { setResult(null); setSelMachineId(null); setPackData({}); return; }
+    if (record?.template_for === 'Machine') {
+      machineApi.getAll().then((d) => setMachines(Array.isArray(d) ? d : d?.data ?? [])).catch(() => {});
+    }
+  }, [open, record]);
+
+  // Unique input keys for Pack Type
+  const packKeys = record ? [
+    ...(record.primary_key   ? [record.primary_key]   : []),
+    ...(record.secondary_key ? [record.secondary_key] : []),
+    ...((record.ctq_params || []).map((p) => p.source_field).filter(Boolean)),
+  ].filter((v, i, a) => v && a.indexOf(v) === i) : [];
+
+  const handleGenerate = async () => {
+    let entity_data = {};
+    if (record.template_for === 'Machine') {
+      const m = machines.find((x) => x.id === selMachineId);
+      if (!m) { message.warning('Please select a machine'); return; }
+      entity_data = {
+        'Machine Code': m.code             || '',
+        'Machine Name': m.name             || '',
+        'Machine Type': m.machine_type     || '',
+        'Site Code':    m.Site?.code       || '',
+        'Site Name':    m.Site?.name       || '',
+        'Department':   m.Department?.name || '',
+      };
+    } else {
+      entity_data = { ...packData };
+    }
+    setRendering(true);
+    try {
+      const res = await stickerTemplateApi.render(record.id, { entity_data });
+      setResult(res?.data ?? res);
+    } catch { message.error('Failed to render label'); }
+    finally { setRendering(false); }
+  };
+
+  const isBarcode = record?.sticker_type === 'Barcode';
+  // api.qrserver.com — free, reliable, no key needed
+  const qrUrl = result?.qr_data
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(result.qr_data)}&ecc=M&margin=4`
+    : null;
+
+  const labelStyle = { fontSize: 12, fontWeight: 600, color: '#374151' };
+  const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  return (
+    <Modal
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a', fontSize: 16 }}>
+            <PrinterOutlined />
+          </div>
+          <span>Print Preview — {record?.name}</span>
+        </div>
+      }
+      open={open}
+      onCancel={onClose}
+      width={680}
+      footer={[
+        <Button key="close" onClick={onClose}>Close</Button>,
+        result && (
+          <Button
+            key="print"
+            type="primary"
+            icon={<PrinterOutlined />}
+            onClick={() => labelRef.current && printLabelNode(labelRef.current, `Label — ${record.name}`)}
+          >
+            Print Label
+          </Button>
+        ),
+      ]}
+      destroyOnClose
+    >
+      {/* ── Input area ──────────────────────────────────────────────────── */}
+      {record?.template_for === 'Machine' && (
+        <div style={{ marginBottom: 16 }}>
+          <Text style={labelStyle}>Select Machine</Text>
+          <Select
+            placeholder="Choose a machine…"
+            style={{ width: '100%', marginTop: 4 }}
+            showSearch optionFilterProp="children"
+            value={selMachineId}
+            onChange={setSelMachineId}
+          >
+            {machines.map((m) => (
+              <Option key={m.id} value={m.id}>{m.name} ({m.code})</Option>
+            ))}
+          </Select>
+        </div>
+      )}
+
+      {record?.template_for === 'Pack Type' && packKeys.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <Text style={labelStyle}>Enter Values</Text>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 6 }}>
+            {packKeys.map((k) => (
+              <div key={k}>
+                <Text style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 2 }}>{k}</Text>
+                <Input
+                  value={packData[k] || ''}
+                  onChange={(e) => setPackData((prev) => ({ ...prev, [k]: e.target.value }))}
+                  placeholder={`Enter ${k}…`}
+                  size="small"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Button
+        type="default"
+        onClick={handleGenerate}
+        loading={rendering}
+        style={{ marginBottom: 16, borderRadius: 8 }}
+      >
+        Generate Preview
+      </Button>
+
+      {/* ── Label preview ────────────────────────────────────────────── */}
+      {result && (
+        <div
+          ref={labelRef}
+          style={{ border: '2px solid #e5e7eb', borderRadius: 10, padding: 20, background: '#ffffff', marginBottom: 12 }}
+        >
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: 14 }}>
+            <div style={{ fontSize: 9, color: '#9ca3af', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase' }}>
+              {record.template_for} · {record.sticker_type}
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginTop: 2 }}>{record.name}</div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+            {/* QR / Barcode */}
+            <div style={{ flexShrink: 0, textAlign: 'center' }}>
+              {isBarcode ? (
+                <div style={{ border: '3px solid #111827', padding: '8px 20px', borderRadius: 4, minWidth: 140 }}>
+                  <div style={{ fontFamily: 'monospace', fontSize: 22, letterSpacing: 6, fontWeight: 900, color: '#111111' }}>
+                    {result.qr_data || '—'}
+                  </div>
+                  <div style={{ borderTop: '3px solid #111827', marginTop: 6, paddingTop: 4 }}>
+                    <div style={{ fontSize: 9, letterSpacing: 1, fontFamily: 'monospace' }}>{result.qr_data}</div>
+                  </div>
+                </div>
+              ) : qrUrl ? (
+                <img
+                  src={qrUrl}
+                  alt="QR Code"
+                  width={140}
+                  height={140}
+                  style={{ display: 'block', border: '1px solid #e5e7eb', borderRadius: 4 }}
+                  crossOrigin="anonymous"
+                />
+              ) : (
+                <div style={{ width: 140, height: 140, border: '1px dashed #d1d5db', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <QrcodeOutlined style={{ fontSize: 48, color: '#d1d5db' }} />
+                </div>
+              )}
+              {result.qr_data && (
+                <div style={{ fontSize: 9, color: '#9ca3af', marginTop: 4, maxWidth: 140, wordBreak: 'break-all' }}>
+                  {result.qr_data}
+                </div>
+              )}
+            </div>
+
+            {/* Fields */}
+            <div style={{ flex: 1 }}>
+              {result.primary_value && (
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, color: '#9ca3af' }}>{record.primary_key}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'monospace', color: '#111827', lineHeight: 1.2 }}>
+                    {result.primary_value}
+                  </div>
+                </div>
+              )}
+              {result.secondary_value && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, color: '#9ca3af' }}>{record.secondary_key}</div>
+                  <div style={{ fontSize: 14, color: '#374151' }}>{result.secondary_value}</div>
+                </div>
+              )}
+              {result.ctq_resolved?.filter((p) => p.param_name).length > 0 && (
+                <div style={{ borderTop: '1px dashed #e5e7eb', paddingTop: 8 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#6b7280', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
+                    CTQ Parameters
+                  </div>
+                  {result.ctq_resolved.filter((p) => p.param_name).map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                      <span style={{ fontSize: 11, color: '#6b7280' }}>{p.param_name}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#111827' }}>
+                        {p.value || '—'}{p.unit ? ` ${p.unit}` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div style={{ borderTop: '1px solid #f3f4f6', marginTop: 14, paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 9, color: '#9ca3af' }}>Format: {record.format}</span>
+            {record.size_mm && <span style={{ fontSize: 9, color: '#9ca3af' }}>Size: {record.size_mm} mm</span>}
+            <span style={{ fontSize: 9, color: '#9ca3af' }}>{today}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── ZPL output ───────────────────────────────────────────────── */}
+      {result?.zpl_rendered && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <Text style={{ fontSize: 12, fontWeight: 600 }}>ZPL Output</Text>
+            <Button
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => { navigator.clipboard.writeText(result.zpl_rendered); message.success('ZPL copied to clipboard'); }}
+            >
+              Copy
+            </Button>
+          </div>
+          <pre style={{ background: '#1e1e2e', color: '#e2e8f0', padding: 12, borderRadius: 8, fontSize: 11, fontFamily: 'monospace', overflow: 'auto', maxHeight: 160, margin: 0 }}>
+            {result.zpl_rendered}
+          </pre>
+        </div>
+      )}
+    </Modal>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
 const StickerTemplatesPage = () => {
@@ -563,7 +827,8 @@ const StickerTemplatesPage = () => {
   const [loading,   setLoading]   = useState(false);
   const [search,    setSearch]    = useState('');
 
-  const [modal, setModal] = useState({ open: false, record: null });
+  const [modal,   setModal]   = useState({ open: false, record: null });
+  const [preview, setPreview] = useState({ open: false, record: null });
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchTemplates = useCallback(async () => {
@@ -707,6 +972,14 @@ const StickerTemplatesPage = () => {
       align:  'center',
       render: (_, r) => (
         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+          <Tooltip title="Print Preview">
+            <Button
+              size="small"
+              icon={<EyeOutlined />}
+              style={{ borderRadius: 6, color: '#16a34a', borderColor: '#bbf7d0' }}
+              onClick={() => setPreview({ open: true, record: r })}
+            />
+          </Tooltip>
           <Tooltip title="Edit Template">
             <Button
               size="small"
@@ -839,6 +1112,12 @@ const StickerTemplatesPage = () => {
         onClose={() => setModal({ open: false, record: null })}
         onSaved={() => { fetchTemplates(); setModal({ open: false, record: null }); }}
         canWrite={canWrite}
+      />
+
+      <PrintPreviewModal
+        record={preview.record}
+        open={preview.open}
+        onClose={() => setPreview({ open: false, record: null })}
       />
     </AppLayout>
   );

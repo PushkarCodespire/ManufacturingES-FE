@@ -16,12 +16,12 @@ const { Title, Text } = Typography;
 const { TextArea }    = Input;
 
 const STATUS_COLOR   = {
-  open: 'orange', under_review: 'blue', dispositioned: 'purple', closed: 'green', cancelled: 'default',
+  raised: 'orange', under_review: 'blue', dispositioned: 'purple', closed: 'green', cancelled: 'default',
 };
 const NCR_TYPE_COLOR = { process: 'purple', material: 'gold', product: 'red', system: 'cyan' };
 
 const LOCATION_LABELS = {
-  receiving: 'Receiving', in_process: 'In Process', final_inspection: 'Final Inspection', customer: 'Customer',
+  iqc: 'IQC', lqc: 'LQC', pqc: 'PQC', oqc: 'OQC', production: 'Production', store: 'Store',
 };
 
 const DECISION_OPTS = [
@@ -92,7 +92,7 @@ export default function NCRDetailPage() {
 
   const disposition = ncr.Disposition ?? null;
   const canDispose  = canWrite && ncr.status !== 'dispositioned' && ncr.status !== 'closed' && ncr.status !== 'cancelled';
-  const totalCost   = (parseFloat(ncr.qty_defective) || 0) * (parseFloat(ncr.cost_per_unit) || 0);
+  const totalCost   = (parseFloat(ncr.qty_affected) || 0) * (parseFloat(ncr.cost_per_unit) || 0);
 
   const tabItems = [
     // ── Tab 1: NCR Details ────────────────────────────────────────────────────
@@ -116,13 +116,11 @@ export default function NCRDetailPage() {
               <Tag color={STATUS_COLOR[ncr.status] ?? 'default'}>{ncr.status?.replace(/_/g, ' ')}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Part / Item">
-              {ncr.Item ? `${ncr.Item.part_no} — ${ncr.Item.name}` : '—'}
+              {ncr.Item ? `${ncr.Item.code} — ${ncr.Item.name}` : '—'}
             </Descriptions.Item>
-            <Descriptions.Item label="Detection Date">{ncr.detection_date || '—'}</Descriptions.Item>
             <Descriptions.Item label="Raised By">{ncr.RaisedBy?.name ?? '—'}</Descriptions.Item>
             <Descriptions.Item label="Lot No.">{ncr.lot_no || '—'}</Descriptions.Item>
-            <Descriptions.Item label="Qty Inspected">{ncr.qty_inspected ?? '—'}</Descriptions.Item>
-            <Descriptions.Item label="Qty Defective">{ncr.qty_defective ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Qty Affected">{ncr.qty_affected ?? '—'}</Descriptions.Item>
             <Descriptions.Item label="Cost / Unit">
               {ncr.cost_per_unit ? `₹ ${parseFloat(ncr.cost_per_unit).toLocaleString('en-IN')}` : '—'}
             </Descriptions.Item>
@@ -130,7 +128,7 @@ export default function NCRDetailPage() {
               {totalCost > 0 ? `₹ ${totalCost.toLocaleString('en-IN')}` : '—'}
             </Descriptions.Item>
             <Descriptions.Item label="Defect Description" span={2}>
-              {ncr.defect_description || '—'}
+              {ncr.defect_desc || '—'}
             </Descriptions.Item>
             {ncr.notes && (
               <Descriptions.Item label="Notes" span={2}>{ncr.notes}</Descriptions.Item>

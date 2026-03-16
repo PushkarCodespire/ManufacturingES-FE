@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, message,
-  Drawer, Form, Select, DatePicker, Popconfirm, AutoComplete,
+  Drawer, Form, Select, DatePicker, Popconfirm, Descriptions,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
@@ -29,15 +29,16 @@ export default function ComplaintsPage() {
   const canWrite = can('quality-complaints-create_edit_delete');
   const navigate = useNavigate();
 
-  const [records,    setRecords]    = useState([]);
-  const [customers,  setCustomers]  = useState([]);
-  const [items,      setItems]      = useState([]);
-  const [loading,    setLoading]    = useState(false);
-  const [search,     setSearch]     = useState('');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editing,    setEditing]    = useState(null);
-  const [saving,     setSaving]     = useState(false);
-  const [form]                      = Form.useForm();
+  const [records,          setRecords]          = useState([]);
+  const [customers,        setCustomers]        = useState([]);
+  const [items,            setItems]            = useState([]);
+  const [loading,          setLoading]          = useState(false);
+  const [search,           setSearch]           = useState('');
+  const [drawerOpen,       setDrawerOpen]       = useState(false);
+  const [editing,          setEditing]          = useState(null);
+  const [saving,           setSaving]           = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [form]                                  = Form.useForm();
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -62,6 +63,7 @@ export default function ComplaintsPage() {
   const openAdd = () => {
     setEditing(null);
     form.resetFields();
+    setSelectedCustomer(null);
     setDrawerOpen(true);
   };
 
@@ -76,7 +78,14 @@ export default function ComplaintsPage() {
       defect_desc:    r.defect_desc,
       delivery_date:  r.delivery_date ? dayjs(r.delivery_date) : null,
     });
+    const c = customers.find((x) => x.name === r.customer_name);
+    setSelectedCustomer(c || null);
     setDrawerOpen(true);
+  };
+
+  const onCustomerChange = (val) => {
+    const c = customers.find((x) => x.name === val);
+    setSelectedCustomer(c || null);
   };
 
   const onSave = async () => {
@@ -226,13 +235,37 @@ export default function ComplaintsPage() {
         <Form form={form} layout="vertical" requiredMark={false}>
           <Form.Item name="customer_name" label="Customer Name"
             rules={[{ required: true, message: 'Customer name is required' }]}>
-            <AutoComplete
+            <Select
+              showSearch
               allowClear
-              placeholder="Type or select customer name..."
-              options={customers.map((c) => ({ value: c.name }))}
-              filterOption={(input, opt) => opt?.value?.toLowerCase().includes(input.toLowerCase())}
+              placeholder="Select customer..."
+              onChange={onCustomerChange}
+              filterOption={(input, opt) => opt?.label?.toLowerCase().includes(input.toLowerCase())}
+              options={customers.map((c) => ({ value: c.name, label: c.name }))}
             />
           </Form.Item>
+
+          {selectedCustomer && (
+            <div style={{ marginTop: -8, marginBottom: 16, padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+              <Descriptions size="small" column={2} labelStyle={{ color: '#6b7280', fontWeight: 500 }} contentStyle={{ color: '#111827' }}>
+                {selectedCustomer.mobile && (
+                  <Descriptions.Item label="Mobile">{selectedCustomer.mobile}</Descriptions.Item>
+                )}
+                {selectedCustomer.email && (
+                  <Descriptions.Item label="Email">{selectedCustomer.email}</Descriptions.Item>
+                )}
+                {selectedCustomer.gstin && (
+                  <Descriptions.Item label="GSTIN" span={2}>{selectedCustomer.gstin}</Descriptions.Item>
+                )}
+                {(selectedCustomer.address || selectedCustomer.city) && (
+                  <Descriptions.Item label="Address" span={2}>
+                    {[selectedCustomer.address, selectedCustomer.city, selectedCustomer.state, selectedCustomer.pincode]
+                      .filter(Boolean).join(', ')}
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
+            </div>
+          )}
 
           <Form.Item name="customer_ref" label="Customer PO / Reference No.">
             <Input placeholder="e.g. PO-2024-1234" />

@@ -22,8 +22,7 @@ const STATUS_COLOR = {
   closed: 'green', cancelled: 'default',
 };
 
-const CAPA_TYPE_OPTS   = [{ value: 'capa', label: 'CAPA' }, { value: 'car', label: 'CAR' }];
-const SOURCE_OPTS      = [
+const SOURCE_OPTS = [
   { value: 'customer_complaint',  label: 'Customer Complaint'   },
   { value: 'internal_audit',      label: 'Internal Audit'       },
   { value: 'ncr',                 label: 'NCR'                  },
@@ -67,21 +66,18 @@ export default function CAPAPage() {
   const openAdd = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ detection_date: dayjs(), due_date: dayjs().add(30, 'day') });
+    form.setFieldsValue({ target_date: dayjs().add(30, 'day') });
     setDrawerOpen(true);
   };
 
   const openEdit = (r) => {
     setEditing(r);
     form.setFieldsValue({
-      capa_type:          r.capa_type,
-      source:             r.source,
-      problem_description:r.problem_description,
-      problem_statement:  r.problem_statement,
-      detection_date:     r.detection_date ? dayjs(r.detection_date) : null,
-      due_date:           r.due_date       ? dayjs(r.due_date)       : null,
-      champion_id:        r.champion_id,
-      d1_team_selection:  r.d1_team_selection,
+      source_type:   r.source_type,
+      problem_title: r.problem_title,
+      problem_desc:  r.problem_desc,
+      target_date:   r.target_date ? dayjs(r.target_date) : null,
+      champion_id:   r.champion_id,
     });
     setDrawerOpen(true);
   };
@@ -92,8 +88,7 @@ export default function CAPAPage() {
       setSaving(true);
       const payload = {
         ...vals,
-        detection_date: vals.detection_date?.format('YYYY-MM-DD'),
-        due_date:       vals.due_date?.format('YYYY-MM-DD'),
+        target_date: vals.target_date?.format('YYYY-MM-DD'),
       };
       if (editing) {
         await capaApi.update(editing.id, payload);
@@ -123,14 +118,14 @@ export default function CAPAPage() {
     { title: 'CAPA No.',  dataIndex: 'capa_no',             key: 'capa_no',  width: 140 },
     { title: 'Type',      dataIndex: 'capa_type',           key: 'type',     width: 80,
       render: (v) => <Tag color={v === 'capa' ? 'blue' : 'orange'}>{v?.toUpperCase()}</Tag> },
-    { title: 'Source',    dataIndex: 'source',              key: 'source',   width: 160,
+    { title: 'Source',    dataIndex: 'source_type',         key: 'source',   width: 160,
       render: (v) => SOURCE_OPTS.find((o) => o.value === v)?.label ?? v },
-    { title: 'Problem',   dataIndex: 'problem_description', key: 'problem',  ellipsis: true },
+    { title: 'Problem',   dataIndex: 'problem_title',       key: 'problem',  ellipsis: true },
     { title: 'Champion',  key: 'champion', width: 140,
       render: (_, r) => r.Champion?.name ?? '—' },
     { title: 'Status',    dataIndex: 'status',              key: 'status',   width: 110,
       render: (v) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{v?.replace(/_/g, ' ')}</Tag> },
-    { title: 'Due Date',  dataIndex: 'due_date',            key: 'due',      width: 110 },
+    { title: 'Due Date',  dataIndex: 'target_date',         key: 'due',      width: 110 },
   ];
 
   const actionColumn = {
@@ -160,7 +155,7 @@ export default function CAPAPage() {
   const filtered = records.filter((r) =>
     !search ||
     r.capa_no?.toLowerCase().includes(search.toLowerCase()) ||
-    r.problem_description?.toLowerCase().includes(search.toLowerCase()),
+    r.problem_title?.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -228,31 +223,22 @@ export default function CAPAPage() {
         }
       >
         <Form form={form} layout="vertical" requiredMark={false}>
-          <Form.Item name="capa_type" label="CAPA Type" rules={[{ required: true }]}>
-            <Select options={CAPA_TYPE_OPTS} placeholder="Select type" />
-          </Form.Item>
-
-          <Form.Item name="source" label="Source" rules={[{ required: true }]}>
+          <Form.Item name="source_type" label="Source" rules={[{ required: true, message: 'Source is required' }]}>
             <Select options={SOURCE_OPTS} placeholder="Select source" />
           </Form.Item>
 
-          <Form.Item name="problem_description" label="Problem Description"
-            rules={[{ required: true, min: 10, message: 'Min 10 characters' }]}>
-            <TextArea rows={3} placeholder="Describe the problem clearly..." />
+          <Form.Item name="problem_title" label="Problem Title"
+            rules={[{ required: true, message: 'Problem title is required' }]}>
+            <Input placeholder="Brief title describing the problem..." />
           </Form.Item>
 
-          <Form.Item name="problem_statement" label="Problem Statement (5W2H)">
+          <Form.Item name="problem_desc" label="Problem Description (5W2H)">
             <TextArea rows={3} placeholder="Who, What, When, Where, Why, How, How many..." />
           </Form.Item>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Form.Item name="detection_date" label="Detection Date" rules={[{ required: true }]}>
-              <DatePicker style={{ width: '100%' }} format="DD-MMM-YYYY" />
-            </Form.Item>
-            <Form.Item name="due_date" label="Due Date" rules={[{ required: true }]}>
-              <DatePicker style={{ width: '100%' }} format="DD-MMM-YYYY" />
-            </Form.Item>
-          </div>
+          <Form.Item name="target_date" label="Target Closure Date">
+            <DatePicker style={{ width: '100%' }} format="DD-MMM-YYYY" />
+          </Form.Item>
 
           <Form.Item name="champion_id" label="CAPA Champion">
             <Select
@@ -264,10 +250,6 @@ export default function CAPAPage() {
               }
               options={users.map((u) => ({ value: u.id, label: u.name }))}
             />
-          </Form.Item>
-
-          <Form.Item name="d1_team_selection" label="D1 — Team Members">
-            <Input placeholder="e.g. John, Priya, Rahul..." />
           </Form.Item>
         </Form>
       </Drawer>

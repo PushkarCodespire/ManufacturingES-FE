@@ -461,7 +461,14 @@ export default function PurchaseOrdersPage() {
                 placeholder="Select item"
                 optionFilterProp="label"
                 value={row.item_id}
-                onChange={(v) => updateLine(row._key, 'item_id', v)}
+                onChange={(v) => {
+                  const master = items.find((i) => i.id === v);
+                  setLineItems((prev) => prev.map((r) =>
+                    r._key === row._key
+                      ? { ...r, item_id: v ?? null, unit: master?.unit || r.unit || 'pcs' }
+                      : r
+                  ));
+                }}
                 allowClear
                 options={items.map((i) => ({
                   value: i.id,
@@ -485,12 +492,27 @@ export default function PurchaseOrdersPage() {
                 onChange={(v) => updateLine(row._key, 'unit_price', v)}
                 style={{ width: '100%' }}
               />
-              <Input
-                size="small"
-                placeholder="pcs"
-                value={row.unit}
-                onChange={(e) => updateLine(row._key, 'unit', e.target.value)}
-              />
+              {/* Unit — auto-filled from item master, disabled when sourced from master */}
+              <Tooltip
+                title={row.item_id && items.find((i) => i.id === row.item_id)?.unit
+                  ? 'Unit is set from item master'
+                  : null}
+              >
+                <Input
+                  size="small"
+                  placeholder="pcs"
+                  value={row.unit}
+                  disabled={!!(row.item_id && items.find((i) => i.id === row.item_id)?.unit)}
+                  onChange={(e) => updateLine(row._key, 'unit', e.target.value)}
+                  style={{
+                    background: (row.item_id && items.find((i) => i.id === row.item_id)?.unit)
+                      ? '#f3f4f6' : undefined,
+                    color: '#374151',
+                    cursor: (row.item_id && items.find((i) => i.id === row.item_id)?.unit)
+                      ? 'not-allowed' : undefined,
+                  }}
+                />
+              </Tooltip>
               <Button
                 size="small"
                 type="text"

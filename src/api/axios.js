@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-const api = axios.create({ baseURL: BASE_URL, timeout: 15000 });
+// H-06: withCredentials sends the httpOnly refresh-token cookie on every request,
+// which is required for the /auth/refresh and /auth/logout endpoints to work.
+const api = axios.create({ baseURL: BASE_URL, timeout: 15000, withCredentials: true });
 
 // ─── Request: attach access token ────────────────────────────────────────────
 api.interceptors.request.use((config) => {
@@ -47,19 +49,18 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const storedRefresh = localStorage.getItem('dt_refresh_token');
-        if (!storedRefresh) throw new Error('No refresh token stored');
+        // H-06: The refresh token is in an httpOnly cookie — no localStorage read.
+        // withCredentials ensures the cookie is included in this cross-origin request.
+        const { data } = await axios.post(
+          `${BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true },
+        );
 
-        // Use raw axios (not `api`) to bypass the interceptors on this call
-        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
-          refresh_token: storedRefresh,
-        });
+        const newToken = data.data.token;
+        // H-06: new refresh token arrives as an httpOnly cookie — not in the body.
 
-        const newToken        = data.data.token;
-        const newRefreshToken = data.data.refresh_token;
-
-        localStorage.setItem('dt_token',         newToken);
-        localStorage.setItem('dt_refresh_token', newRefreshToken);
+        localStorage.setItem('dt_token', newToken);
         api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
 
         processQueue(null, newToken);

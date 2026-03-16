@@ -103,6 +103,9 @@ import RepairPage          from './pages/Mold/Repair';
 import TrialsPage          from './pages/Mold/Trials';
 import CostTrackingPage    from './pages/Mold/CostTracking';
 import MoldDocumentsPage   from './pages/Mold/Documents';
+// Mold Management — Sprint 6 (AI)
+import AiInsightsPage      from './pages/Mold/AiInsights';
+import MoldSelectionPage   from './pages/Mold/MoldSelection';
 // Maintenance
 import EquipmentPage        from './pages/Maintenance/Equipment';
 import HealthDashboardPage  from './pages/Maintenance/HealthDashboard';
@@ -723,6 +726,9 @@ function App() {
               <Route path="/mold/trial"        element={<ProtectedRoute permission="mold-trial-read"><TrialsPage /></ProtectedRoute>} />
               <Route path="/mold/cost"         element={<ProtectedRoute permission="mold-cost-read"><CostTrackingPage /></ProtectedRoute>} />
               <Route path="/mold/documents"    element={<ProtectedRoute permission="mold-documents-read"><MoldDocumentsPage /></ProtectedRoute>} />
+              {/* Mold Management — Sprint 6 (AI) */}
+              <Route path="/mold/ai-insights" element={<ProtectedRoute permission="mold-ai_insights-read"><AiInsightsPage /></ProtectedRoute>} />
+              <Route path="/mold/selection"   element={<ProtectedRoute permission="mold-selection-read"><MoldSelectionPage /></ProtectedRoute>} />
 
               {/* Maintenance */}
               <Route path="/maintenance/equipment"    element={<ProtectedRoute permission="mnt-equipment-read"><EquipmentPage /></ProtectedRoute>} />
