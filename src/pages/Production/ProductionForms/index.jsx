@@ -594,8 +594,8 @@ const ProductionFormsPage = () => {
     try {
       const data = await productionFormApi.getAll();
       setForms(data ?? []);
-    } catch {
-      message.error('Failed to load production forms');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load production forms');
     } finally {
       setLoading(false);
     }
@@ -615,8 +615,8 @@ const ProductionFormsPage = () => {
           await productionFormApi.delete(record.id);
           message.success(`"${record.title}" deleted`);
           fetchForms();
-        } catch {
-          message.error('Failed to delete production form');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete production form');
         }
       },
     });

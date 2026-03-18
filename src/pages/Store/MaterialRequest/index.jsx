@@ -73,7 +73,7 @@ export default function MaterialRequestPage() {
       if (statusFilter) params.status = statusFilter;
       const data = await materialRequestApi.getAll(params);
       setRequests(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load material requests'); }
+    } catch (err) { message.error(err?.message || 'Failed to load material requests'); }
     finally { setLoading(false); }
   }, [search, statusFilter]);
 

@@ -209,7 +209,7 @@ const AddRulesModal = ({ open, onClose, onSubmit }) => {
         const list = Array.isArray(res) ? res : res?.data || [];
         setRules(list);
       })
-      .catch(() => message.error('Failed to load cycle time rules'))
+      .catch((err) => message.error(err?.message || 'Failed to load cycle time rules'))
       .finally(() => setLoading(false));
   }, [open]);
 
@@ -827,8 +827,8 @@ const ToolsPage = () => {
     try {
       const data = await toolApi.getAll();
       setTools(Array.isArray(data) ? data : data?.data || []);
-    } catch {
-      message.error('Failed to load tools');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load tools');
     } finally {
       setLoading(false);
     }
@@ -859,8 +859,8 @@ const ToolsPage = () => {
           await toolApi.delete(tool.id);
           message.success('Tool deleted');
           fetchTools();
-        } catch {
-          message.error('Failed to delete tool');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete tool');
         }
       },
     });

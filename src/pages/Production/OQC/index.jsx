@@ -103,7 +103,7 @@ export default function OQCPage() {
       const data = res?.data || res;
       setPrintData(data);
       setPrintType(type);
-    } catch { message.error('Failed to load inspection data for printing'); }
+    } catch (err) { message.error(err?.message || 'Failed to load inspection data for printing'); }
   };
 
   useEffect(() => {
@@ -136,7 +136,7 @@ export default function OQCPage() {
         );
       }
       setInspections(rows);
-    } catch { message.error('Failed to load OQC inspections'); }
+    } catch (err) { message.error(err?.message || 'Failed to load OQC inspections'); }
     finally { setLoading(false); }
   }, [search, resultFilter, dateFrom, dateTo]);
 
@@ -228,6 +228,25 @@ export default function OQCPage() {
   const removeParam = (key) => setParams((p) => p.filter((r) => r._key !== key));
   const updateParam = (key, field, value) =>
     setParams((p) => p.map((r) => r._key === key ? { ...r, [field]: value } : r));
+
+  // ── Auto-load quality params when item is selected ─────────────────────────
+  const onItemSelect = async (itemId) => {
+    if (!itemId) return;
+    try {
+      const data = await itemApi.getQualityParams(itemId);
+      const qps  = Array.isArray(data) ? data : (data?.data ?? []);
+      if (qps.length > 0) {
+        setParams(qps.map((p) => ({
+          _key:           Date.now() + Math.random(),
+          parameter_name: p.param_name,
+          specification:  p.specification || '',
+          actual_value:   '',
+          result:         'pass',
+        })));
+        message.success(`${qps.length} quality parameter(s) loaded from item master`);
+      }
+    } catch { /* silently ignore */ }
+  };
 
   // ── Table columns ──────────────────────────────────────────────────────────
   const columns = [
@@ -449,6 +468,7 @@ export default function OQCPage() {
               <Form.Item name="item_id" label="Item" rules={[{ required: true, message: 'Select item' }]}>
                 <Select showSearch optionFilterProp="label" allowClear placeholder="Select item"
                   options={items.map((i) => ({ value: i.id, label: `${i.name}${i.code ? ` (${i.code})` : ''}` }))}
+                  onChange={onItemSelect}
                 />
               </Form.Item>
             </Col>

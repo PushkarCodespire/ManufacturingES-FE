@@ -75,7 +75,7 @@ const MoldMasterPage = () => {
       const res = await moldMasterApi.getAll(params);
       setMolds(res?.data ?? res ?? []);
       setTotal(res?.meta?.total ?? res?.total ?? (res?.data ?? res)?.length ?? 0);
-    } catch { message.error('Failed to load molds'); }
+    } catch (err) { message.error(err?.message || 'Failed to load molds'); }
     finally { setLoading(false); }
   }, [page, pageSize, debouncedSearch, statusFilter, categoryFilter, lifeStageFilter]);
 

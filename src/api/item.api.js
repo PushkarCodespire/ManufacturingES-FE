@@ -15,4 +15,7 @@ export const itemApi = {
   upload:   (formData)    => api.post('/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
+  getQualityParams:    (itemId)          => api.get(`/items/${itemId}/quality-params`).then((r) => r.data ?? r),
+  saveQualityParams:   (itemId, params)  => api.post(`/items/${itemId}/quality-params`, { params }).then((r) => r.data),
+  deleteQualityParam:  (itemId, paramId) => api.delete(`/items/${itemId}/quality-params/${paramId}`).then((r) => r.data),
 };

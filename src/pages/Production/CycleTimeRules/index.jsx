@@ -60,7 +60,7 @@ const CycleTimeRulesPage = () => {
     try {
       const res = await cycleTimeRuleApi.getAll();
       setRules(res ?? []);
-    } catch { message.error('Failed to load rules'); }
+    } catch (err) { message.error(err?.message || 'Failed to load rules'); }
     finally { setLoading(false); }
   }, []);
 
@@ -116,7 +116,7 @@ const CycleTimeRulesPage = () => {
       okText: 'Delete', okType: 'danger',
       onOk: async () => {
         try { await cycleTimeRuleApi.delete(rule.id); message.success('Rule deleted'); fetchRules(); }
-        catch { message.error('Failed to delete rule'); }
+        catch (err) { message.error(err?.message || 'Failed to delete rule'); }
       },
     });
   };

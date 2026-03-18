@@ -2,17 +2,19 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Form,
   Select, Modal, message, Tabs, Steps, Alert, Timeline,
-  Divider, Empty, Spin,
+  Divider, Empty, Spin, Upload,
 } from 'antd';
 import {
   RightOutlined, CheckCircleOutlined,
   CloseCircleOutlined, WarningOutlined,
   ExportOutlined, ImportOutlined, HistoryOutlined,
+  BulbOutlined, CameraOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { moldIssueReturnApi, moldMasterApi, moldStoreApi } from '../../../api/mold.api';
 import { machineApi } from '../../../api/machine.api';
 import { workOrderApi } from '../../../api/production.api';
+import aiApi from '../../../api/ai.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 
@@ -64,6 +66,12 @@ export default function MoldIssueReturnPage() {
   const [returning,    setReturning]    = useState(false);
   const [inspectionForm] = Form.useForm();
   const [inspecting,   setInspecting]  = useState(false);
+
+  // ── AI Photo Analysis (Part 4) ─────────────────────────────────────────────
+  const [photoLoading,    setPhotoLoading]    = useState(false);
+  const [photoInsight,    setPhotoInsight]    = useState(null);
+  const [photoError,      setPhotoError]      = useState(null);
+  const [photoFileName,   setPhotoFileName]   = useState(null);
 
   // ── History tab state ────────────────────────────────────────────────────
   const [historyMoldId,   setHistoryMoldId]   = useState(null);
@@ -246,11 +254,88 @@ export default function MoldIssueReturnPage() {
     } finally { setInspecting(false); }
   };
 
+  // ── AI photo upload for mold return inspection ─────────────────────────────
+  const handleMoldPhotoUpload = async (file) => {
+    setPhotoLoading(true);
+    setPhotoError(null);
+    setPhotoInsight(null);
+    setPhotoFileName(file.name);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (returnMoldId) formData.append('mold_id', returnMoldId);
+      const res = await aiApi.moldPhotoAnalyze(formData);
+      setPhotoInsight(res?.ai_insight ?? null);
+    } catch (err) {
+      setPhotoError(err?.message || 'Photo analysis failed');
+    } finally { setPhotoLoading(false); }
+    return false; // prevent Antd auto-upload
+  };
+
+  // Map AI insight fields to inspection form values
+  const applyAiSuggestions = () => {
+    if (!photoInsight) return;
+    const condMap = { good: 'good', fair: 'fair', needs_repair: 'needs_repair', critical: 'needs_repair' };
+    const plMap   = { acceptable: 'ok', worn: 'wear', damaged: 'damage' };
+    const csMap   = { acceptable: 'ok', worn: 'pitting', damaged: 'scratch' };
+
+    const suggestions = {};
+
+    if (photoInsight.overall_condition)
+      suggestions.overall_condition = condMap[photoInsight.overall_condition] ?? photoInsight.overall_condition;
+    if (photoInsight.parting_line_condition)
+      suggestions.parting_line = plMap[photoInsight.parting_line_condition] ?? 'ok';
+    if (photoInsight.cavity_surface_condition)
+      suggestions.cavity_surface = csMap[photoInsight.cavity_surface_condition] ?? 'ok';
+
+    // Ejector system — if any issues mentioned, flag as 'worn'
+    const ejectorIssues = Array.isArray(photoInsight.ejector_system_visible_issues)
+      ? photoInsight.ejector_system_visible_issues : [];
+    if (ejectorIssues.length > 0)
+      suggestions.ejector_pins = 'worn';
+
+    // Flash — maintenance required suggests minor flash at minimum
+    if (photoInsight.maintenance_required)
+      suggestions.flash_presence = 'minor';
+
+    // Cooling channels — derived from visible_damage entries mentioning "cooling"
+    const visibleDamage = Array.isArray(photoInsight.visible_damage) ? photoInsight.visible_damage : [];
+    const coolingDamage = visibleDamage.find(
+      (d) => (d.component ?? '').toLowerCase().includes('cooling')
+    );
+    if (coolingDamage) {
+      const dmgType = (coolingDamage.damage_type ?? '').toLowerCase();
+      if (dmgType.includes('block') || dmgType.includes('obstruct'))
+        suggestions.cooling_channels = 'blocked';
+      else if (dmgType.includes('leak'))
+        suggestions.cooling_channels = 'leaking';
+      else
+        suggestions.cooling_channels = coolingDamage.severity === 'minor' ? 'ok' : 'blocked';
+    } else {
+      // No cooling damage found — default to OK
+      suggestions.cooling_channels = 'ok';
+    }
+
+    // Inspection notes — map AI notes directly to the notes field
+    if (photoInsight.notes)
+      suggestions.notes = photoInsight.notes;
+
+    if (Object.keys(suggestions).length > 0) {
+      inspectionForm.setFieldsValue(suggestions);
+      message.success('Inspection form pre-filled from AI photo analysis — review before submitting');
+    } else {
+      message.info('No mappable suggestions from this photo analysis');
+    }
+  };
+
   const resetReturnForm = () => {
     setReturnStep(0);
     setReturnMoldId(null);
     setReturnNotes('');
     setReturnResult(null);
+    setPhotoInsight(null);
+    setPhotoError(null);
+    setPhotoFileName(null);
     inspectionForm.resetFields();
   };
 
@@ -261,7 +346,7 @@ export default function MoldIssueReturnPage() {
     try {
       const data = await moldIssueReturnApi.getHistory(moldId);
       setHistory(Array.isArray(data) ? data : (data?.rows ?? []));
-    } catch { message.error('Failed to load history'); }
+    } catch (err) { message.error(err?.message || 'Failed to load history'); }
     finally { setHistoryLoading(false); }
   };
 
@@ -501,6 +586,129 @@ export default function MoldIssueReturnPage() {
               <Text style={{ fontWeight: 600, fontSize: 15, display: 'block', marginBottom: 16 }}>
                 Return Inspection Checklist
               </Text>
+
+              {/* ── AI Photo Analysis panel ─────────────────────────────────── */}
+              <div style={{ marginBottom: 20, padding: '16px', background: '#faf5ff', borderRadius: 10, border: '1px solid #e9d5ff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <BulbOutlined style={{ color: '#7c3aed', fontSize: 16 }} />
+                  <Text style={{ fontWeight: 600, color: '#6d28d9', fontSize: 13 }}>
+                    AI Photo Analysis (Optional)
+                  </Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Upload a mold photo to auto-fill the inspection form
+                  </Text>
+                </div>
+
+                <Upload.Dragger
+                  accept="image/*"
+                  showUploadList={false}
+                  beforeUpload={handleMoldPhotoUpload}
+                  disabled={photoLoading}
+                  style={{ borderRadius: 8, borderColor: '#a78bfa', background: '#fff' }}
+                >
+                  <p className="ant-upload-drag-icon">
+                    <CameraOutlined style={{ fontSize: 28, color: '#7c3aed' }} />
+                  </p>
+                  <p className="ant-upload-text" style={{ color: '#374151', fontSize: 13 }}>
+                    Click or drag a mold photo
+                  </p>
+                  <p className="ant-upload-hint" style={{ color: '#9ca3af', fontSize: 12 }}>
+                    JPG / PNG — AI will assess condition and suggest inspection values
+                  </p>
+                </Upload.Dragger>
+
+                {photoLoading && (
+                  <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <Spin />
+                    <Text style={{ display: 'block', marginTop: 8, color: '#6b7280', fontSize: 12 }}>
+                      Analysing mold photo…
+                    </Text>
+                  </div>
+                )}
+
+                {photoError && (
+                  <Alert type="error" message={photoError}
+                    style={{ marginTop: 10, borderRadius: 8 }}
+                    action={<Button size="small" onClick={() => setPhotoError(null)}>Dismiss</Button>}
+                  />
+                )}
+
+                {!photoLoading && photoInsight && (() => {
+                  const SEV_COLOR = { minor: 'orange', moderate: 'volcano', severe: 'red' };
+                  const damage    = Array.isArray(photoInsight.visible_damage) ? photoInsight.visible_damage : [];
+                  const repairs   = Array.isArray(photoInsight.repair_recommendations) ? photoInsight.repair_recommendations : [];
+                  const condColor = { good: 'green', fair: 'gold', needs_repair: 'orange', critical: 'red' };
+
+                  return (
+                    <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {/* Summary badges */}
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <Tag color={condColor[photoInsight.overall_condition] || 'default'} style={{ fontWeight: 700 }}>
+                          {String(photoInsight.overall_condition || '—').replace(/_/g, ' ').toUpperCase()}
+                        </Tag>
+                        <Tag color="purple">Confidence: {photoInsight.confidence || '—'}</Tag>
+                        {photoInsight.safe_to_issue_again === true && <Tag color="green">Safe to Re-issue</Tag>}
+                        {photoInsight.safe_to_issue_again === false && <Tag color="red">Not Safe to Re-issue</Tag>}
+                        {photoInsight.maintenance_required && <Tag color="orange">Maintenance Required</Tag>}
+                        {photoFileName && <Text type="secondary" style={{ fontSize: 11 }}>{photoFileName}</Text>}
+                      </div>
+
+                      {/* Damage items */}
+                      {damage.length > 0 && (
+                        <div>
+                          <Text style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
+                            Damage Found
+                          </Text>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {damage.map((d, i) => (
+                              <div key={i} style={{
+                                display: 'flex', alignItems: 'flex-start', gap: 8,
+                                padding: '6px 10px', borderRadius: 6,
+                                background: d.severity === 'severe' ? '#fff1f0' : '#fff7ed',
+                                border: `1px solid ${d.severity === 'severe' ? '#fca5a5' : '#fed7aa'}`,
+                              }}>
+                                <Tag color={SEV_COLOR[d.severity] || 'default'} style={{ margin: 0, flexShrink: 0, fontWeight: 600, fontSize: 11 }}>
+                                  {(d.severity || '').toUpperCase()}
+                                </Tag>
+                                <div>
+                                  <Text style={{ fontSize: 12, fontWeight: 500 }}>{d.component}</Text>
+                                  {d.damage_type && <Text type="secondary" style={{ fontSize: 11 }}> — {d.damage_type}</Text>}
+                                  {d.description && <Text style={{ fontSize: 11, color: '#6b7280', display: 'block' }}>{d.description}</Text>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Repair recommendations */}
+                      {repairs.length > 0 && (
+                        <div>
+                          <Text style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>
+                            Repair Recommendations
+                          </Text>
+                          <ul style={{ margin: 0, paddingLeft: 18, color: '#dc2626', fontSize: 12 }}>
+                            {repairs.map((r, i) => <li key={i}>{r}</li>)}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Apply button */}
+                      <Button
+                        type="primary"
+                        ghost
+                        icon={<BulbOutlined />}
+                        style={{ borderColor: '#7c3aed', color: '#7c3aed', alignSelf: 'flex-start' }}
+                        onClick={applyAiSuggestions}
+                      >
+                        Use AI Suggestions to Fill Form
+                      </Button>
+                    </div>
+                  );
+                })()}
+              </div>
+              {/* ── End AI Photo panel ────────────────────────────────────────── */}
+
               <Form form={inspectionForm} layout="vertical" style={{ maxWidth: 600 }}>
                 <Form.Item name="parting_line" label="Parting Line" rules={[{ required: true, message: 'Required' }]}>
                   <Select placeholder="Select condition..." options={[{ label: 'OK', value: 'ok' }, { label: 'Wear', value: 'wear' }, { label: 'Damage', value: 'damage' }]} />

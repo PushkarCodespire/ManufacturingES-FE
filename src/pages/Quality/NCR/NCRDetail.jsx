@@ -5,15 +5,36 @@ import {
   Tabs, Form, Select, DatePicker, Input, Popconfirm, Alert,
 } from 'antd';
 import {
-  ArrowLeftOutlined, RightOutlined, CheckCircleOutlined, LinkOutlined,
+  ArrowLeftOutlined, RightOutlined, CheckCircleOutlined, LinkOutlined, BulbOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import AppLayout    from '../../../components/AppLayout';
-import usePermissions from '../../../hooks/usePermissions';
-import { ncrApi }   from '../../../api/quality.api';
+import AppLayout          from '../../../components/AppLayout';
+import usePermissions     from '../../../hooks/usePermissions';
+import { ncrApi }         from '../../../api/quality.api';
+import aiApi              from '../../../api/ai.api';
+import useAiSuggestion    from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard   from '../../../components/AiSuggestion/AiSuggestionCard';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
+
+/**
+ * Backend sometimes returns ai_insight as { raw_text: "```json\n{...}\n```" }
+ * instead of a pre-parsed object. This helper normalises both cases.
+ */
+const parseInsight = (raw) => {
+  if (!raw || typeof raw !== 'object') return {};
+  if (!raw.raw_text) return raw; // already a parsed object
+  try {
+    const clean = raw.raw_text
+      .replace(/^```json\s*/i, '')
+      .replace(/\s*```\s*$/, '')
+      .trim();
+    return JSON.parse(clean);
+  } catch {
+    return raw;
+  }
+};
 
 const STATUS_COLOR   = {
   raised: 'orange', under_review: 'blue', dispositioned: 'purple', closed: 'green', cancelled: 'default',
@@ -49,12 +70,15 @@ export default function NCRDetailPage() {
   const [decision, setDecision] = useState(null);
   const [form]                  = Form.useForm();
 
+  // ── AI: Root-cause suggestion ───────────────────────────────────────────────
+  const aiSuggest = useAiSuggestion(aiApi.getNcrAiSuggestion);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const data = await ncrApi.getById(id);
       setNcr(data);
-    } catch { message.error('Failed to load NCR'); }
+    } catch (err) { message.error(err?.message || 'Failed to load NCR'); }
     finally   { setLoading(false); }
   }, [id]);
 
@@ -100,41 +124,176 @@ export default function NCRDetailPage() {
       key:      'details',
       label:    'NCR Details',
       children: (
-        <Card
-          style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
-          bodyStyle={{ padding: '16px 20px' }}
-        >
-          <Descriptions bordered size="small" column={2}>
-            <Descriptions.Item label="NCR No.">{ncr.ncr_no}</Descriptions.Item>
-            <Descriptions.Item label="Type">
-              <Tag color={NCR_TYPE_COLOR[ncr.ncr_type] ?? 'default'}>{ncr.ncr_type}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Location Found">
-              {LOCATION_LABELS[ncr.location_found] ?? ncr.location_found ?? '—'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Status">
-              <Tag color={STATUS_COLOR[ncr.status] ?? 'default'}>{ncr.status?.replace(/_/g, ' ')}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Part / Item">
-              {ncr.Item ? `${ncr.Item.code} — ${ncr.Item.name}` : '—'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Raised By">{ncr.RaisedBy?.name ?? '—'}</Descriptions.Item>
-            <Descriptions.Item label="Lot No.">{ncr.lot_no || '—'}</Descriptions.Item>
-            <Descriptions.Item label="Qty Affected">{ncr.qty_affected ?? '—'}</Descriptions.Item>
-            <Descriptions.Item label="Cost / Unit">
-              {ncr.cost_per_unit ? `₹ ${parseFloat(ncr.cost_per_unit).toLocaleString('en-IN')}` : '—'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Total Cost (Est.)">
-              {totalCost > 0 ? `₹ ${totalCost.toLocaleString('en-IN')}` : '—'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Defect Description" span={2}>
-              {ncr.defect_desc || '—'}
-            </Descriptions.Item>
-            {ncr.notes && (
-              <Descriptions.Item label="Notes" span={2}>{ncr.notes}</Descriptions.Item>
-            )}
-          </Descriptions>
-        </Card>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Card
+            style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+            bodyStyle={{ padding: '16px 20px' }}
+          >
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="NCR No.">{ncr.ncr_no}</Descriptions.Item>
+              <Descriptions.Item label="Type">
+                <Tag color={NCR_TYPE_COLOR[ncr.ncr_type] ?? 'default'}>{ncr.ncr_type}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Location Found">
+                {LOCATION_LABELS[ncr.location_found] ?? ncr.location_found ?? '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Status">
+                <Tag color={STATUS_COLOR[ncr.status] ?? 'default'}>{ncr.status?.replace(/_/g, ' ')}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Part / Item">
+                {ncr.Item ? `${ncr.Item.code} — ${ncr.Item.name}` : '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Raised By">{ncr.RaisedBy?.name ?? '—'}</Descriptions.Item>
+              <Descriptions.Item label="Lot No.">{ncr.lot_no || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Qty Affected">{ncr.qty_affected ?? '—'}</Descriptions.Item>
+              <Descriptions.Item label="Cost / Unit">
+                {ncr.cost_per_unit ? `₹ ${parseFloat(ncr.cost_per_unit).toLocaleString('en-IN')}` : '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Total Cost (Est.)">
+                {totalCost > 0 ? `₹ ${totalCost.toLocaleString('en-IN')}` : '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Defect Description" span={2}>
+                {ncr.defect_desc || '—'}
+              </Descriptions.Item>
+              {ncr.notes && (
+                <Descriptions.Item label="Notes" span={2}>{ncr.notes}</Descriptions.Item>
+              )}
+            </Descriptions>
+          </Card>
+
+          {/* ── AI Root-Cause Suggestion ──────────────────────────────────── */}
+          {!aiSuggest.data && !aiSuggest.loading && !aiSuggest.error && (
+            <Button
+              icon={<BulbOutlined />}
+              onClick={() => aiSuggest.fetch(id)}
+              style={{ alignSelf: 'flex-start', borderColor: '#1677ff', color: '#1677ff' }}
+            >
+              AI Root-Cause Suggestion
+            </Button>
+          )}
+
+          {(aiSuggest.data || aiSuggest.loading || aiSuggest.error) && (
+            <AiSuggestionCard
+              title="Madad AI — Root Cause Analysis"
+              loading={aiSuggest.loading}
+              error={aiSuggest.error}
+              aiAvailable={aiSuggest.aiAvailable}
+              cached={aiSuggest.cached}
+              onDismiss={() => aiSuggest.reset()}
+              onRetry={() => aiSuggest.fetch(id)}
+            >
+              {aiSuggest.data && (() => {
+                // axios interceptor unwraps res.data; ai.api.js then calls .then(r=>r.data)
+                // so the hook stores the inner data object directly — no extra .data needed
+                const d       = aiSuggest.data;
+                const insight = parseInsight(d.ai_insight);
+                const CONF_COLOR = { high: 'green', medium: 'orange', low: 'red' };
+                const RISK_COLOR = { high: 'red', medium: 'orange', low: 'green' };
+                const rootCauses     = insight.likely_root_causes ?? [];
+                const factors        = insight.contributing_factors ?? [];
+                const actions        = insight.recommended_corrective_actions ?? [];
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {/* Summary tags */}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {insight.confidence && (
+                        <Tag color={CONF_COLOR[insight.confidence] ?? 'default'} style={{ fontSize: 12 }}>
+                          Confidence: {insight.confidence}
+                        </Tag>
+                      )}
+                      {insight.recurrence_risk && (
+                        <Tag color={RISK_COLOR[insight.recurrence_risk] ?? 'default'} style={{ fontSize: 12 }}>
+                          Recurrence Risk: {insight.recurrence_risk}
+                        </Tag>
+                      )}
+                      {d.history_count > 0 && (
+                        <Tag color="orange" style={{ fontSize: 12 }}>
+                          {d.history_count} similar NCR{d.history_count > 1 ? 's' : ''} found
+                        </Tag>
+                      )}
+                    </div>
+
+                    {/* Likely root causes */}
+                    {rootCauses.length > 0 && (
+                      <div>
+                        <Text style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
+                          Likely Root Causes:
+                        </Text>
+                        <div style={{
+                          marginTop: 4, padding: '8px 12px', background: '#fff',
+                          borderRadius: 6, border: '1px solid #dbeafe',
+                        }}>
+                          {rootCauses.map((c, i) => (
+                            <div key={i} style={{ fontSize: 13, color: '#1e40af', lineHeight: 1.7 }}>
+                              {i + 1}. {c}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Contributing factors */}
+                    {factors.length > 0 && (
+                      <div>
+                        <Text style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
+                          Contributing Factors:
+                        </Text>
+                        <div style={{
+                          marginTop: 4, padding: '8px 12px', background: '#fff',
+                          borderRadius: 6, border: '1px solid #fef3c7',
+                        }}>
+                          {factors.map((f, i) => (
+                            <div key={i} style={{ fontSize: 13, color: '#92400e', lineHeight: 1.7 }}>
+                              {i + 1}. {f}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recommended actions */}
+                    {actions.length > 0 && (
+                      <div>
+                        <Text style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
+                          Recommended Corrective Actions:
+                        </Text>
+                        <div style={{
+                          marginTop: 4, padding: '8px 12px', background: '#fff',
+                          borderRadius: 6, border: '1px solid #dcfce7',
+                        }}>
+                          {actions.map((a, i) => (
+                            <div key={i} style={{ fontSize: 13, color: '#166534', lineHeight: 1.7 }}>
+                              {i + 1}. {a}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Notes */}
+                    {insight.notes && (
+                      <div>
+                        <Text style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>Notes:</Text>
+                        <div style={{
+                          marginTop: 4, padding: '8px 12px', background: '#fff',
+                          borderRadius: 6, border: '1px solid #e5e7eb',
+                          fontSize: 13, color: '#374151', lineHeight: 1.6,
+                        }}>
+                          {insight.notes}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* AI unavailable / error fallback */}
+                    {d.ai_error && (
+                      <Text type="secondary" style={{ fontSize: 12 }}>AI note: {d.ai_error}</Text>
+                    )}
+                  </div>
+                );
+              })()}
+            </AiSuggestionCard>
+          )}
+        </div>
       ),
     },
 

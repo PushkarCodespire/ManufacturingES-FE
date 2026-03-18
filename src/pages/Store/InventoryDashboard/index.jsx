@@ -57,7 +57,7 @@ export default function InventoryDashboardPage() {
     try {
       const res = await inventoryApi.getDashboard();
       setDashboard(res?.data ?? null);
-    } catch { message.error('Failed to load dashboard'); }
+    } catch (err) { message.error(err?.message || 'Failed to load dashboard'); }
     finally { setDashLoading(false); }
   }, []);
 
@@ -71,7 +71,7 @@ export default function InventoryDashboardPage() {
       if (ageWarehouse) params.warehouse_id = ageWarehouse;
       const res = await inventoryApi.getStockAge(params);
       setStockAge({ data: res?.data ?? [], summary: res?.summary ?? {} });
-    } catch { message.error('Failed to load stock age'); }
+    } catch (err) { message.error(err?.message || 'Failed to load stock age'); }
     finally { setAgeLoading(false); }
   }, [ageWarehouse]);
 
@@ -85,7 +85,7 @@ export default function InventoryDashboardPage() {
     try {
       const res = await inventoryApi.getDeadStock({ days: deadDays });
       setDeadStock({ data: res?.data ?? [], summary: res?.summary ?? {} });
-    } catch { message.error('Failed to load dead stock'); }
+    } catch (err) { message.error(err?.message || 'Failed to load dead stock'); }
     finally { setDeadLoading(false); }
   }, [deadDays]);
 

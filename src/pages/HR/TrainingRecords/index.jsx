@@ -6,6 +6,7 @@ import {
 import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, EditOutlined,
   ArrowLeftOutlined, SearchOutlined, RightOutlined, FileTextOutlined,
+  BulbOutlined, AlertOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { trainingRecordApi }  from '../../../api/trainingRecord.api';
@@ -13,8 +14,26 @@ import { trainingTopicApi }   from '../../../api/trainingTopic.api';
 import AppLayout              from '../../../components/AppLayout';
 import { useAuth }           from '../../../context/AuthContext';
 import api                    from '../../../api/axios';
+import aiApi                  from '../../../api/ai.api';
+import useAiSuggestion        from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard       from '../../../components/AiSuggestion/AiSuggestionCard';
 
 const { Title, Text } = Typography;
+
+const parseInsight = (raw) => {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !raw.raw_text) return raw;
+  const text = raw.raw_text ?? raw;
+  if (typeof text !== 'string') return raw;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]+?)```/i);
+  if (fenced) { try { return JSON.parse(fenced[1].trim()); } catch {} }
+  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/```[\s\S]*$/, '').trim();
+  try { return JSON.parse(stripped); } catch {}
+  try { return JSON.parse(text.trim()); } catch {}
+  return null;
+};
+
+const COMPLIANCE_RISK_COLOR = { low: 'green', medium: 'orange', high: 'red', critical: 'red' };
 
 const STATUS_COLORS  = { active: 'green', expiring_soon: 'orange', expired: 'red' };
 const STATUS_LABELS  = { active: 'Active', expiring_soon: 'Expiring Soon', expired: 'Expired' };
@@ -23,7 +42,7 @@ const EVAL_COLORS    = { pending: 'default', effective: 'green', partially_effec
 const fmtDate = (iso) => (iso ? dayjs(iso).format('DD MMM YYYY') : '—');
 
 // ── LIST VIEW ────────────────────────────────────────────────────────────────
-const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWrite, filters, setFilters, employees, topics }) => {
+const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWrite, filters, setFilters, employees, topics, aiSkillGap, onFetchSkillGap, aiCardVisible, setAiCardVisible }) => {
   const base = [
     {
       title: 'Employee', key: 'employee', width: 160,
@@ -114,6 +133,84 @@ const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWri
 
   return (
     <div>
+      {/* AI Skill Gap Panel */}
+      {aiCardVisible ? (
+        <AiSuggestionCard
+          title="AI Skill Gap Analysis"
+          loading={aiSkillGap?.loading}
+          error={aiSkillGap?.error}
+          aiAvailable={aiSkillGap?.aiAvailable}
+          cached={aiSkillGap?.cached}
+          onRetry={onFetchSkillGap}
+          onDismiss={() => setAiCardVisible(false)}
+          style={{ marginBottom: 20 }}
+        >
+          {(() => {
+            const d = aiSkillGap?.data;
+            const insight = parseInsight(d?.ai_insight);
+            if (!insight) return null;
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Risk badges */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Tag color={COMPLIANCE_RISK_COLOR[insight.compliance_risk] || 'default'} style={{ fontWeight: 600 }}>
+                    Compliance Risk: {String(insight.compliance_risk || '—').toUpperCase()}
+                  </Tag>
+                  <Tag color="purple">Confidence: {insight.confidence || '—'}</Tag>
+                </div>
+
+                {/* Gap summary */}
+                {insight.gap_summary && (
+                  <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
+                    {insight.gap_summary}
+                  </div>
+                )}
+
+                {/* Highest priority roles */}
+                {Array.isArray(insight.highest_priority_roles) && insight.highest_priority_roles.length > 0 && (
+                  <div>
+                    <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>Highest Priority Roles</Text>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {insight.highest_priority_roles.map((r, i) => <Tag key={i} color="red">{r}</Tag>)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Critical topics */}
+                {Array.isArray(insight.critical_topics_to_schedule) && insight.critical_topics_to_schedule.length > 0 && (
+                  <div>
+                    <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>Critical Topics to Schedule</Text>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {insight.critical_topics_to_schedule.map((t, i) => <Tag key={i} color="orange">{t}</Tag>)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Immediate actions */}
+                {Array.isArray(insight.immediate_actions) && insight.immediate_actions.length > 0 && (
+                  <div>
+                    <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>Immediate Actions</Text>
+                    <ul style={{ margin: 0, paddingLeft: 20, color: '#dc2626', fontSize: 13 }}>
+                      {insight.immediate_actions.map((a, i) => <li key={i} style={{ marginBottom: 3 }}>{a}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Recommended training calendar */}
+                {Array.isArray(insight.recommended_training_calendar) && insight.recommended_training_calendar.length > 0 && (
+                  <div>
+                    <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>Recommended Training Calendar</Text>
+                    <ul style={{ margin: 0, paddingLeft: 20, color: '#16a34a', fontSize: 13 }}>
+                      {insight.recommended_training_calendar.map((c, i) => <li key={i} style={{ marginBottom: 3 }}>{c}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </AiSuggestionCard>
+      ) : null}
+
       {/* Summary chips */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
         {[
@@ -166,6 +263,16 @@ const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWri
             style={{ width: 150, borderRadius: 8 }}
           />
           <div style={{ flex: 1 }} />
+          {!aiCardVisible && (
+            <Button
+              size="middle"
+              icon={<BulbOutlined style={{ color: '#7c3aed' }} />}
+              style={{ borderColor: '#7c3aed', color: '#7c3aed', borderRadius: 8 }}
+              onClick={() => { setAiCardVisible(true); onFetchSkillGap(); }}
+            >
+              AI Skill Gap
+            </Button>
+          )}
           <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
@@ -360,6 +467,15 @@ const TrainingRecordsPage = () => {
   const [editing,  setEditing]  = useState(null);
   const [filters,  setFilters]  = useState({ search: '', employee_id: null, topic_id: null, status: null });
 
+  // ── AI Skill Gap ───────────────────────────────────────────────────────────
+  const aiSkillGap      = useAiSuggestion(aiApi.getSkillGapAnalysis);
+  const [aiCardVisible, setAiCardVisible] = useState(false);
+
+  const fetchSkillGap = () => {
+    aiSkillGap.reset();
+    aiSkillGap.fetch();
+  };
+
   const fetchBase = useCallback(async () => {
     try {
       const [empRes, topRes] = await Promise.all([
@@ -380,7 +496,7 @@ const TrainingRecordsPage = () => {
       if (filters.status)      params.status      = filters.status;
       const res = await trainingRecordApi.getAll(params);
       setRecords(res?.data ?? res ?? []);
-    } catch { message.error('Failed to load records'); }
+    } catch (err) { message.error(err?.message || 'Failed to load records'); }
     finally { setLoading(false); }
   }, [filters.employee_id, filters.topic_id, filters.status]);
 
@@ -431,6 +547,10 @@ const TrainingRecordsPage = () => {
           setFilters={setFilters}
           employees={employees}
           topics={topics}
+          aiSkillGap={aiSkillGap}
+          onFetchSkillGap={fetchSkillGap}
+          aiCardVisible={aiCardVisible}
+          setAiCardVisible={setAiCardVisible}
         />
       ) : (
         <RecordFormView

@@ -2,20 +2,38 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Drawer,
   Form, Select, DatePicker, InputNumber, Divider, message, Tooltip,
-  Popconfirm, Row, Col, Statistic, Tabs, Progress,
+  Popconfirm, Row, Col, Statistic, Tabs, Progress, Alert,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined,
-  SafetyCertificateOutlined,
+  SafetyCertificateOutlined, BulbOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import AppLayout      from '../../../components/AppLayout';
-import usePermissions from '../../../hooks/usePermissions';
-import { instrumentApi } from '../../../api/quality.api';
+import AppLayout           from '../../../components/AppLayout';
+import usePermissions      from '../../../hooks/usePermissions';
+import useAiSuggestion     from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard    from '../../../components/AiSuggestion/AiSuggestionCard';
+import { instrumentApi }   from '../../../api/quality.api';
+import aiApi               from '../../../api/ai.api';
 
 const { Title, Text } = Typography;
+
+const parseInsight = (raw) => {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !raw.raw_text) return raw;
+  const text = raw.raw_text ?? raw;
+  if (typeof text !== 'string') return raw;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]+?)```/i);
+  if (fenced) { try { return JSON.parse(fenced[1].trim()); } catch {} }
+  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/```[\s\S]*$/, '').trim();
+  try { return JSON.parse(stripped); } catch {}
+  try { return JSON.parse(text.trim()); } catch {}
+  return null;
+};
+
+const RISK_COLOR = { low: 'green', medium: 'orange', high: 'red', critical: 'red' };
 
 // ── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -68,6 +86,10 @@ export default function InstrumentsPage() {
   const [verStatus, setVerStatus] = useState({ data: [], summary: {} });
   const [verLoading, setVerLoading] = useState(false);
 
+  // ── AI Calibration Forecast ────────────────────────────────────────────────
+  const aiCalib    = useAiSuggestion(aiApi.getCalibrationForecast);
+  const [aiCardVisible, setAiCardVisible] = useState(false);
+
   // ── Load instruments ───────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,7 +100,7 @@ export default function InstrumentsPage() {
       if (categoryFilter) params.category = categoryFilter;
       const data = await instrumentApi.getAll(params);
       setInstruments(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load instruments'); }
+    } catch (err) { message.error(err?.message || 'Failed to load instruments'); }
     finally { setLoading(false); }
   }, [search, statusFilter, categoryFilter]);
 
@@ -90,7 +112,7 @@ export default function InstrumentsPage() {
     try {
       const res = await instrumentApi.getVerificationStatus();
       setVerStatus({ data: res?.data ?? [], summary: res?.summary ?? {} });
-    } catch { message.error('Failed to load verification status'); }
+    } catch (err) { message.error(err?.message || 'Failed to load verification status'); }
     finally { setVerLoading(false); }
   }, []);
 
@@ -282,11 +304,96 @@ export default function InstrumentsPage() {
   // ── Tab: List ──────────────────────────────────────────────────────────────
   const tabList = (
     <>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
         <Tag color="blue">Total: {total}</Tag>
         <Tag color="green">Active: {active}</Tag>
         {overdue > 0 && <Tag color="red">Overdue: {overdue}</Tag>}
+        <div style={{ flex: 1 }} />
+        {!aiCardVisible && (
+          <Button
+            size="small"
+            icon={<BulbOutlined style={{ color: '#7c3aed' }} />}
+            style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
+            onClick={() => {
+              setAiCardVisible(true);
+              aiCalib.reset();
+              aiCalib.fetch();
+            }}
+          >
+            AI Calibration Forecast
+          </Button>
+        )}
       </div>
+
+      {aiCardVisible && (
+        <AiSuggestionCard
+          title="AI Calibration Forecast"
+          loading={aiCalib.loading}
+          error={aiCalib.error}
+          aiAvailable={aiCalib.aiAvailable}
+          cached={aiCalib.cached}
+          onRetry={() => { aiCalib.reset(); aiCalib.fetch(); }}
+          onDismiss={() => setAiCardVisible(false)}
+          style={{ marginBottom: 16 }}
+        >
+          {(() => {
+            const d = aiCalib.data;
+            const insight = parseInsight(d?.ai_insight);
+            if (!insight) return null;
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Risk / context tags */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Tag color={RISK_COLOR[insight.risk_level] || 'default'} style={{ fontWeight: 600 }}>
+                    Risk: {String(insight.risk_level || '—').toUpperCase()}
+                  </Tag>
+                  <Tag color="purple">Confidence: {insight.confidence || '—'}</Tag>
+                  {insight.compliance_risk && <Tag color="red">Compliance Risk</Tag>}
+                </div>
+
+                {/* Fleet health summary */}
+                {insight.fleet_health_summary && (
+                  <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
+                    {insight.fleet_health_summary}
+                  </div>
+                )}
+
+                {/* Instruments to prioritise */}
+                {Array.isArray(insight.instruments_to_prioritise) && insight.instruments_to_prioritise.length > 0 && (
+                  <div>
+                    <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>Instruments to Prioritise</Text>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {insight.instruments_to_prioritise.map((inst, i) => (
+                        <Tag key={i} color="orange">{inst}</Tag>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Immediate actions */}
+                {Array.isArray(insight.immediate_actions) && insight.immediate_actions.length > 0 && (
+                  <div>
+                    <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>Immediate Actions</Text>
+                    <ul style={{ margin: 0, paddingLeft: 20, color: '#dc2626', fontSize: 13 }}>
+                      {insight.immediate_actions.map((a, i) => <li key={i} style={{ marginBottom: 3 }}>{a}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Scheduling recommendations */}
+                {Array.isArray(insight.scheduling_recommendations) && insight.scheduling_recommendations.length > 0 && (
+                  <div>
+                    <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>Scheduling Recommendations</Text>
+                    <ul style={{ margin: 0, paddingLeft: 20, color: '#16a34a', fontSize: 13 }}>
+                      {insight.scheduling_recommendations.map((r, i) => <li key={i} style={{ marginBottom: 3 }}>{r}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </AiSuggestionCard>
+      )}
 
       <Card
         style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}

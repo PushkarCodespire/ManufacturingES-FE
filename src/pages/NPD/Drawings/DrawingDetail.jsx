@@ -44,7 +44,7 @@ export default function DrawingDetailPage() {
     try {
       const data = await drawingApi.getById(id);
       setDrawing(data);
-    } catch { message.error('Failed to load drawing'); }
+    } catch (err) { message.error(err?.message || 'Failed to load drawing'); }
     finally   { setLoading(false); }
   }, [id]);
 

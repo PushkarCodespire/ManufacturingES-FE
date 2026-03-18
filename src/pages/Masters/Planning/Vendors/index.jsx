@@ -591,8 +591,8 @@ const VendorsPage = () => {
     try {
       const data = await vendorApi.getAll(search ? { search } : {});
       setVendors(data ?? []);
-    } catch {
-      message.error('Failed to load vendors');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load vendors');
     } finally {
       setLoading(false);
     }
@@ -612,8 +612,8 @@ const VendorsPage = () => {
           await vendorApi.delete(record.id);
           message.success(`${record.name} deleted`);
           fetchVendors();
-        } catch {
-          message.error('Failed to delete partner');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete partner');
         }
       },
     });

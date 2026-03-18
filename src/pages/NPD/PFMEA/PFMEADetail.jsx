@@ -62,7 +62,7 @@ export default function PFMEADetailPage() {
     try {
       const data = await pfmeaApi.getById(id);
       setPfmea(data);
-    } catch { message.error('Failed to load PFMEA'); }
+    } catch (err) { message.error(err?.message || 'Failed to load PFMEA'); }
     finally   { setLoading(false); }
   }, [id]);
 

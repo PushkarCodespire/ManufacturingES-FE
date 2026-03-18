@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Table, Button, Form, Input, InputNumber,
-  TimePicker, Modal, message, Tooltip, Space, Card,
+  TimePicker, Modal, message, Tooltip, Space, Card, Tag,
 } from 'antd';
 import {
   PlusOutlined,
@@ -239,14 +239,28 @@ const ShiftFormView = ({ shift, onBack, onSaved }) => {
     if (isEdit) {
       form.setFieldsValue({
         name:                 shift.name,
-        time_range: [
-          dayjs(shift.start_time, 'HH:mm'),
-          dayjs(shift.end_time,   'HH:mm'),
-        ],
+        start_time:           dayjs(shift.start_time, 'HH:mm'),
+        end_time:             dayjs(shift.end_time,   'HH:mm'),
         lunch_break_duration: shift.lunch_break_duration ?? 0,
       });
     }
   }, [shift, form, isEdit]);
+
+  // Computed display values for the shift duration badge
+  const watchStart = Form.useWatch('start_time', form);
+  const watchEnd   = Form.useWatch('end_time',   form);
+  const shiftInfo  = (() => {
+    if (!watchStart || !watchEnd) return null;
+    const startMins = watchStart.hour() * 60 + watchStart.minute();
+    const endMins   = watchEnd.hour()   * 60 + watchEnd.minute();
+    const durationMins = endMins > startMins
+      ? endMins - startMins                     // same-day shift
+      : (24 * 60 - startMins) + endMins;        // overnight shift
+    const hrs  = Math.floor(durationMins / 60);
+    const mins = durationMins % 60;
+    const overnight = endMins <= startMins;
+    return { durationMins, label: `${hrs}h${mins ? ` ${mins}m` : ''}`, overnight };
+  })();
 
   const handleSubmit = async () => {
     let values;
@@ -258,8 +272,8 @@ const ShiftFormView = ({ shift, onBack, onSaved }) => {
 
     const payload = {
       name:                 values.name,
-      start_time:           values.time_range[0].format('HH:mm'),
-      end_time:             values.time_range[1].format('HH:mm'),
+      start_time:           values.start_time.format('HH:mm'),
+      end_time:             values.end_time.format('HH:mm'),
       lunch_break_duration: values.lunch_break_duration ?? 0,
     };
 
@@ -329,25 +343,60 @@ const ShiftFormView = ({ shift, onBack, onSaved }) => {
               <Input placeholder="e.g. Day Shift" />
             </Form.Item>
 
-            {/* Start / End Time */}
+            {/* Start Time */}
             <Form.Item
-              name="time_range"
+              name="start_time"
               label={
-                <span style={{ color: '#374151', fontWeight: 500, fontSize: 13 }}>
-                  Start Time / End Time*
-                </span>
+                <span style={{ color: '#374151', fontWeight: 500, fontSize: 13 }}>Start Time*</span>
               }
-              rules={[{ required: true, message: 'Please select start and end time' }]}
-              style={{ flex: '2 1 240px', minWidth: 200, marginBottom: 0 }}
+              rules={[{ required: true, message: 'Please select a start time' }]}
+              style={{ flex: '1 1 140px', minWidth: 130, marginBottom: 0 }}
             >
-              <TimePicker.RangePicker
+              <TimePicker
                 format="HH:mm"
                 minuteStep={5}
                 suffixIcon={<ClockCircleOutlined />}
                 style={{ width: '100%' }}
-                placeholder={['Start', 'End']}
+                placeholder="Start"
               />
             </Form.Item>
+
+            {/* End Time */}
+            <Form.Item
+              name="end_time"
+              label={
+                <span style={{ color: '#374151', fontWeight: 500, fontSize: 13 }}>
+                  End Time*
+                  {shiftInfo?.overnight && (
+                    <Tag color="blue" style={{ marginLeft: 6, fontSize: 10, fontWeight: 400 }}>
+                      +1 day
+                    </Tag>
+                  )}
+                </span>
+              }
+              rules={[{ required: true, message: 'Please select an end time' }]}
+              style={{ flex: '1 1 140px', minWidth: 130, marginBottom: 0 }}
+            >
+              <TimePicker
+                format="HH:mm"
+                minuteStep={5}
+                suffixIcon={<ClockCircleOutlined />}
+                style={{ width: '100%' }}
+                placeholder="End"
+              />
+            </Form.Item>
+
+            {/* Duration badge */}
+            {shiftInfo && (
+              <div style={{ flex: '0 0 auto', paddingBottom: 2, alignSelf: 'flex-end', marginBottom: 0 }}>
+                <Tag
+                  color={shiftInfo.overnight ? 'geekblue' : 'green'}
+                  style={{ fontWeight: 600, fontSize: 12, padding: '3px 10px' }}
+                >
+                  {shiftInfo.overnight ? '🌙 ' : '☀️ '}{shiftInfo.label}
+                </Tag>
+              </div>
+            )}
 
             {/* Lunch / Break Duration */}
             <Form.Item
@@ -414,8 +463,8 @@ const ShiftsPage = () => {
     try {
       const res = await shiftApi.getAll();
       setShifts(res?.data ?? res ?? []);
-    } catch {
-      message.error('Failed to load shifts');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load shifts');
     } finally {
       setLoading(false);
     }

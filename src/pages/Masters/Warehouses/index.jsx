@@ -18,6 +18,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { warehouseApi } from '../../../api/warehouse.api';
+import { vendorApi }    from '../../../api/vendor.api';
 import AppLayout        from '../../../components/AppLayout';
 import usePermissions   from '../../../hooks/usePermissions';
 
@@ -437,6 +438,34 @@ const ItemLevelParamsSection = ({ value = {}, onChange, readOnly = false }) => {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
+//  SHARED HOOK — load vendors + customers for Linked Partner dropdown
+// ══════════════════════════════════════════════════════════════════════════════
+const useLinkedPartnerOptions = () => {
+  const [options,  setOptions]  = useState([]);
+  const [loading,  setLoading]  = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      vendorApi.getAll({ type: 'vendor',   is_active: true }),
+      vendorApi.getAll({ type: 'customer', is_active: true }),
+    ])
+      .then(([v, c]) => {
+        const vendors   = (Array.isArray(v) ? v : (v?.data ?? []));
+        const customers = (Array.isArray(c) ? c : (c?.data ?? []));
+        const groups = [];
+        if (vendors.length)   groups.push({ label: 'Vendors',   options: vendors.map((p)   => ({ label: p.name, value: `vendor:${p.id}` })) });
+        if (customers.length) groups.push({ label: 'Customers', options: customers.map((p) => ({ label: p.name, value: `customer:${p.id}` })) });
+        setOptions(groups);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return { options, loading };
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
 //  ADD WAREHOUSE VIEW
 // ══════════════════════════════════════════════════════════════════════════════
 const AddWarehouseView = ({ onBack, onSaved }) => {
@@ -444,6 +473,7 @@ const AddWarehouseView = ({ onBack, onSaved }) => {
   const [saving, setSaving] = useState(false);
   const [preApprovalParams, setPreApprovalParams] = useState([{ request_type: '', partner_type: '', approval_check: '' }]);
   const [itemLevelParams, setItemLevelParams]     = useState({ approved_tags: [], unapproved_tags: [] });
+  const { options: partnerOptions, loading: partnerLoading } = useLinkedPartnerOptions();
 
   const handleSubmit = async () => {
     let values;
@@ -534,9 +564,19 @@ const AddWarehouseView = ({ onBack, onSaved }) => {
               {/* Linked Partners */}
               <Form.Item
                 name="linked_partners"
-                label={<Text style={{ color: '#374151', fontWeight: 500, fontSize: 13 }}>Linked Partners</Text>}
+                label={<Text style={{ color: '#374151', fontWeight: 500, fontSize: 13 }}>Linked Partner <Text style={{ color: '#9ca3af', fontWeight: 400, fontSize: 12 }}>(optional)</Text></Text>}
               >
-                <Input placeholder="" />
+                <Select
+                  showSearch
+                  allowClear
+                  placeholder="Select a vendor or customer"
+                  loading={partnerLoading}
+                  options={partnerOptions}
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  style={{ width: '100%' }}
+                />
               </Form.Item>
 
               {/* Attributes */}
@@ -641,6 +681,7 @@ const DetailView = ({ warehouse, onBack, onSaved, canWrite }) => {
   const [form]                  = Form.useForm();
   const [preApprovalParams, setPreApprovalParams] = useState(warehouse?.pre_approval_params || []);
   const [itemLevelParams, setItemLevelParams]     = useState(warehouse?.item_level_params || { approved_tags: [], unapproved_tags: [] });
+  const { options: partnerOptions, loading: partnerLoading } = useLinkedPartnerOptions();
 
   useEffect(() => {
     if (warehouse) {
@@ -744,6 +785,32 @@ const DetailView = ({ warehouse, onBack, onSaved, canWrite }) => {
           </div>
         </div>
 
+        {/* Linked Partner badge (read-only) */}
+        {warehouse.linked_partners && (() => {
+          const raw  = warehouse.linked_partners;
+          const flat = partnerOptions.flatMap((g) => g.options ?? []);
+          const match = flat.find((o) => o.value === raw);
+          const [ptype] = raw.split(':');
+          const label = match ? match.label : raw;
+          const isCustomer = ptype === 'customer';
+          return (
+            <div style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>Linked Partner</Text>
+              <Badge
+                color={isCustomer ? '#0891b2' : '#7c3aed'}
+                text={
+                  <Text style={{ fontSize: 13, fontWeight: 500 }}>
+                    <Text style={{ color: isCustomer ? '#0891b2' : '#7c3aed', fontSize: 11, marginRight: 4 }}>
+                      [{isCustomer ? 'Customer' : 'Vendor'}]
+                    </Text>
+                    {label}
+                  </Text>
+                }
+              />
+            </div>
+          );
+        })()}
+
         {/* Content */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <PreApprovalParamsSection
@@ -822,9 +889,19 @@ const DetailView = ({ warehouse, onBack, onSaved, canWrite }) => {
 
               <Form.Item
                 name="linked_partners"
-                label={<Text style={{ color: '#374151', fontWeight: 500, fontSize: 13 }}>Linked Partners</Text>}
+                label={<Text style={{ color: '#374151', fontWeight: 500, fontSize: 13 }}>Linked Partner <Text style={{ color: '#9ca3af', fontWeight: 400, fontSize: 12 }}>(optional)</Text></Text>}
               >
-                <Input />
+                <Select
+                  showSearch
+                  allowClear
+                  placeholder="Select a vendor or customer"
+                  loading={partnerLoading}
+                  options={partnerOptions}
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  style={{ width: '100%' }}
+                />
               </Form.Item>
 
               <div style={{ marginBottom: 24 }}>
@@ -929,8 +1006,8 @@ const WarehousesPage = () => {
     try {
       const res = await warehouseApi.getAll(search ? { search } : {});
       setWarehouses(res?.data ?? res ?? []);
-    } catch {
-      message.error('Failed to load warehouses');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load warehouses');
     } finally {
       setLoading(false);
     }
@@ -966,8 +1043,8 @@ const WarehousesPage = () => {
       const res = await warehouseApi.getById(record.id);
       setSelectedWarehouse(res?.data ?? res);
       setView('detail');
-    } catch {
-      message.error('Failed to load warehouse details');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load warehouse details');
     }
   };
 

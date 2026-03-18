@@ -24,6 +24,13 @@ import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionC
 
 const { Title, Text } = Typography;
 
+// ── Price helpers ──────────────────────────────────────────────────────────────
+const calcBase = (qty, price, disc) =>
+  parseFloat(((qty || 0) * (price || 0) * (1 - (disc || 0) / 100)).toFixed(2));
+
+const calcTotal = (qty, price, disc, gst) =>
+  parseFloat((calcBase(qty, price, disc) * (1 + (gst || 0) / 100)).toFixed(2));
+
 const STATUS_CONFIG = {
   active:        { color: 'blue',    label: 'Active'        },
   in_production: { color: 'orange',  label: 'In Production' },
@@ -36,7 +43,8 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v
 
 const emptyItem = () => ({
   _key: Date.now() + Math.random(),
-  item_id: null, description: '', qty_ordered: 1, unit: 'pcs', unit_price: 0, gst_rate: 18, total_price: 0,
+  item_id: null, description: '', qty_ordered: 1, unit: 'pcs',
+  unit_price: 0, discount: 0, gst_rate: 18, total_price: 0,
 });
 
 export default function CustomerPOPage() {
@@ -99,7 +107,7 @@ export default function CustomerPOPage() {
       if (statusFilter) params.status = statusFilter;
       const data = await customerOrderApi.getAll(params);
       setOrders(data);
-    } catch { message.error('Failed to load orders'); }
+    } catch (err) { message.error(err?.message || 'Failed to load orders'); }
     finally { setLoading(false); }
   }, [search, statusFilter]);
 
@@ -144,6 +152,7 @@ export default function CustomerPOPage() {
       qty_ordered:  parseFloat(it.qty_ordered) || 1,
       unit:         it.unit || 'pcs',
       unit_price:   parseFloat(it.unit_price) || 0,
+      discount:     parseFloat(it.discount) || 0,
       gst_rate:     parseFloat(it.gst_rate) || 18,
       total_price:  parseFloat(it.total_price) || 0,
     })));
@@ -164,6 +173,7 @@ export default function CustomerPOPage() {
           qty_ordered: parseFloat(it.qty) || 1,
           unit:        it.unit || 'pcs',
           unit_price:  parseFloat(it.unit_price) || 0,
+          discount:    parseFloat(it.discount) || 0,
           gst_rate:    parseFloat(it.gst_rate) || 18,
           total_price: parseFloat(it.total_price) || 0,
         })));
@@ -171,7 +181,14 @@ export default function CustomerPOPage() {
     }
   };
 
-  const grandTotal = lineItems.reduce((s, r) => s + (r.qty_ordered || 0) * (r.unit_price || 0), 0);
+  const grossTotal  = parseFloat((lineItems.reduce((s, r) => s + (r.qty_ordered || 0) * (r.unit_price || 0), 0)).toFixed(2));
+  const discountAmt = parseFloat((lineItems.reduce((s, r) => s + (r.qty_ordered || 0) * (r.unit_price || 0) * (r.discount || 0) / 100, 0)).toFixed(2));
+  const subtotal    = parseFloat((grossTotal - discountAmt).toFixed(2));
+  const gstAmount   = parseFloat((lineItems.reduce((s, r) => {
+    const base = calcBase(r.qty_ordered, r.unit_price, r.discount);
+    return s + base * (r.gst_rate || 0) / 100;
+  }, 0)).toFixed(2));
+  const grandTotal  = parseFloat((subtotal + gstAmount).toFixed(2));
 
   const onSave = async () => {
     try {
@@ -189,7 +206,7 @@ export default function CustomerPOPage() {
         ...(editing && { status: vals.status }),
         items: lineItems.map(({ _key, ...it }) => ({
           ...it,
-          total_price: parseFloat(((it.qty_ordered || 0) * (it.unit_price || 0)).toFixed(4)),
+          total_price: calcTotal(it.qty_ordered, it.unit_price, it.discount, it.gst_rate),
         })),
       };
       if (editing) {
@@ -414,7 +431,25 @@ export default function CustomerPOPage() {
         width={820}
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text strong>Total: ₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                Gross: ₹{grossTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                {discountAmt > 0 && (
+                  <span style={{ marginLeft: 12, color: '#dc2626' }}>
+                    Discount: −₹{discountAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                )}
+                <span style={{ marginLeft: 12 }}>
+                  Subtotal: ₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+                <span style={{ marginLeft: 12 }}>
+                  GST: ₹{gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </Text>
+              <Text strong style={{ fontSize: 14 }}>
+                Grand Total (incl. GST): ₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </Text>
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
               {canWrite && (
@@ -514,14 +549,16 @@ export default function CustomerPOPage() {
             Order Items
           </Divider>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '180px 100px 60px 80px 90px 70px 32px', gap: 6, marginBottom: 6 }}>
-            {['Item', 'Description', 'Qty', 'Unit', 'Unit Price', 'GST %', ''].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '180px 100px 55px 65px 80px 55px 55px 85px 32px', gap: 6, marginBottom: 6 }}>
+            {['Item', 'Description', 'Qty', 'Unit', 'Unit Price', 'Disc %', 'GST %', 'Total (₹)', ''].map((h) => (
               <Text key={h} style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>{h}</Text>
             ))}
           </div>
 
-          {lineItems.map((row) => (
-            <div key={row._key} style={{ display: 'grid', gridTemplateColumns: '180px 100px 60px 80px 90px 70px 32px', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+          {lineItems.map((row) => {
+            const rowTotal = calcTotal(row.qty_ordered, row.unit_price, row.discount, row.gst_rate);
+            return (
+            <div key={row._key} style={{ display: 'grid', gridTemplateColumns: '180px 100px 55px 65px 80px 55px 55px 85px 32px', gap: 6, marginBottom: 8, alignItems: 'center' }}>
               <Select size="small" showSearch allowClear optionFilterProp="label"
                 value={row.item_id} placeholder="Item" onChange={(v) => onItemSelect(row._key, v)}
                 options={items.map((i) => ({ value: i.id, label: `${i.name}` }))}
@@ -534,12 +571,18 @@ export default function CustomerPOPage() {
                 onChange={(e) => updateLine(row._key, 'unit', e.target.value)} />
               <InputNumber size="small" min={0} precision={2} value={row.unit_price}
                 onChange={(v) => updateLine(row._key, 'unit_price', v)} style={{ width: '100%' }} />
+              <InputNumber size="small" min={0} max={100} precision={1} value={row.discount}
+                onChange={(v) => updateLine(row._key, 'discount', v)} style={{ width: '100%' }} />
               <InputNumber size="small" min={0} precision={1} value={row.gst_rate}
                 onChange={(v) => updateLine(row._key, 'gst_rate', v)} style={{ width: '100%' }} />
+              <Text style={{ fontSize: 12, fontWeight: 600, color: '#111827', textAlign: 'right' }}>
+                ₹{rowTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </Text>
               <Button size="small" type="text" danger icon={<MinusCircleOutlined />}
                 onClick={() => removeLine(row._key)} disabled={lineItems.length === 1} />
             </div>
-          ))}
+            );
+          })}
 
           <Button type="dashed" onClick={addLine} icon={<PlusCircleOutlined />} style={{ width: '100%', marginTop: 4 }}>
             Add Item

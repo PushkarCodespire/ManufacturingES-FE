@@ -69,7 +69,7 @@ const DispatchReportsPage = () => {
       ]);
       setOrders(ordersRes?.data ?? ordersRes ?? []);
       setChallans(challansRes?.data ?? challansRes ?? []);
-    } catch { message.error('Failed to load report data'); }
+    } catch (err) { message.error(err?.message || 'Failed to load report data'); }
     finally { setLoading(false); }
   }, [dateRange]);
 

@@ -571,8 +571,8 @@ const CustomFieldsPage = () => {
     try {
       const data = await customFieldApi.getAll();
       setGroups(data ?? []);
-    } catch {
-      message.error('Failed to load custom field groups');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load custom field groups');
     } finally {
       setLoading(false);
     }
@@ -600,8 +600,8 @@ const CustomFieldsPage = () => {
           await customFieldApi.delete(record.id);
           message.success(`"${record.event}" deleted`);
           fetchGroups();
-        } catch {
-          message.error('Failed to delete field group');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete field group');
         }
       },
     });

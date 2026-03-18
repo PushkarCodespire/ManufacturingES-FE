@@ -2,20 +2,37 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Drawer,
   Form, Select, DatePicker, InputNumber, Divider, message, Tooltip,
-  Popconfirm, Badge, Row, Col, Modal,
+  Popconfirm, Badge, Row, Col, Modal, Alert,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
   PlusCircleOutlined, MinusCircleOutlined,
-  SendOutlined, InboxOutlined,
+  SendOutlined, InboxOutlined, BulbOutlined,
+  WarningOutlined, CheckCircleOutlined as CheckCircleFilled,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import AppLayout       from '../../../components/AppLayout';
-import usePermissions  from '../../../hooks/usePermissions';
+import AppLayout            from '../../../components/AppLayout';
+import usePermissions       from '../../../hooks/usePermissions';
 import { purchaseOrderApi } from '../../../api/procurement.api';
 import { vendorApi }        from '../../../api/vendor.api';
 import { itemApi }          from '../../../api/item.api';
+import aiApi                from '../../../api/ai.api';
+import useAiSuggestion      from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionCard';
+
+const parseInsight = (raw) => {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !raw.raw_text) return raw;
+  const text = raw.raw_text ?? raw;
+  if (typeof text !== 'string') return raw;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]+?)```/i);
+  if (fenced) { try { return JSON.parse(fenced[1].trim()); } catch {} }
+  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/```[\s\S]*$/, '').trim();
+  try { return JSON.parse(stripped); } catch {}
+  try { return JSON.parse(text.trim()); } catch {}
+  return null;
+};
 
 const { Title, Text } = Typography;
 
@@ -60,6 +77,23 @@ export default function PurchaseOrdersPage() {
 
   const [form] = Form.useForm();
 
+  // AI state
+  const aiRisk = useAiSuggestion(aiApi.getPoAiRiskFlag);
+  const [aiPoDrawerOpen, setAiPoDrawerOpen] = useState(false);
+  const [aiPoRecord, setAiPoRecord] = useState(null);
+
+  const openAiPoDrawer = (po) => {
+    setAiPoRecord(po);
+    setAiPoDrawerOpen(true);
+    aiRisk.reset();
+    aiRisk.fetch(po.id);
+  };
+  const closeAiPoDrawer = () => {
+    setAiPoDrawerOpen(false);
+    setAiPoRecord(null);
+    aiRisk.reset();
+  };
+
   // ── Load POs ───────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,7 +104,7 @@ export default function PurchaseOrdersPage() {
       if (statusFilter) p.status    = statusFilter;
       const data = await purchaseOrderApi.getAll(p);
       setPOs(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load purchase orders'); }
+    } catch (err) { message.error(err?.message || 'Failed to load purchase orders'); }
     finally { setLoading(false); }
   }, [search, vendorFilter, statusFilter]);
 
@@ -248,6 +282,19 @@ export default function PurchaseOrdersPage() {
     {
       title: 'Created By', key: 'creator', width: 120,
       render: (_, r) => <Text style={{ fontSize: 12 }}>{r.Creator?.name || '—'}</Text>,
+    },
+    {
+      title: 'AI', key: 'ai', width: 54, align: 'center',
+      render: (_, r) => (
+        <Tooltip title="AI Risk Analysis">
+          <Button
+            size="small"
+            icon={<BulbOutlined />}
+            style={{ color: '#7c3aed', borderColor: '#7c3aed' }}
+            onClick={() => openAiPoDrawer(r)}
+          />
+        </Tooltip>
+      ),
     },
     ...(canWrite ? [{
       title: 'Actions', key: 'actions', width: 170,
@@ -604,6 +651,146 @@ export default function PurchaseOrdersPage() {
           ]}
         />
       </Modal>
+      {/* ── AI Risk Drawer ────────────────────────────────────────────────── */}
+      <Drawer
+        title={
+          <Space>
+            <BulbOutlined style={{ color: '#7c3aed' }} />
+            <span>AI Risk Analysis — {aiPoRecord?.po_no}</span>
+          </Space>
+        }
+        open={aiPoDrawerOpen}
+        onClose={closeAiPoDrawer}
+        width={500}
+      >
+        {aiPoRecord && (
+          <>
+            <Space wrap style={{ marginBottom: 16 }}>
+              <Tag color="blue">{aiPoRecord.po_no}</Tag>
+              {aiPoRecord.Vendor && <Tag color="purple">{aiPoRecord.Vendor.name}</Tag>}
+              <Tag color={STATUS_CONFIG[aiPoRecord.status]?.color || 'default'}>
+                {STATUS_CONFIG[aiPoRecord.status]?.label || aiPoRecord.status}
+              </Tag>
+              {aiPoRecord.expected_date && (
+                <Tag>Due: {dayjs(aiPoRecord.expected_date).format('DD MMM YYYY')}</Tag>
+              )}
+            </Space>
+
+            <AiSuggestionCard
+              loading={aiRisk.loading}
+              error={aiRisk.error}
+              aiAvailable={aiRisk.aiAvailable}
+              cached={aiRisk.cached}
+              onRetry={() => aiRisk.fetch(aiPoRecord.id)}
+              onDismiss={closeAiPoDrawer}
+            >
+              {(() => {
+                const d = aiRisk.data;
+                if (!d) return null;
+                const insight = parseInsight(d.ai_insight);
+                if (!insight) return null;
+                return (
+                  <div style={{ fontSize: 13 }}>
+                    {/* Overall risk + confidence */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                      {insight.overall_risk && (
+                        <Tag color={
+                          insight.overall_risk === 'high' ? 'red' :
+                          insight.overall_risk === 'medium' ? 'orange' : 'green'
+                        } style={{ fontWeight: 600 }}>
+                          Overall Risk: {insight.overall_risk?.toUpperCase()}
+                        </Tag>
+                      )}
+                      {insight.delivery_risk && (
+                        <Tag color={
+                          insight.delivery_risk === 'high' ? 'red' :
+                          insight.delivery_risk === 'medium' ? 'orange' : 'green'
+                        }>
+                          Delivery: {insight.delivery_risk}
+                        </Tag>
+                      )}
+                      {insight.confidence && <Tag color="geekblue">Confidence: {insight.confidence}</Tag>}
+                    </div>
+
+                    {/* Context from backend */}
+                    {(d.days_to_delivery != null || d.total_value != null || d.overdue_pos_for_vendor != null) && (
+                      <div style={{
+                        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8,
+                        marginBottom: 12,
+                      }}>
+                        {d.days_to_delivery != null && (
+                          <div style={{ padding: '6px 10px', background: d.days_to_delivery < 0 ? '#fef2f2' : '#f0fdf4', borderRadius: 6, textAlign: 'center' }}>
+                            <div style={{ fontSize: 11, color: '#6b7280' }}>Days to Delivery</div>
+                            <div style={{ fontWeight: 700, color: d.days_to_delivery < 0 ? '#dc2626' : '#166534' }}>
+                              {d.days_to_delivery < 0 ? `${Math.abs(d.days_to_delivery)} overdue` : d.days_to_delivery}
+                            </div>
+                          </div>
+                        )}
+                        {d.total_value != null && (
+                          <div style={{ padding: '6px 10px', background: '#eff6ff', borderRadius: 6, textAlign: 'center' }}>
+                            <div style={{ fontSize: 11, color: '#6b7280' }}>PO Value</div>
+                            <div style={{ fontWeight: 700, color: '#1d4ed8' }}>₹{parseFloat(d.total_value).toLocaleString('en-IN')}</div>
+                          </div>
+                        )}
+                        {d.overdue_pos_for_vendor != null && (
+                          <div style={{ padding: '6px 10px', background: d.overdue_pos_for_vendor > 0 ? '#fff7ed' : '#f0fdf4', borderRadius: 6, textAlign: 'center' }}>
+                            <div style={{ fontSize: 11, color: '#6b7280' }}>Vendor Overdue POs</div>
+                            <div style={{ fontWeight: 700, color: d.overdue_pos_for_vendor > 0 ? '#d97706' : '#166534' }}>
+                              {d.overdue_pos_for_vendor}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Expedite warning */}
+                    {insight.expedite_required && (
+                      <Alert
+                        type="warning"
+                        showIcon
+                        icon={<WarningOutlined />}
+                        message="Expedite Required"
+                        description="This PO requires expedited follow-up with the vendor."
+                        style={{ marginBottom: 12, fontSize: 12 }}
+                      />
+                    )}
+
+                    {/* Risk factors */}
+                    {Array.isArray(insight.risk_factors) && insight.risk_factors.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text strong style={{ fontSize: 12, color: '#374151' }}>Risk Factors</Text>
+                        <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                          {insight.risk_factors.map((item, i) => (
+                            <li key={i} style={{ fontSize: 12, color: '#4b5563', marginBottom: 2 }}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Recommended actions */}
+                    {Array.isArray(insight.recommended_actions) && insight.recommended_actions.length > 0 && (
+                      <div style={{ marginBottom: 4 }}>
+                        <Text strong style={{ fontSize: 12, color: '#374151' }}>Recommended Actions</Text>
+                        <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                          {insight.recommended_actions.map((item, i) => (
+                            <li key={i} style={{ fontSize: 12, color: '#4b5563', marginBottom: 2 }}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {insight.raw_text && (
+                      <div style={{ fontSize: 12, color: '#4b5563', whiteSpace: 'pre-wrap' }}>
+                        {insight.raw_text}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </AiSuggestionCard>
+          </>
+        )}
+      </Drawer>
     </AppLayout>
   );
 }

@@ -51,7 +51,7 @@ export default function CAPAPage() {
     try {
       const data = await capaApi.getAll({ search });
       setRecords(Array.isArray(data) ? data : []);
-    } catch { message.error('Failed to load CAPA records'); }
+    } catch (err) { message.error(err?.message || 'Failed to load CAPA records'); }
     finally   { setLoading(false); }
   }, [search]);
 

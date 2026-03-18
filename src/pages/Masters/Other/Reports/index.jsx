@@ -522,8 +522,8 @@ const ReportsPage = () => {
     try {
       const data = await reportApi.getAll();
       setReports(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch {
-      message.error('Failed to load reports');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load reports');
     } finally {
       setLoading(false);
     }
@@ -543,8 +543,8 @@ const ReportsPage = () => {
           await reportApi.delete(record.id);
           message.success(`"${record.name}" deleted`);
           fetchReports();
-        } catch {
-          message.error('Failed to delete report');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete report');
         }
       },
     });

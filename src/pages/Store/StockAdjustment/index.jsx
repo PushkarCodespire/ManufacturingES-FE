@@ -78,7 +78,7 @@ export default function StockAdjustmentPage() {
       if (statusFilter) params.status = statusFilter;
       const data = await stockAdjustmentApi.getAll(params);
       setAdjustments(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load stock adjustments'); }
+    } catch (err) { message.error(err?.message || 'Failed to load stock adjustments'); }
     finally { setLoading(false); }
   }, [search, statusFilter]);
 

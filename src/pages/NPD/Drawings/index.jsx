@@ -93,7 +93,7 @@ export default function DrawingsPage() {
     try {
       const data = await drawingApi.getAll({ search });
       setRecords(Array.isArray(data) ? data : []);
-    } catch { message.error('Failed to load drawings'); }
+    } catch (err) { message.error(err?.message || 'Failed to load drawings'); }
     finally   { setLoading(false); }
   }, [search]);
 
@@ -120,7 +120,7 @@ export default function DrawingsPage() {
       const url  = toFileUrl(current.file_path);
       const name = current.file_name ?? current.file_path.split('/').pop();
       setPreviewModal({ open: true, url, name });
-    } catch { message.error('Failed to load drawing file'); }
+    } catch (err) { message.error(err?.message || 'Failed to load drawing file'); }
     finally   { setPreviewLoadingId(null); }
   };
 

@@ -36,8 +36,8 @@ const ModuleTogglesTab = () => {
     try {
       const res = await moduleToggleApi.getAll();
       setData(res ?? []);
-    } catch {
-      message.error('Failed to load modules');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load modules');
     } finally {
       setLoading(false);
     }
@@ -52,8 +52,8 @@ const ModuleTogglesTab = () => {
       setData((prev) =>
         prev.map((m) => (m.id === record.id ? { ...m, is_enabled: checked } : m)),
       );
-    } catch {
-      message.error('Failed to toggle module');
+    } catch (err) {
+      message.error(err?.message || 'Failed to toggle module');
     }
   };
 
@@ -128,8 +128,8 @@ const FeatureTogglesTab = () => {
     try {
       const res = await featureToggleApi.getAll();
       setData(res ?? []);
-    } catch {
-      message.error('Failed to load features');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load features');
     } finally {
       setLoading(false);
     }
@@ -144,8 +144,8 @@ const FeatureTogglesTab = () => {
       setData((prev) =>
         prev.map((f) => (f.id === record.id ? { ...f, is_enabled: checked } : f)),
       );
-    } catch {
-      message.error('Failed to toggle feature');
+    } catch (err) {
+      message.error(err?.message || 'Failed to toggle feature');
     }
   };
 
@@ -253,8 +253,8 @@ const RolePermissionsTab = () => {
       try {
         const res = await rolePermissionApi.getRoles();
         setRoles(res ?? []);
-      } catch {
-        message.error('Failed to load roles');
+      } catch (err) {
+        message.error(err?.message || 'Failed to load roles');
       }
     };
     loadRoles();
@@ -268,8 +268,8 @@ const RolePermissionsTab = () => {
       try {
         const res = await rolePermissionApi.getGrid(selectedRole);
         setPermissions(res ?? []);
-      } catch {
-        message.error('Failed to load permissions');
+      } catch (err) {
+        message.error(err?.message || 'Failed to load permissions');
       } finally {
         setLoading(false);
       }
@@ -291,8 +291,8 @@ const RolePermissionsTab = () => {
       const granted = permissions.filter((p) => p.granted).map((p) => p.key);
       await rolePermissionApi.update(selectedRole, { permissions: granted });
       message.success('Permissions updated successfully');
-    } catch {
-      message.error('Failed to save permissions');
+    } catch (err) {
+      message.error(err?.message || 'Failed to save permissions');
     } finally {
       setSaving(false);
     }
@@ -427,8 +427,8 @@ const UserOverridesTab = () => {
       const res = await userOverrideApi.search({ search: searchTerm.trim() });
       setResults(res ?? []);
       if (!res?.length) message.info('No users found');
-    } catch {
-      message.error('Failed to search users');
+    } catch (err) {
+      message.error(err?.message || 'Failed to search users');
     } finally {
       setSearching(false);
     }
@@ -440,8 +440,8 @@ const UserOverridesTab = () => {
     try {
       const res = await userOverrideApi.getById(user.id);
       setOverrides(res?.overrides ?? []);
-    } catch {
-      message.error('Failed to load user overrides');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load user overrides');
     } finally {
       setLoadingUser(false);
     }
@@ -462,8 +462,8 @@ const UserOverridesTab = () => {
       const granted = overrides.filter((o) => o.granted).map((o) => o.key);
       await userOverrideApi.update(selectedUser.id, { overrides: granted });
       message.success(`Overrides saved for ${selectedUser.name}`);
-    } catch {
-      message.error('Failed to save overrides');
+    } catch (err) {
+      message.error(err?.message || 'Failed to save overrides');
     } finally {
       setSaving(false);
     }
@@ -614,8 +614,8 @@ const AIAgentTogglesTab = () => {
     try {
       const res = await aiAgentToggleApi.getAll();
       setData(res ?? []);
-    } catch {
-      message.error('Failed to load AI agents');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load AI agents');
     } finally {
       setLoading(false);
     }
@@ -630,8 +630,8 @@ const AIAgentTogglesTab = () => {
       setData((prev) =>
         prev.map((a) => (a.id === record.id ? { ...a, is_enabled: checked } : a)),
       );
-    } catch {
-      message.error('Failed to toggle agent');
+    } catch (err) {
+      message.error(err?.message || 'Failed to toggle agent');
     }
   };
 
@@ -641,8 +641,8 @@ const AIAgentTogglesTab = () => {
       setData((prev) =>
         prev.map((a) => (a.id === record.id ? { ...a, budget_limit: value } : a)),
       );
-    } catch {
-      message.error('Failed to update budget');
+    } catch (err) {
+      message.error(err?.message || 'Failed to update budget');
     }
   };
 
@@ -764,8 +764,8 @@ const FieldVisibilityTab = () => {
       try {
         const res = await fieldVisibilityApi.getFeatures();
         setFeatures(res ?? []);
-      } catch {
-        message.error('Failed to load features');
+      } catch (err) {
+        message.error(err?.message || 'Failed to load features');
       }
     };
     load();
@@ -778,8 +778,8 @@ const FieldVisibilityTab = () => {
       try {
         const res = await fieldVisibilityApi.getGrid(selectedFeature);
         setGrid(res ?? null);
-      } catch {
-        message.error('Failed to load field visibility grid');
+      } catch (err) {
+        message.error(err?.message || 'Failed to load field visibility grid');
       } finally {
         setLoading(false);
       }
@@ -803,8 +803,8 @@ const FieldVisibilityTab = () => {
     try {
       await fieldVisibilityApi.update(selectedFeature, { matrix: grid.matrix });
       message.success('Field visibility saved');
-    } catch {
-      message.error('Failed to save field visibility');
+    } catch (err) {
+      message.error(err?.message || 'Failed to save field visibility');
     } finally {
       setSaving(false);
     }
@@ -936,8 +936,8 @@ const AuditLogTab = () => {
         pageSize,
         total:    res?.total ?? res?.count ?? 0,
       }));
-    } catch {
-      message.error('Failed to load audit log');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load audit log');
     } finally {
       setLoading(false);
     }

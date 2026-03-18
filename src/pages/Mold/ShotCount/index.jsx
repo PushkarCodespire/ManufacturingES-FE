@@ -66,7 +66,7 @@ const ShotCountDashboardPage = () => {
       const molds = Array.isArray(res) ? res : (res?.molds ?? res?.data ?? []);
       setDashboard(res);
       setMoldList(molds);
-    } catch { message.error('Failed to load shot count dashboard'); }
+    } catch (err) { message.error(err?.message || 'Failed to load shot count dashboard'); }
     finally { setLoading(false); }
   }, [debouncedSearch]);
 
@@ -83,7 +83,7 @@ const ShotCountDashboardPage = () => {
       // backend: { success, data: { rows, total, ... } } → after unwrap: { rows, total, ... }
       setShotHistory(res?.rows ?? (Array.isArray(res) ? res : []));
       setShotTotal(res?.total ?? 0);
-    } catch { message.error('Failed to load shot history'); }
+    } catch (err) { message.error(err?.message || 'Failed to load shot history'); }
     finally { setShotLoading(false); }
   };
 
@@ -107,7 +107,7 @@ const ShotCountDashboardPage = () => {
       message.success('Shot count adjusted');
       setAdjustOpen(false); adjustForm.resetFields();
       fetchDashboard();
-    } catch (err) { if (!err?.errorFields) message.error('Failed to adjust shot count'); }
+    } catch (err) { if (!err?.errorFields) message.error(err?.message || 'Failed to adjust shot count'); }
     finally { setAdjusting(false); }
   };
 

@@ -552,8 +552,8 @@ const DowntimePage = () => {
     try {
       const data = await downtimeReasonApi.getAll();
       setReasons(Array.isArray(data) ? data : data?.data || []);
-    } catch {
-      message.error('Failed to load downtime reasons');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load downtime reasons');
     } finally {
       setLoading(false);
     }
@@ -594,8 +594,8 @@ const DowntimePage = () => {
           await downtimeReasonApi.delete(reason.id);
           message.success('Downtime reason deleted');
           fetchReasons();
-        } catch {
-          message.error('Failed to delete');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete');
         }
       },
     });

@@ -70,7 +70,7 @@ export default function DowntimePage() {
     try {
       const res = await maintenanceAiApi.getDowntimePatterns(90);
       setPatterns(res?.data ?? res);
-    } catch { message.error('Failed to load pattern analysis'); }
+    } catch (err) { message.error(err?.message || 'Failed to load pattern analysis'); }
     finally { setPatternLoading(false); }
   }, []);
 

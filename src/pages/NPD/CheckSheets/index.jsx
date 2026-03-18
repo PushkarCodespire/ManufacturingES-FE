@@ -93,7 +93,7 @@ export default function CheckSheetsPage() {
     try {
       const data = await checkSheetApi.getAll({ search });
       setRecords(Array.isArray(data) ? data : []);
-    } catch { message.error('Failed to load check-sheet templates'); }
+    } catch (err) { message.error(err?.message || 'Failed to load check-sheet templates'); }
     finally   { setLoading(false); }
   }, [search]);
 
@@ -167,7 +167,7 @@ export default function CheckSheetsPage() {
       const url  = toFileUrl(current.file_path);
       const name = current.file_name ?? current.file_path.split('/').pop();
       setPreviewModal({ open: true, url, name });
-    } catch { message.error('Failed to load drawing file'); }
+    } catch (err) { message.error(err?.message || 'Failed to load drawing file'); }
     finally   { setPreviewLoadingId(null); }
   };
 

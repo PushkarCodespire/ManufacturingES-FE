@@ -2,23 +2,47 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Drawer,
   Form, Select, DatePicker, InputNumber, Divider, message, Tooltip,
-  Popconfirm, Badge, Row, Col,
+  Popconfirm, Badge, Row, Col, Alert,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
   PlusCircleOutlined, MinusCircleOutlined, CheckCircleOutlined,
+  BulbOutlined, StopOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import AppLayout          from '../../../components/AppLayout';
-import usePermissions     from '../../../hooks/usePermissions';
-import { grnApi }              from '../../../api/store.api';
-import { vendorApi }           from '../../../api/vendor.api';
-import { itemApi }             from '../../../api/item.api';
-import { warehouseApi }        from '../../../api/warehouse.api';
-import { purchaseOrderApi }    from '../../../api/procurement.api';
+import AppLayout            from '../../../components/AppLayout';
+import usePermissions       from '../../../hooks/usePermissions';
+import { grnApi }           from '../../../api/store.api';
+import { vendorApi }        from '../../../api/vendor.api';
+import { itemApi }          from '../../../api/item.api';
+import { warehouseApi }     from '../../../api/warehouse.api';
+import { purchaseOrderApi } from '../../../api/procurement.api';
+import aiApi                from '../../../api/ai.api';
+import useAiSuggestion      from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionCard';
+
+const parseInsight = (raw) => {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !raw.raw_text) return raw;
+  const text = raw.raw_text ?? raw;
+  if (typeof text !== 'string') return raw;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]+?)```/i);
+  if (fenced) { try { return JSON.parse(fenced[1].trim()); } catch {} }
+  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/```[\s\S]*$/, '').trim();
+  try { return JSON.parse(stripped); } catch {}
+  try { return JSON.parse(text.trim()); } catch {}
+  return null;
+};
 
 const { Title, Text } = Typography;
+
+// ── Price helpers ──────────────────────────────────────────────────────────────
+const calcBase = (qty, price, disc) =>
+  parseFloat(((qty || 0) * (price || 0) * (1 - (disc || 0) / 100)).toFixed(2));
+
+const calcTotal = (qty, price, disc, gst) =>
+  parseFloat((calcBase(qty, price, disc) * (1 + (gst || 0) / 100)).toFixed(2));
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -39,6 +63,8 @@ const emptyItem = () => ({
   qty_received: 1,
   unit:         'pcs',
   unit_price:   null,
+  discount:     0,
+  gst_rate:     18,
   lot_no:       '',
   remarks:      '',
 });
@@ -64,6 +90,23 @@ export default function GRNPage() {
 
   const [form] = Form.useForm();
 
+  // AI state
+  const aiQuality = useAiSuggestion(aiApi.getGrnAiQualityFlag);
+  const [aiGrnDrawerOpen, setAiGrnDrawerOpen] = useState(false);
+  const [aiGrnRecord, setAiGrnRecord] = useState(null);
+
+  const openAiGrnDrawer = (grn) => {
+    setAiGrnRecord(grn);
+    setAiGrnDrawerOpen(true);
+    aiQuality.reset();
+    aiQuality.fetch(grn.id);
+  };
+  const closeAiGrnDrawer = () => {
+    setAiGrnDrawerOpen(false);
+    setAiGrnRecord(null);
+    aiQuality.reset();
+  };
+
   // ── Load GRNs ─────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,7 +116,7 @@ export default function GRNPage() {
       if (statusFilter) params.status = statusFilter;
       const data = await grnApi.getAll(params);
       setGrns(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load GRNs'); }
+    } catch (err) { message.error(err?.message || 'Failed to load GRNs'); }
     finally { setLoading(false); }
   }, [search, statusFilter]);
 
@@ -125,11 +168,22 @@ export default function GRNPage() {
       qty_received: parseFloat(it.qty_received) || 1,
       unit:         it.unit         || 'pcs',
       unit_price:   it.unit_price   ? parseFloat(it.unit_price)   : null,
+      discount:     parseFloat(it.discount)  || 0,
+      gst_rate:     parseFloat(it.gst_rate)  || 18,
       lot_no:       it.lot_no       || '',
       remarks:      it.remarks      || '',
     })));
     setDrawerOpen(true);
   };
+
+  const grossTotal  = parseFloat((lineItems.reduce((s, r) => s + (r.qty_received || 0) * (r.unit_price || 0), 0)).toFixed(2));
+  const discountAmt = parseFloat((lineItems.reduce((s, r) => s + (r.qty_received || 0) * (r.unit_price || 0) * (r.discount || 0) / 100, 0)).toFixed(2));
+  const subtotal    = parseFloat((grossTotal - discountAmt).toFixed(2));
+  const gstAmount   = parseFloat((lineItems.reduce((s, r) => {
+    const base = calcBase(r.qty_received, r.unit_price, r.discount);
+    return s + base * (r.gst_rate || 0) / 100;
+  }, 0)).toFixed(2));
+  const grandTotal  = parseFloat((subtotal + gstAmount).toFixed(2));
 
   const onSave = async () => {
     try {
@@ -279,6 +333,19 @@ export default function GRNPage() {
       title: 'Created By', key: 'creator', width: 110,
       render: (_, r) => <Text style={{ fontSize: 12 }}>{r.Creator?.name || '—'}</Text>,
     },
+    {
+      title: 'AI', key: 'ai', width: 54, align: 'center',
+      render: (_, r) => (
+        <Tooltip title="AI Quality Flag">
+          <Button
+            size="small"
+            icon={<BulbOutlined />}
+            style={{ color: '#7c3aed', borderColor: '#7c3aed' }}
+            onClick={() => openAiGrnDrawer(r)}
+          />
+        </Tooltip>
+      ),
+    },
     ...(canWrite ? [{
       title: 'Actions', key: 'actions', width: 120,
       render: (_, r) => (
@@ -381,13 +448,34 @@ export default function GRNPage() {
         onClose={() => setDrawerOpen(false)}
         width={760}
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
-            {canWrite && (
-              <Button type="primary" loading={saving} onClick={onSave}>
-                {editing ? 'Update GRN' : 'Create GRN'}
-              </Button>
-            )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                Gross: ₹{grossTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                {discountAmt > 0 && (
+                  <span style={{ marginLeft: 12, color: '#dc2626' }}>
+                    Discount: −₹{discountAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                )}
+                <span style={{ marginLeft: 12 }}>
+                  Subtotal: ₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+                <span style={{ marginLeft: 12 }}>
+                  GST: ₹{gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </Text>
+              <Text strong style={{ fontSize: 14 }}>
+                Grand Total (incl. GST): ₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </Text>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
+              {canWrite && (
+                <Button type="primary" loading={saving} onClick={onSave}>
+                  {editing ? 'Update GRN' : 'Create GRN'}
+                </Button>
+              )}
+            </div>
           </div>
         }
       >
@@ -467,19 +555,20 @@ export default function GRNPage() {
           </Divider>
 
           {/* Header — drawer 760px - 48px padding = 712px content */}
-          {/* Grid: 160px 90px 1fr 65px 50px 70px 28px — fits in 712px */}
-          <div style={{ display: 'grid', gridTemplateColumns: '160px 90px 1fr 65px 50px 70px 28px', gap: 6, marginBottom: 6 }}>
-            {['Item', 'Item Code', 'Description', 'Qty Rcvd', 'Unit', 'Unit Price', ''].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '140px 70px 1fr 60px 45px 65px 50px 50px 80px 28px', gap: 6, marginBottom: 6 }}>
+            {['Item', 'Code', 'Description', 'Qty Rcvd', 'Unit', 'Unit Price', 'Disc %', 'GST %', 'Total (₹)', ''].map((h) => (
               <Text key={h} style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>{h}</Text>
             ))}
           </div>
 
-          {lineItems.map((row) => (
+          {lineItems.map((row) => {
+            const rowTotal = calcTotal(row.qty_received, row.unit_price, row.discount, row.gst_rate);
+            return (
             <div
               key={row._key}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '160px 90px 1fr 65px 50px 70px 28px',
+                gridTemplateColumns: '140px 70px 1fr 60px 45px 65px 50px 50px 80px 28px',
                 gap: 6,
                 marginBottom: 8,
                 alignItems: 'center',
@@ -530,6 +619,26 @@ export default function GRNPage() {
                 onChange={(v) => updateLine(row._key, 'unit_price', v)}
                 style={{ width: '100%' }}
               />
+              <InputNumber
+                size="small"
+                min={0}
+                max={100}
+                precision={1}
+                value={row.discount}
+                onChange={(v) => updateLine(row._key, 'discount', v)}
+                style={{ width: '100%' }}
+              />
+              <InputNumber
+                size="small"
+                min={0}
+                precision={1}
+                value={row.gst_rate}
+                onChange={(v) => updateLine(row._key, 'gst_rate', v)}
+                style={{ width: '100%' }}
+              />
+              <Text style={{ fontSize: 12, fontWeight: 600, color: '#111827', textAlign: 'right' }}>
+                ₹{rowTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </Text>
               <Button
                 size="small"
                 type="text"
@@ -539,7 +648,8 @@ export default function GRNPage() {
                 disabled={lineItems.length === 1}
               />
             </div>
-          ))}
+            );
+          })}
 
           <Button
             type="dashed"
@@ -550,6 +660,143 @@ export default function GRNPage() {
             Add Item
           </Button>
         </Form>
+      </Drawer>
+      {/* ── AI Quality Flag Drawer ────────────────────────────────────────── */}
+      <Drawer
+        title={
+          <Space>
+            <BulbOutlined style={{ color: '#7c3aed' }} />
+            <span>AI Quality Flag — {aiGrnRecord?.grn_no}</span>
+          </Space>
+        }
+        open={aiGrnDrawerOpen}
+        onClose={closeAiGrnDrawer}
+        width={500}
+      >
+        {aiGrnRecord && (
+          <>
+            <Space wrap style={{ marginBottom: 16 }}>
+              <Tag color="blue">{aiGrnRecord.grn_no}</Tag>
+              {aiGrnRecord.Vendor && <Tag color="purple">{aiGrnRecord.Vendor.name}</Tag>}
+              <Tag color={STATUS_CONFIG[aiGrnRecord.status]?.color || 'default'}>
+                {STATUS_CONFIG[aiGrnRecord.status]?.label || aiGrnRecord.status}
+              </Tag>
+              {aiGrnRecord.received_date && (
+                <Tag>Received: {dayjs(aiGrnRecord.received_date).format('DD MMM YYYY')}</Tag>
+              )}
+            </Space>
+
+            <AiSuggestionCard
+              loading={aiQuality.loading}
+              error={aiQuality.error}
+              aiAvailable={aiQuality.aiAvailable}
+              cached={aiQuality.cached}
+              onRetry={() => aiQuality.fetch(aiGrnRecord.id)}
+              onDismiss={closeAiGrnDrawer}
+            >
+              {(() => {
+                const d = aiQuality.data;
+                if (!d) return null;
+                const insight = parseInsight(d.ai_insight);
+                if (!insight) return null;
+                return (
+                  <div style={{ fontSize: 13 }}>
+                    {/* Risk level + confidence */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                      {insight.quality_risk && (
+                        <Tag color={
+                          insight.quality_risk === 'high' ? 'red' :
+                          insight.quality_risk === 'medium' ? 'orange' : 'green'
+                        } style={{ fontWeight: 600 }}>
+                          Quality Risk: {insight.quality_risk?.toUpperCase()}
+                        </Tag>
+                      )}
+                      {insight.confidence && <Tag color="geekblue">Confidence: {insight.confidence}</Tag>}
+                    </div>
+
+                    {/* Block / escalate banners */}
+                    {insight.block_inventory && (
+                      <Alert
+                        type="error"
+                        showIcon
+                        icon={<StopOutlined />}
+                        message="Block Inventory Recommended"
+                        description="AI recommends holding this GRN from inventory until quality review is complete."
+                        style={{ marginBottom: 10, fontSize: 12 }}
+                      />
+                    )}
+                    {insight.escalate_to_quality && (
+                      <Alert
+                        type="warning"
+                        showIcon
+                        icon={<ExclamationCircleOutlined />}
+                        message="Escalate to Quality Team"
+                        description="This GRN should be reviewed by the quality team before approval."
+                        style={{ marginBottom: 10, fontSize: 12 }}
+                      />
+                    )}
+
+                    {/* Risk summary */}
+                    {insight.risk_summary && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text strong style={{ fontSize: 12, color: '#374151' }}>Risk Summary</Text>
+                        <div style={{
+                          marginTop: 4, padding: '8px 12px',
+                          background: '#f8fafc', border: '1px solid #e2e8f0',
+                          borderRadius: 6, fontSize: 12, lineHeight: 1.6, color: '#374151',
+                        }}>
+                          {insight.risk_summary}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* IQC summary from backend context */}
+                    {d.iqc_summary && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text strong style={{ fontSize: 12, color: '#374151' }}>IQC Summary</Text>
+                        <div style={{ marginTop: 4, fontSize: 12, color: '#4b5563' }}>
+                          {typeof d.iqc_summary === 'string'
+                            ? d.iqc_summary
+                            : `Status: ${d.iqc_summary.status || '—'} | Result: ${d.iqc_summary.result || '—'}`}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quality concerns */}
+                    {Array.isArray(insight.quality_concerns) && insight.quality_concerns.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text strong style={{ fontSize: 12, color: '#374151' }}>Quality Concerns</Text>
+                        <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                          {insight.quality_concerns.map((item, i) => (
+                            <li key={i} style={{ fontSize: 12, color: '#4b5563', marginBottom: 2 }}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Recommended actions */}
+                    {Array.isArray(insight.recommended_actions) && insight.recommended_actions.length > 0 && (
+                      <div style={{ marginBottom: 4 }}>
+                        <Text strong style={{ fontSize: 12, color: '#374151' }}>Recommended Actions</Text>
+                        <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                          {insight.recommended_actions.map((item, i) => (
+                            <li key={i} style={{ fontSize: 12, color: '#4b5563', marginBottom: 2 }}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {insight.raw_text && (
+                      <div style={{ fontSize: 12, color: '#4b5563', whiteSpace: 'pre-wrap' }}>
+                        {insight.raw_text}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </AiSuggestionCard>
+          </>
+        )}
       </Drawer>
     </AppLayout>
   );

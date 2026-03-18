@@ -49,6 +49,7 @@ const LANDING_PAGE_OPTIONS = [
   { value: 'dispatch',    label: 'Dispatch'            },
   { value: 'accounts',    label: 'Accounts'            },
   { value: 'hr',          label: 'HR'                  },
+  { value: 'sales',       label: 'Sales'               },
 ];
 
 const LANDING_PAGE_MAP = Object.fromEntries(LANDING_PAGE_OPTIONS.map((o) => [o.value, o.label]));
@@ -600,8 +601,8 @@ const EmployeeDetailPage = () => {
       setProcurementChecked(perms.filter(isProcKey));
       setQualityChecked(perms.filter(isQualityKey));
       setMoldChecked(perms.filter(isMoldKey));
-    } catch {
-      message.error('Failed to load employee details');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load employee details');
     } finally {
       setLoading(false);
     }
@@ -629,8 +630,8 @@ const EmployeeDetailPage = () => {
         if (user?.department_id) {
           setFilteredRoles((rls ?? []).filter((r) => r.department_id === user.department_id));
         }
-      } catch {
-        message.error('Failed to load reference data');
+      } catch (err) {
+        message.error(err?.message || 'Failed to load reference data');
       }
     };
     load();

@@ -2,17 +2,35 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space,
   Drawer, Form, Select, DatePicker, message, Tooltip,
-  Popconfirm, Row, Col, Steps,
+  Popconfirm, Row, Col, Steps, Alert, Divider,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   DeleteOutlined, RightOutlined, EditOutlined,
   CheckCircleOutlined, SendOutlined, WarningOutlined,
+  BulbOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import AppLayout        from '../../../components/AppLayout';
-import usePermissions   from '../../../hooks/usePermissions';
+import AppLayout          from '../../../components/AppLayout';
+import usePermissions     from '../../../hooks/usePermissions';
 import { scarApi, vendorApi } from '../../../api/procurement.api';
+import aiApi              from '../../../api/ai.api';
+import useAiSuggestion    from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard   from '../../../components/AiSuggestion/AiSuggestionCard';
+
+// Strip markdown code fences and parse JSON
+const parseInsight = (raw) => {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !raw.raw_text) return raw;
+  const text = raw.raw_text ?? raw;
+  if (typeof text !== 'string') return raw;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]+?)```/i);
+  if (fenced) { try { return JSON.parse(fenced[1].trim()); } catch {} }
+  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/```[\s\S]*$/, '').trim();
+  try { return JSON.parse(stripped); } catch {}
+  try { return JSON.parse(text.trim()); } catch {}
+  return null;
+};
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -56,6 +74,23 @@ export default function SCARPage() {
   const [updateForm]  = Form.useForm();
   const [respondForm] = Form.useForm();
 
+  // AI state
+  const aiDraft = useAiSuggestion(aiApi.getScarAiDraft);
+  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
+  const [aiScarRecord, setAiScarRecord] = useState(null);
+
+  const openAiDrawer = (scar) => {
+    setAiScarRecord(scar);
+    setAiDrawerOpen(true);
+    aiDraft.reset();
+    aiDraft.fetch(scar.id);
+  };
+  const closeAiDrawer = () => {
+    setAiDrawerOpen(false);
+    setAiScarRecord(null);
+    aiDraft.reset();
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -77,7 +112,7 @@ export default function SCARPage() {
           )
         : arr;
       setScars(filtered);
-    } catch { message.error('Failed to load SCARs'); }
+    } catch (err) { message.error(err?.message || 'Failed to load SCARs'); }
     finally { setLoading(false); }
   }, [search, statusFilter, severityFilter, overdueFilter]);
 
@@ -258,6 +293,19 @@ export default function SCARPage() {
     {
       title: 'Created', dataIndex: 'createdAt', key: 'createdAt', width: 110,
       render: (d) => d ? dayjs(d).format('DD MMM YYYY') : '—',
+    },
+    {
+      title: 'AI', key: 'ai', width: 54, align: 'center',
+      render: (_, r) => (
+        <Tooltip title="AI Draft Suggestions">
+          <Button
+            size="small"
+            icon={<BulbOutlined />}
+            style={{ color: '#7c3aed', borderColor: '#7c3aed' }}
+            onClick={() => openAiDrawer(r)}
+          />
+        </Tooltip>
+      ),
     },
     ...(canWrite ? [{
       title: 'Actions', key: 'actions', width: 180,
@@ -603,6 +651,144 @@ export default function SCARPage() {
             <Input.TextArea rows={3} placeholder="Actions taken / planned by vendor…" />
           </Form.Item>
         </Form>
+      </Drawer>
+      {/* ── AI Draft Drawer ─────────────────────────────────────────────────── */}
+      <Drawer
+        title={
+          <Space>
+            <BulbOutlined style={{ color: '#7c3aed' }} />
+            <span>AI Draft — {aiScarRecord?.scar_no}</span>
+          </Space>
+        }
+        open={aiDrawerOpen}
+        onClose={closeAiDrawer}
+        width={520}
+      >
+        {aiScarRecord && (
+          <>
+            {/* Context tags */}
+            <Space wrap style={{ marginBottom: 16 }}>
+              <Tag color="blue">{aiScarRecord.scar_no}</Tag>
+              {aiScarRecord.Vendor && <Tag color="purple">{aiScarRecord.Vendor.name}</Tag>}
+              <Tag color={SEVERITY_CONFIG[aiScarRecord.severity]?.color || 'default'}>
+                {SEVERITY_CONFIG[aiScarRecord.severity]?.label || aiScarRecord.severity}
+              </Tag>
+              <Tag>{STATUS_CONFIG[aiScarRecord.status]?.label || aiScarRecord.status}</Tag>
+            </Space>
+
+            <AiSuggestionCard
+              loading={aiDraft.loading}
+              error={aiDraft.error}
+              aiAvailable={aiDraft.aiAvailable}
+              cached={aiDraft.cached}
+              onRetry={() => aiDraft.fetch(aiScarRecord.id)}
+              onDismiss={closeAiDrawer}
+            >
+              {(() => {
+                const d = aiDraft.data;
+                if (!d) return null;
+                const insight = parseInsight(d.ai_insight);
+                if (!insight) return null;
+                return (
+                  <div style={{ fontSize: 13 }}>
+                    {/* Supplier risk + confidence */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                      {insight.supplier_risk_level && (
+                        <Tag color={
+                          insight.supplier_risk_level === 'high' ? 'red' :
+                          insight.supplier_risk_level === 'medium' ? 'orange' : 'green'
+                        } style={{ fontWeight: 600 }}>
+                          Supplier Risk: {insight.supplier_risk_level?.toUpperCase()}
+                        </Tag>
+                      )}
+                      {insight.confidence && (
+                        <Tag color="geekblue">Confidence: {insight.confidence}</Tag>
+                      )}
+                      {insight.escalation_recommended && (
+                        <Tag color="red" icon={<ExclamationCircleOutlined />}>Escalation Recommended</Tag>
+                      )}
+                    </div>
+
+                    {/* Professional issue statement */}
+                    {insight.professional_issue_statement && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text strong style={{ fontSize: 12, color: '#374151' }}>Issue Statement</Text>
+                        <div style={{
+                          marginTop: 4, padding: '8px 12px',
+                          background: '#f8fafc', border: '1px solid #e2e8f0',
+                          borderRadius: 6, fontSize: 12, lineHeight: 1.6, color: '#374151',
+                          fontStyle: 'italic',
+                        }}>
+                          {insight.professional_issue_statement}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recurrence pattern */}
+                    {insight.recurrence_pattern && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text strong style={{ fontSize: 12, color: '#374151' }}>
+                          Recurrence Pattern
+                          {d.history_count != null && (
+                            <Tag style={{ marginLeft: 8 }} color="orange">{d.history_count} prior SCARs</Tag>
+                          )}
+                        </Text>
+                        <div style={{ marginTop: 4, fontSize: 12, color: '#4b5563' }}>
+                          {insight.recurrence_pattern}
+                        </div>
+                      </div>
+                    )}
+
+                    <Divider style={{ margin: '10px 0' }} />
+
+                    {/* Root cause areas */}
+                    {Array.isArray(insight.suggested_root_cause_areas) && insight.suggested_root_cause_areas.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text strong style={{ fontSize: 12, color: '#374151' }}>Suggested Root Cause Areas</Text>
+                        <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                          {insight.suggested_root_cause_areas.map((item, i) => (
+                            <li key={i} style={{ fontSize: 12, color: '#4b5563', marginBottom: 2 }}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Corrective actions */}
+                    {Array.isArray(insight.suggested_corrective_actions) && insight.suggested_corrective_actions.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text strong style={{ fontSize: 12, color: '#374151' }}>Suggested Corrective Actions</Text>
+                        <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                          {insight.suggested_corrective_actions.map((item, i) => (
+                            <li key={i} style={{ fontSize: 12, color: '#4b5563', marginBottom: 2 }}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Preventive actions */}
+                    {Array.isArray(insight.suggested_preventive_actions) && insight.suggested_preventive_actions.length > 0 && (
+                      <div style={{ marginBottom: 4 }}>
+                        <Text strong style={{ fontSize: 12, color: '#374151' }}>Suggested Preventive Actions</Text>
+                        <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                          {insight.suggested_preventive_actions.map((item, i) => (
+                            <li key={i} style={{ fontSize: 12, color: '#4b5563', marginBottom: 2 }}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* raw_text fallback */}
+                    {insight.raw_text && (
+                      <div style={{ fontSize: 12, color: '#4b5563', whiteSpace: 'pre-wrap' }}>
+                        {insight.raw_text}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </AiSuggestionCard>
+          </>
+        )}
       </Drawer>
     </AppLayout>
   );

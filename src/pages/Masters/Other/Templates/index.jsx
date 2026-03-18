@@ -664,8 +664,8 @@ const TemplatesPage = () => {
     try {
       const data = await templateApi.getAll();
       setTemplates(data ?? []);
-    } catch {
-      message.error('Failed to load templates');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load templates');
     } finally {
       setLoading(false);
     }
@@ -685,8 +685,8 @@ const TemplatesPage = () => {
           await templateApi.delete(record.id);
           message.success(`"${record.name}" deleted`);
           fetchTemplates();
-        } catch {
-          message.error('Failed to delete template');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete template');
         }
       },
     });

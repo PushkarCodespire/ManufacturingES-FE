@@ -73,7 +73,7 @@ export default function CheckSheetDetailPage() {
       const data = await checkSheetApi.getById(id);
       setTemplate(data);
       setDims((data.Dimensions ?? []).map((d) => ({ ...d, _tempId: ++_tempId })));
-    } catch { message.error('Failed to load check-sheet template'); }
+    } catch (err) { message.error(err?.message || 'Failed to load check-sheet template'); }
     finally   { setLoading(false); }
   }, [id]);
 
@@ -111,8 +111,22 @@ export default function CheckSheetDetailPage() {
   };
 
   const applyAiDims = () => {
-    const aiDims = ai.data?.data?.dimensions ?? ai.data?.dimensions ?? [];
-    if (!aiDims.length) { message.warning('No dimensions to apply'); return; }
+    let aiDims = ai.data?.data?.dimensions ?? ai.data?.dimensions ?? [];
+
+    // Fallback: if backend returned raw_text (parse failure / truncation), try to extract here
+    if (!aiDims.length) {
+      const rawText = ai.data?.data?.raw_text ?? ai.data?.raw_text ?? '';
+      if (rawText) {
+        try {
+          const fenceMatch = rawText.match(/```(?:json)?\s*([\s\S]+?)```/i);
+          const stripped = fenceMatch ? fenceMatch[1].trim() : rawText.trim();
+          const parsed = JSON.parse(stripped);
+          aiDims = parsed?.dimensions ?? [];
+        } catch { /* ignore — JSON was too truncated to recover */ }
+      }
+    }
+
+    if (!aiDims.length) { message.warning('No dimensions extracted — try uploading a clearer drawing'); return; }
     setDims(aiDims.map((d, i) => ({
       _tempId: ++_tempId,
       balloon_no: d.balloon_no ?? '',

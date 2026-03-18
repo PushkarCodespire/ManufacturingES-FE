@@ -8,15 +8,18 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   DeleteOutlined, RightOutlined, PlusCircleOutlined,
   MinusCircleOutlined, CheckOutlined, CloseOutlined,
-  ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, WarningOutlined,
+  ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, WarningOutlined, BulbOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import AppLayout       from '../../../components/AppLayout';
-import usePermissions  from '../../../hooks/usePermissions';
+import AppLayout          from '../../../components/AppLayout';
+import usePermissions     from '../../../hooks/usePermissions';
 import { lqcApi, workOrderApi } from '../../../api/production.api';
-import { itemApi }     from '../../../api/item.api';
-import { machineApi }  from '../../../api/machine.api';
-import { userApi }     from '../../../api/user.api';
+import { itemApi }        from '../../../api/item.api';
+import { machineApi }     from '../../../api/machine.api';
+import { userApi }        from '../../../api/user.api';
+import aiApi              from '../../../api/ai.api';
+import useAiSuggestion    from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard   from '../../../components/AiSuggestion/AiSuggestionCard';
 
 const { Title, Text } = Typography;
 
@@ -31,6 +34,24 @@ const RESULT_CONFIG = {
   pass:        { color: 'green',  label: 'Pass'        },
   fail:        { color: 'red',    label: 'Fail'        },
   conditional: { color: 'gold',   label: 'Conditional' },
+};
+
+/**
+ * Backend sometimes returns ai_insight as { raw_text: "```json\n{...}\n```" }
+ * instead of a pre-parsed object. This helper normalises both cases.
+ */
+const parseInsight = (raw) => {
+  if (!raw || typeof raw !== 'object') return {};
+  if (!raw.raw_text) return raw;
+  try {
+    const clean = raw.raw_text
+      .replace(/^```json\s*/i, '')
+      .replace(/\s*```\s*$/, '')
+      .trim();
+    return JSON.parse(clean);
+  } catch {
+    return raw;
+  }
 };
 
 const emptyParam = () => ({
@@ -57,6 +78,11 @@ export default function LQCPage() {
   const [resultFilter, setResultFilter] = useState(null);
   const [activeTab,    setActiveTab]    = useState('all');
 
+  // ── AI: Spike alert (per-inspection) ──────────────────────────────────────
+  const aiSpike = useAiSuggestion(aiApi.getLqcAiSpikeAlert);
+  const [spikeDrawerOpen,   setSpikeDrawerOpen]   = useState(false);
+  const [spikeDrawerRecord, setSpikeDrawerRecord] = useState(null);
+
   // ── Tool Wear Trend state (LQC-003) ────────────────────────────────────────
   const [twMachineId,  setTwMachineId]  = useState(null);
   const [twItemId,     setTwItemId]     = useState(null);
@@ -68,6 +94,19 @@ export default function LQCPage() {
   const [params,     setParams]     = useState([emptyParam()]);
 
   const [form] = Form.useForm();
+
+  // ── Open / close spike drawer ─────────────────────────────────────────────
+  const openSpikeDrawer = (record) => {
+    setSpikeDrawerRecord(record);
+    setSpikeDrawerOpen(true);
+    aiSpike.reset();
+    aiSpike.fetch(record.id);
+  };
+  const closeSpikeDrawer = () => {
+    setSpikeDrawerOpen(false);
+    setSpikeDrawerRecord(null);
+    aiSpike.reset();
+  };
 
   // ── Load inspections ───────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -82,7 +121,7 @@ export default function LQCPage() {
       if (activeTab !== 'all') p.type = activeTab;
       const data = await lqcApi.getAll(p);
       setInspections(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load LQC inspections'); }
+    } catch (err) { message.error(err?.message || 'Failed to load LQC inspections'); }
     finally { setLoading(false); }
   }, [search, resultFilter, dateFrom, dateTo, activeTab]);
 
@@ -98,7 +137,7 @@ export default function LQCPage() {
       if (twItemId)    p.item_id    = twItemId;
       const res = await lqcApi.getToolWearTrend(p);
       setTrendData(res?.data ?? res);
-    } catch { message.error('Failed to load trend data'); }
+    } catch (err) { message.error(err?.message || 'Failed to load trend data'); }
     finally { setTrendLoading(false); }
   }, [twMachineId, twItemId]);
 
@@ -190,6 +229,25 @@ export default function LQCPage() {
   const updateParam = (key, field, value) =>
     setParams((p) => p.map((r) => r._key === key ? { ...r, [field]: value } : r));
 
+  // ── Auto-load quality params when item is selected ─────────────────────────
+  const onItemSelect = async (itemId) => {
+    if (!itemId) return;
+    try {
+      const data = await itemApi.getQualityParams(itemId);
+      const qps  = Array.isArray(data) ? data : (data?.data ?? []);
+      if (qps.length > 0) {
+        setParams(qps.map((p) => ({
+          _key:           Date.now() + Math.random(),
+          parameter_name: p.param_name,
+          specification:  p.specification || '',
+          actual_value:   '',
+          result:         'pass',
+        })));
+        message.success(`${qps.length} quality parameter(s) loaded from item master`);
+      }
+    } catch { /* silently ignore — user can add params manually */ }
+  };
+
   // ── Table columns ──────────────────────────────────────────────────────────
   const columns = [
     {
@@ -231,6 +289,19 @@ export default function LQCPage() {
         const cfg = RESULT_CONFIG[res] || { color: 'default', label: res };
         return <Tag color={cfg.color}>{cfg.label}</Tag>;
       },
+    },
+    {
+      title: 'AI', key: 'ai_spike', width: 54,
+      render: (_, r) => (
+        <Tooltip title="AI Spike Analysis">
+          <Button
+            size="small"
+            icon={<BulbOutlined />}
+            style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
+            onClick={() => openSpikeDrawer(r)}
+          />
+        </Tooltip>
+      ),
     },
     ...(canWrite ? [{
       title: 'Actions', key: 'actions', width: 160,
@@ -286,10 +357,10 @@ export default function LQCPage() {
   ];
 
   const tabItems = [
-    { key: 'all',       label: 'All'             },
-    { key: 'fpi',       label: 'FPI'             },
-    { key: 'hourly',    label: 'Hourly'          },
-    { key: 'lpi',       label: 'LPI'             },
+    { key: 'all',       label: 'All'              },
+    { key: 'fpi',       label: 'FPI'              },
+    { key: 'hourly',    label: 'Hourly'           },
+    { key: 'lpi',       label: 'LPI'              },
     { key: 'tool_wear', label: '⚙ Tool Wear Trend' },
   ];
 
@@ -309,15 +380,16 @@ export default function LQCPage() {
       </Text>
 
       {/* Stat chips */}
-      {activeTab !== 'tool_wear' && (
+      {activeTab !== 'tool_wear' ? (
         <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 16 }}>
           <Tag color="blue">Total: {total}</Tag>
           <Tag color="orange">Pending: {countPend}</Tag>
           <Tag color="green">Pass: {countPass}</Tag>
           <Tag color="red">Fail: {countFail}</Tag>
         </div>
+      ) : (
+        <div style={{ marginBottom: 16 }} />
       )}
-      {activeTab === 'tool_wear' && <div style={{ marginBottom: 16 }} />}
 
       {/* ── Tab bar (shared) ─────────────────────────────────────────────────── */}
       <Card
@@ -333,7 +405,7 @@ export default function LQCPage() {
         />
       </Card>
 
-      {/* ── Inspection list (not tool_wear) ──────────────────────────────────── */}
+      {/* ── Inspection list (not tool_wear) ─────────────────────────────────── */}
       {activeTab !== 'tool_wear' && (
         <Card
           style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
@@ -537,6 +609,197 @@ export default function LQCPage() {
         </Card>
       )}
 
+      {/* ── AI Spike Drawer (per-inspection) ─────────────────────────────────── */}
+      <Drawer
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <BulbOutlined style={{ color: '#7c3aed' }} />
+            <span>AI Spike Analysis</span>
+            {spikeDrawerRecord && (
+              <Tag style={{ marginLeft: 4 }}>{spikeDrawerRecord.inspection_no}</Tag>
+            )}
+          </div>
+        }
+        open={spikeDrawerOpen}
+        onClose={closeSpikeDrawer}
+        width={520}
+        destroyOnClose
+      >
+        {spikeDrawerRecord && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {spikeDrawerRecord.Machine?.name && (
+                <Tag color="blue">{spikeDrawerRecord.Machine.name}</Tag>
+              )}
+              {spikeDrawerRecord.Item?.name && (
+                <Tag color="purple">{spikeDrawerRecord.Item.name}</Tag>
+              )}
+              <Tag color={RESULT_CONFIG[spikeDrawerRecord.result]?.color ?? 'default'}>
+                {RESULT_CONFIG[spikeDrawerRecord.result]?.label ?? spikeDrawerRecord.result}
+              </Tag>
+            </div>
+          </div>
+        )}
+
+        <AiSuggestionCard
+          title="Madad AI — Defect Spike Analysis"
+          loading={aiSpike.loading}
+          error={aiSpike.error}
+          aiAvailable={aiSpike.aiAvailable}
+          cached={aiSpike.cached}
+          onDismiss={closeSpikeDrawer}
+          onRetry={() => spikeDrawerRecord && aiSpike.fetch(spikeDrawerRecord.id)}
+        >
+          {aiSpike.data && (() => {
+            // axios interceptor unwraps res.data; ai.api.js then calls .then(r=>r.data)
+            // so the hook stores the inner data object directly — no extra .data needed
+            const d       = aiSpike.data;
+            const insight = parseInsight(d.ai_insight);
+            const causes  = insight.likely_causes       ?? [];
+            const actions = insight.immediate_actions   ?? [];
+            const ALERT_COLOR = { critical: 'red', high: 'orange', medium: 'gold', low: 'green', normal: 'green' };
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+                {/* Meta tags */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {insight.alert_level && (
+                    <Tag color={ALERT_COLOR[insight.alert_level] ?? 'default'} style={{ fontSize: 12 }}>
+                      Alert: {insight.alert_level?.toUpperCase()}
+                    </Tag>
+                  )}
+                  {insight.confidence && (
+                    <Tag color={{ high: 'green', medium: 'orange', low: 'red' }[insight.confidence] ?? 'default'} style={{ fontSize: 12 }}>
+                      Confidence: {insight.confidence}
+                    </Tag>
+                  )}
+                  <Tag
+                    color={d.spike_detected ? 'red' : 'green'}
+                    style={{ fontSize: 12 }}
+                  >
+                    {d.spike_detected ? '⚠ Spike Detected' : '✓ No Spike'}
+                  </Tag>
+                  {d.spike_severity && d.spike_detected && (
+                    <Tag color={ALERT_COLOR[d.spike_severity] ?? 'default'} style={{ fontSize: 12 }}>
+                      Severity: {d.spike_severity}
+                    </Tag>
+                  )}
+                </div>
+
+                {/* Fail rate comparison */}
+                {(d.current_fail_rate != null || d.avg_fail_rate != null) && (
+                  <div style={{
+                    display: 'flex', gap: 24, padding: '8px 12px',
+                    background: '#f9fafb', borderRadius: 6, border: '1px solid #e5e7eb',
+                  }}>
+                    {d.current_fail_rate != null && (
+                      <div>
+                        <Text style={{ fontSize: 11, color: '#6b7280' }}>This Inspection</Text>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: d.current_fail_rate > d.avg_fail_rate ? '#dc2626' : '#16a34a' }}>
+                          {d.current_fail_rate}%
+                        </div>
+                      </div>
+                    )}
+                    {d.avg_fail_rate != null && (
+                      <div>
+                        <Text style={{ fontSize: 11, color: '#6b7280' }}>Rolling Avg ({d.history_count ?? '?'} inspections)</Text>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: '#374151' }}>
+                          {d.avg_fail_rate}%
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Spike assessment */}
+                {insight.spike_assessment && (
+                  <div>
+                    <Text style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>Assessment</Text>
+                    <div style={{
+                      marginTop: 4, padding: '8px 12px', background: '#fff',
+                      borderRadius: 6, border: '1px solid #dbeafe',
+                      fontSize: 13, color: '#1e40af', lineHeight: 1.6,
+                    }}>
+                      {insight.spike_assessment}
+                    </div>
+                  </div>
+                )}
+
+                {/* Likely causes */}
+                {causes.length > 0 && (
+                  <div>
+                    <Text style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>Likely Causes</Text>
+                    <div style={{
+                      marginTop: 4, padding: '8px 12px', background: '#fff',
+                      borderRadius: 6, border: '1px solid #fef3c7',
+                    }}>
+                      {causes.map((c, i) => (
+                        <div key={i} style={{ fontSize: 13, color: '#92400e', lineHeight: 1.7 }}>
+                          {i + 1}. {c}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Immediate actions */}
+                {actions.length > 0 && (
+                  <div>
+                    <Text style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>Immediate Actions</Text>
+                    <div style={{
+                      marginTop: 4, padding: '8px 12px', background: '#fff',
+                      borderRadius: 6, border: '1px solid #dcfce7',
+                    }}>
+                      {actions.map((a, i) => (
+                        <div key={i} style={{ fontSize: 13, color: '#166534', lineHeight: 1.7 }}>
+                          {i + 1}. {a}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Escalate / Hold banners */}
+                {insight.escalate_to_supervisor && (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message="Escalate to Supervisor"
+                    description="This spike warrants supervisor review."
+                  />
+                )}
+                {insight.hold_production && (
+                  <Alert
+                    type="error"
+                    showIcon
+                    message="Hold Production Recommended"
+                    description="AI recommends halting production on this machine/part until root cause is identified."
+                  />
+                )}
+
+                {/* History context */}
+                {d.history_summary && (
+                  <div>
+                    <Text style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>History Context</Text>
+                    <div style={{
+                      marginTop: 4, padding: '8px 12px', background: '#f9fafb',
+                      borderRadius: 6, border: '1px solid #e5e7eb',
+                      fontSize: 12, color: '#6b7280', lineHeight: 1.6,
+                    }}>
+                      {d.history_summary}
+                    </div>
+                  </div>
+                )}
+
+                {d.ai_error && (
+                  <Text type="secondary" style={{ fontSize: 12 }}>AI note: {d.ai_error}</Text>
+                )}
+              </div>
+            );
+          })()}
+        </AiSuggestionCard>
+      </Drawer>
+
       {/* ── Create Drawer ──────────────────────────────────────────────────── */}
       <Drawer
         title="New LQC Inspection"
@@ -598,6 +861,7 @@ export default function LQCPage() {
                     label: `${i.name}${i.code ? ` (${i.code})` : ''}`,
                   }))}
                   allowClear
+                  onChange={onItemSelect}
                 />
               </Form.Item>
             </Col>

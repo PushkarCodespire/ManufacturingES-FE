@@ -426,8 +426,8 @@ const CostingPage = () => {
       if (filterVendorId) params.vendor_id = filterVendorId;
       const data = await costingApi.getAll(params);
       setCostings(data ?? []);
-    } catch {
-      message.error('Failed to load pricing data');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load pricing data');
     } finally {
       setLoading(false);
     }
@@ -447,8 +447,8 @@ const CostingPage = () => {
           await costingApi.delete(record.id);
           message.success('Pricing record deleted');
           fetchCostings();
-        } catch {
-          message.error('Failed to delete record');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete record');
         }
       },
     });

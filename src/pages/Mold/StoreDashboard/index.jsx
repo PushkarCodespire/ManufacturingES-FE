@@ -116,7 +116,7 @@ export default function MoldStoreDashboardPage() {
       const payload = res?.data ?? res;
       setDashboard(payload?.summary ?? {});
       setInventory(Array.isArray(payload?.molds) ? payload.molds : []);
-    } catch { message.error('Failed to load store dashboard'); }
+    } catch (err) { message.error(err?.message || 'Failed to load store dashboard'); }
     finally { setLoading(false); }
   }, []);
 
@@ -127,7 +127,7 @@ export default function MoldStoreDashboardPage() {
       // backend: { success, data: locations[] }
       const locations = res?.data ?? res;
       setRackMap(Array.isArray(locations) ? locations : []);
-    } catch { message.error('Failed to load rack map'); }
+    } catch (err) { message.error(err?.message || 'Failed to load rack map'); }
     finally { setRackLoading(false); }
   }, []);
 
@@ -138,7 +138,7 @@ export default function MoldStoreDashboardPage() {
       // backend: { success, data: movements[] }
       const movements = res?.data ?? res;
       setForecast(Array.isArray(movements) ? movements : []);
-    } catch { message.error('Failed to load movement forecast'); }
+    } catch (err) { message.error(err?.message || 'Failed to load movement forecast'); }
     finally { setForecastLoading(false); }
   }, []);
 

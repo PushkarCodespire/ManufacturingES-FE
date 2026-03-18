@@ -40,8 +40,8 @@ const RoleRequirementsPage = () => {
       ]);
       setRoles(rolesRes?.data ?? rolesRes ?? []);
       setTopics(topicsRes?.data ?? topicsRes ?? []);
-    } catch {
-      message.error('Failed to load data');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load data');
     } finally {
       setRolesLoading(false);
     }
@@ -56,8 +56,8 @@ const RoleRequirementsPage = () => {
       const res = await roleRequirementApi.getByRole(roleId);
       const data = res?.data ?? res ?? [];
       setChecked(data.map((r) => r.topic_id));
-    } catch {
-      message.error('Failed to load requirements');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load requirements');
     } finally {
       setLoading(false);
     }

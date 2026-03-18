@@ -52,7 +52,7 @@ export default function NCRPage() {
     try {
       const data = await ncrApi.getAll({ search });
       setRecords(Array.isArray(data) ? data : []);
-    } catch { message.error('Failed to load NCR records'); }
+    } catch (err) { message.error(err?.message || 'Failed to load NCR records'); }
     finally   { setLoading(false); }
   }, [search]);
 

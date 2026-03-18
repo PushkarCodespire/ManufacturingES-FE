@@ -51,7 +51,7 @@ const CavityTrackingPage = () => {
       try {
         const res = await moldMasterApi.getAll({ pageSize: 9999 });
         setMolds(res?.data ?? res ?? []);
-      } catch { message.error('Failed to load molds'); }
+      } catch (err) { message.error(err?.message || 'Failed to load molds'); }
     })();
   }, []);
 
@@ -68,7 +68,7 @@ const CavityTrackingPage = () => {
       setCavities(cavRes?.data ?? cavRes ?? []);
       setHeatmap(hmRes?.data ?? hmRes ?? []);
       setSelectedMold(moldRes);
-    } catch { message.error('Failed to load cavity data'); }
+    } catch (err) { message.error(err?.message || 'Failed to load cavity data'); }
     finally { setCavLoading(false); }
   }, [selectedMoldId]);
 
@@ -81,7 +81,7 @@ const CavityTrackingPage = () => {
       message.success('Cavity blocked');
       setBlockModalOpen(false); setBlockReason(''); setBlockCavityId(null);
       fetchCavityData();
-    } catch { message.error('Failed to block cavity'); }
+    } catch (err) { message.error(err?.message || 'Failed to block cavity'); }
   };
 
   const handleUnblock = async (cavId) => {
@@ -89,7 +89,7 @@ const CavityTrackingPage = () => {
       await moldCavityApi.unblockCavity(selectedMoldId, cavId, {});
       message.success('Cavity unblocked');
       fetchCavityData();
-    } catch { message.error('Failed to unblock cavity'); }
+    } catch (err) { message.error(err?.message || 'Failed to unblock cavity'); }
   };
 
   const handleAddCavity = async () => {
@@ -99,7 +99,7 @@ const CavityTrackingPage = () => {
       message.success('Cavity added');
       setAddModalOpen(false); addForm.resetFields();
       fetchCavityData();
-    } catch (err) { if (!err?.errorFields) message.error('Failed to add cavity'); }
+    } catch (err) { if (!err?.errorFields) message.error(err?.message || 'Failed to add cavity'); }
   };
 
   const cavityColumns = [

@@ -38,7 +38,7 @@ const DebitCreditNotesPage = () => {
       if (statusFilter) params.status = statusFilter;
       const data = await debitCreditNoteApi.getAll(params);
       setRows(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load notes'); }
+    } catch (err) { message.error(err?.message || 'Failed to load notes'); }
     finally { setLoading(false); }
   }, [search, typeFilter, statusFilter]);
 

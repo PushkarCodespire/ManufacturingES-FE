@@ -224,8 +224,8 @@ const EmployeesPage = () => {
 
       const data = await userApi.getAll(params);
       setUsers(data ?? []);
-    } catch {
-      message.error('Failed to load employees');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load employees');
     } finally {
       setLoading(false);
     }
@@ -245,8 +245,8 @@ const EmployeesPage = () => {
         setRoles(rls ?? []);
         setSites(sts ?? []);
         setWarehouses(whs ?? []);
-      } catch {
-        message.error('Failed to load reference data');
+      } catch (err) {
+        message.error(err?.message || 'Failed to load reference data');
       }
     };
     init();
@@ -279,8 +279,8 @@ const EmployeesPage = () => {
           await userApi.toggleStatus(record.id);
           message.success(`${record.name} ${record.is_active ? 'deactivated' : 'activated'} successfully`);
           fetchUsers();
-        } catch {
-          message.error('Failed to update status');
+        } catch (err) {
+          message.error(err?.message || 'Failed to update status');
         } finally {
           setToggleLoading(null);
         }

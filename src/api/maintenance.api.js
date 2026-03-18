@@ -111,6 +111,7 @@ export const maintenanceAiApi = {
   getDowntimePatterns:    (days = 90)    => api.get('/maintenance/ai/downtime-patterns',  { params: { days } }).then((r) => r.data),
   // ── Wave 3: multi-factor optimization, 100% local ─────────────────────────
   getTechnicianSuggestion: (equipmentId, templateId) => api.get('/maintenance/ai/technician-suggestion', { params: { equipment_id: equipmentId, template_id: templateId } }).then((r) => r.data),
-  getSpareDemandForecast:  (equipmentId)  => api.get('/maintenance/ai/spare-demand-forecast',  { params: { equipment_id: equipmentId } }).then((r) => r.data),
+  // NOTE: returns full body { success, data: [], summary: {} } — do NOT strip .data or summary is lost
+  getSpareDemandForecast:  (equipmentId)  => api.get('/maintenance/ai/spare-demand-forecast',  { params: { equipment_id: equipmentId } }),
   getSmartSchedule:        ()             => api.get('/maintenance/ai/smart-schedule').then((r) => r.data),
 };

@@ -67,7 +67,7 @@ export default function OutwardChallanPage() {
       if (statusFilter) p.status    = statusFilter;
       const data = await subcontractApi.getAll(p);
       setChallans(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load outward challans'); }
+    } catch (err) { message.error(err?.message || 'Failed to load outward challans'); }
     finally { setLoading(false); }
   }, [search, vendorFilter, statusFilter]);
 

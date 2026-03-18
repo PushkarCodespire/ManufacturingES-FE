@@ -66,7 +66,7 @@ export default function SchedulingPage() {
       if (statusFilter)  p.status     = statusFilter;
       const data = await scheduleApi.getAll(p);
       setSchedules(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load production schedules'); }
+    } catch (err) { message.error(err?.message || 'Failed to load production schedules'); }
     finally { setLoading(false); }
   }, [dateFrom, dateTo, machineFilter, statusFilter]);
 

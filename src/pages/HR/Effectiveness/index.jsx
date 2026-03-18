@@ -180,7 +180,7 @@ const PendingTab = ({ canWrite }) => {
     try {
       const res = await trainingEffectivenessApi.getPending();
       setItems(res?.data ?? res ?? []);
-    } catch { message.error('Failed to load pending evaluations'); }
+    } catch (err) { message.error(err?.message || 'Failed to load pending evaluations'); }
     finally { setLoading(false); }
   }, []);
 
@@ -303,7 +303,7 @@ const HistoryTab = () => {
       if (resFilter) params.result = resFilter;
       const res = await trainingEffectivenessApi.getHistory(params);
       setItems(res?.data ?? res ?? []);
-    } catch { message.error('Failed to load history'); }
+    } catch (err) { message.error(err?.message || 'Failed to load history'); }
     finally { setLoading(false); }
   }, [resFilter]);
 

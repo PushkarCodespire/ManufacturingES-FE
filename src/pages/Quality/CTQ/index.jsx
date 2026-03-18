@@ -478,8 +478,8 @@ const CTQPage = () => {
     try {
       const data = await ctqIssueApi.getAll();
       setIssues(Array.isArray(data) ? data : data?.data || []);
-    } catch {
-      message.error('Failed to load CTQ issues');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load CTQ issues');
     } finally {
       setLoading(false);
     }
@@ -517,8 +517,8 @@ const CTQPage = () => {
           await ctqIssueApi.delete(issue.id);
           message.success('CTQ issue deleted');
           fetchIssues();
-        } catch {
-          message.error('Failed to delete');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete');
         }
       },
     });

@@ -45,7 +45,7 @@ const DeliveryChallansPage = () => {
       if (filterStatus) params.status = filterStatus;
       const res = await deliveryChallanApi.getAll(params);
       setRecords(res?.data ?? res ?? []);
-    } catch { message.error('Failed to load challans'); }
+    } catch (err) { message.error(err?.message || 'Failed to load challans'); }
     finally { setLoading(false); }
   }, [filterStatus]);
 

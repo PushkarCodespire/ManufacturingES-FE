@@ -81,7 +81,7 @@ export default function AiInsightsPage() {
       const res = await moldAiApi.getDashboard();
       const rows = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
       setMolds(rows);
-    } catch { message.error('Failed to load AI insights dashboard'); }
+    } catch (err) { message.error(err?.message || 'Failed to load AI insights dashboard'); }
     finally   { setLoading(false); }
   }, []);
 
@@ -111,7 +111,7 @@ export default function AiInsightsPage() {
     try {
       const res = await moldAiApi.getMoldPrediction(mold.id);
       setDrawerData(res?.data || res);
-    } catch { message.error('Failed to load mold prediction detail'); }
+    } catch (err) { message.error(err?.message || 'Failed to load mold prediction detail'); }
     finally   { setDrawerLoading(false); }
   };
 
@@ -133,7 +133,7 @@ export default function AiInsightsPage() {
       if (drawerOpen) openDrawer(drawerMold);
     } catch (err) {
       if (err?.errorFields) return;
-      message.error('Failed to submit feedback');
+      message.error(err?.message || 'Failed to submit feedback');
     } finally { setFeedbackSaving(false); }
   };
 
@@ -205,7 +205,16 @@ export default function AiInsightsPage() {
       title: 'Predicted Replacement', key: 'replacement', width: 160,
       render: (_, r) => {
         const p = r.latestPrediction;
-        if (!p?.predicted_replacement_date) return <Text type="secondary">—</Text>;
+        if (!p) return <Text type="secondary">—</Text>;
+        if (!p.predicted_replacement_date) {
+          return (
+            <Tooltip title="Date estimate requires avg shots/day data. Generate predictions after production runs begin to see this.">
+              <Text type="secondary" style={{ fontSize: 11, cursor: 'default' }}>
+                — <ClockCircleOutlined style={{ color: '#d1d5db' }} />
+              </Text>
+            </Tooltip>
+          );
+        }
         const daysLeft = dayjs(p.predicted_replacement_date).diff(dayjs(), 'day');
         const urgent   = daysLeft < 30;
         return (
@@ -213,7 +222,7 @@ export default function AiInsightsPage() {
             <Text style={{ fontSize: 12, color: urgent ? '#f5222d' : '#1d4ed8', fontWeight: 500 }}>
               {fmtDate(p.predicted_replacement_date)}
             </Text>
-            <Text style={{ fontSize: 11, color: '#9ca3af' }}>
+            <Text style={{ fontSize: 11, color: urgent ? '#f5222d' : '#9ca3af' }}>
               {daysLeft > 0 ? `in ${daysLeft} days` : 'overdue'}
             </Text>
           </Space>

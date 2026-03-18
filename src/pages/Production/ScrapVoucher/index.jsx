@@ -57,7 +57,7 @@ export default function ScrapVoucherPage() {
       if (statusFilter) p.status  = statusFilter;
       const data = await scrapApi.getAll(p);
       setVouchers(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load scrap vouchers'); }
+    } catch (err) { message.error(err?.message || 'Failed to load scrap vouchers'); }
     finally { setLoading(false); }
   }, [search, itemFilter, statusFilter]);
 

@@ -42,7 +42,7 @@ export default function OrderTrackingPage() {
     try {
       const data = await customerOrderApi.getTracking();
       setTracking(data);
-    } catch { message.error('Failed to load tracking data'); }
+    } catch (err) { message.error(err?.message || 'Failed to load tracking data'); }
     finally { setLoading(false); }
   }, []);
 

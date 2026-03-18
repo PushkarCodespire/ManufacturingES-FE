@@ -141,7 +141,8 @@ const AddEditView = ({ customer, onBack, onSaved, canWrite }) => {
   useEffect(() => {
     warehouseApi.getAll().then((d) => setWarehouses(d ?? [])).catch(() => {});
     userApi.getAll({ is_active: true, limit: 200 }).then((d) => {
-      setUsers(Array.isArray(d) ? d : (d?.rows ?? []));
+      const all = Array.isArray(d) ? d : (d?.rows ?? []);
+      setUsers(all.filter((u) => u.Role?.name === 'sales_manager'));
     }).catch(() => {});
 
     if (isEdit) {
@@ -448,8 +449,8 @@ const CustomersPage = () => {
     try {
       const data = await vendorApi.getAll({ type: 'customer', ...(search ? { search } : {}) });
       setCustomers(data ?? []);
-    } catch {
-      message.error('Failed to load customers');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load customers');
     } finally {
       setLoading(false);
     }
@@ -468,8 +469,8 @@ const CustomersPage = () => {
           await vendorApi.delete(record.id);
           message.success(`${record.name} deleted`);
           fetchCustomers();
-        } catch {
-          message.error('Failed to delete customer');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete customer');
         }
       },
     });

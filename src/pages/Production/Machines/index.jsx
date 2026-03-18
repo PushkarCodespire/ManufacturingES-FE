@@ -269,8 +269,8 @@ const AddParameterDrawer = ({ open, onClose, onSave }) => {
       setGroupBy('none');
       setFields([]);
       onClose();
-    } catch {
-      message.error('Failed to save parameters');
+    } catch (err) {
+      message.error(err?.message || 'Failed to save parameters');
     } finally {
       setSaving(false);
     }
@@ -553,7 +553,7 @@ const MachineNodeTitle = React.memo(({
 // ══════════════════════════════════════════════════════════════════════════════
 //  CREATE MACHINE STEPPER
 // ══════════════════════════════════════════════════════════════════════════════
-const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, onRefreshParams }) => {
+const CreateMachineStepper = ({ existingMachines, parameters, tags, onDone, onCancel, onRefreshParams }) => {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -563,6 +563,19 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
 
   // Step 2: Production against per flat machine
   const [productionSettings, setProductionSettings] = useState({});
+
+  // Tags per flat machine  { [nodeKey]: { item_group_tags:[], machine_group_tags:[], iot_device_tags:[] } }
+  const [tagSettings, setTagSettings] = useState({});
+
+  // Build item-group tag options from tag management list
+  const itemGroupTagOptions = useMemo(
+    () => (tags || []).map((t) => ({ label: t.name, value: t.name })),
+    [tags],
+  );
+
+  const handleTagChange = useCallback((key, field, val) => {
+    setTagSettings((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [field]: val } }));
+  }, []);
 
   // Step 3: Parameters per flat machine
   const [parameterSettings, setParameterSettings] = useState({});
@@ -641,10 +654,14 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
               .filter(([, v]) => v)
               .map(([name]) => name);
 
+            const t = tagSettings[m.key] || {};
             return {
               name: m.name.trim(),
               parent_id: m.parent_id || null,
               production_against: productionSettings[m.key] || 'none',
+              item_group_tags:    t.item_group_tags    || [],
+              machine_group_tags: t.machine_group_tags || [],
+              iot_device_tags:    t.iot_device_tags    || [],
               parameter_ids,
               parameter_names,
               children: m.children ? buildPayload(m.children) : [],
@@ -654,8 +671,8 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
       await machineApi.bulkCreate({ machines: buildPayload(treeData) });
       message.success('Machines created successfully');
       onDone();
-    } catch {
-      message.error('Failed to create machines');
+    } catch (err) {
+      message.error(err?.message || 'Failed to create machines');
     } finally {
       setSaving(false);
     }
@@ -737,6 +754,7 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
         {/* ── Step 2: Record Production ─────────────────────────────── */}
         {step === 1 && (
           <div>
+            {/* Production Against table */}
             <Table
               rowKey="key"
               dataSource={flatMachines.filter((m) => m.name.trim())}
@@ -780,6 +798,81 @@ const CreateMachineStepper = ({ existingMachines, parameters, onDone, onCancel, 
                 },
               ]}
             />
+
+            {/* ── Machine Tags ─────────────────────────────────────── */}
+            {flatMachines.filter((m) => m.name.trim()).length > 0 && (
+              <div style={{ marginTop: 24 }}>
+                <Text style={{ fontWeight: 600, fontSize: 14, color: '#111827', display: 'block', marginBottom: 4 }}>
+                  Machine Tags
+                </Text>
+                <Text style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 14 }}>
+                  Optional — configure item group, machine group and IOT device tags per machine.
+                </Text>
+                {flatMachines.filter((m) => m.name.trim()).map((m) => (
+                  <div
+                    key={m.key}
+                    style={{
+                      marginBottom: 12,
+                      padding: '12px 16px',
+                      border: '1px solid #e8eaed',
+                      borderRadius: 8,
+                      background: '#fafafa',
+                    }}
+                  >
+                    <Text style={{ fontWeight: 600, fontSize: 12, color: '#374151', display: 'block', marginBottom: 10 }}>
+                      {m.name}
+                    </Text>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      {/* Item Group Tags — from Tag Management */}
+                      <div style={{ flex: 1, minWidth: 180 }}>
+                        <Text style={{ fontSize: 11, color: '#1d4ed8', display: 'block', marginBottom: 4 }}>
+                          Item Group Tags
+                        </Text>
+                        <Select
+                          mode="multiple"
+                          size="small"
+                          style={{ width: '100%' }}
+                          placeholder="Select..."
+                          options={itemGroupTagOptions}
+                          value={(tagSettings[m.key] || {}).item_group_tags || []}
+                          onChange={(val) => handleTagChange(m.key, 'item_group_tags', val)}
+                        />
+                      </div>
+
+                      {/* Machine Group Tags — free-type */}
+                      <div style={{ flex: 1, minWidth: 180 }}>
+                        <Text style={{ fontSize: 11, color: '#1d4ed8', display: 'block', marginBottom: 4 }}>
+                          Machine Group Tags
+                        </Text>
+                        <Select
+                          mode="tags"
+                          size="small"
+                          style={{ width: '100%' }}
+                          placeholder="Add tags..."
+                          value={(tagSettings[m.key] || {}).machine_group_tags || []}
+                          onChange={(val) => handleTagChange(m.key, 'machine_group_tags', val)}
+                        />
+                      </div>
+
+                      {/* IOT Device Tags — free-type */}
+                      <div style={{ flex: 1, minWidth: 180 }}>
+                        <Text style={{ fontSize: 11, color: '#1d4ed8', display: 'block', marginBottom: 4 }}>
+                          IOT Device Tags
+                        </Text>
+                        <Select
+                          mode="tags"
+                          size="small"
+                          style={{ width: '100%' }}
+                          placeholder="Add tags..."
+                          value={(tagSettings[m.key] || {}).iot_device_tags || []}
+                          onChange={(val) => handleTagChange(m.key, 'iot_device_tags', val)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -939,8 +1032,8 @@ const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshP
       message.success('Machine updated');
       setEditing(false);
       onRefresh();
-    } catch {
-      message.error('Failed to update machine');
+    } catch (err) {
+      message.error(err?.message || 'Failed to update machine');
     } finally {
       setSaving(false);
     }
@@ -970,8 +1063,8 @@ const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshP
 
       await machineApi.updateParameters(machine.id, { parameters: updated });
       onRefresh();
-    } catch {
-      message.error('Failed to update parameter');
+    } catch (err) {
+      message.error(err?.message || 'Failed to update parameter');
     }
   };
 
@@ -1302,8 +1395,8 @@ const MachinesPage = () => {
     try {
       const res = await machineApi.getAll(search ? { search } : {});
       setMachines(res?.data ?? res ?? []);
-    } catch {
-      message.error('Failed to load machines');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load machines');
     } finally {
       setLoading(false);
     }
@@ -1352,8 +1445,8 @@ const MachinesPage = () => {
           await machineApi.delete(record.id);
           message.success(`Machine "${record.name}" deleted`);
           fetchMachines();
-        } catch {
-          message.error('Failed to delete machine');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete machine');
         }
       },
     });
@@ -1364,8 +1457,8 @@ const MachinesPage = () => {
       const res = await machineApi.getById(record.id);
       setSelected(res?.data ?? res);
       setView('detail');
-    } catch {
-      message.error('Failed to load machine details');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load machine details');
     }
   };
 
@@ -1388,6 +1481,7 @@ const MachinesPage = () => {
         <CreateMachineStepper
           existingMachines={machines}
           parameters={parameters}
+          tags={tags}
           onDone={() => { setView('list'); fetchMachines(); }}
           onCancel={() => setView('list')}
           onRefreshParams={fetchParameters}

@@ -43,7 +43,7 @@ export default function StockLedgerPage() {
       if (warehouseFilter) params.warehouse_id = warehouseFilter;
       const data = await inventoryApi.getStock(params);
       setStock(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load stock'); }
+    } catch (err) { message.error(err?.message || 'Failed to load stock'); }
     finally { setLoading(false); }
   }, [search, warehouseFilter]);
 
@@ -55,7 +55,7 @@ export default function StockLedgerPage() {
       if (warehouseFilter) params.warehouse_id = warehouseFilter;
       const data = await inventoryApi.getLedger(params);
       setLedger(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load ledger'); }
+    } catch (err) { message.error(err?.message || 'Failed to load ledger'); }
     finally { setLoading(false); }
   }, [warehouseFilter]);
 

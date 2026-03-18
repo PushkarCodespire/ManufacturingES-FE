@@ -59,7 +59,7 @@ const DispatchOrdersPage = () => {
       if (filterStatus) params.status = filterStatus;
       const res = await dispatchOrderApi.getAll(params);
       setRecords(res?.data ?? res ?? []);
-    } catch { message.error('Failed to load dispatch orders'); }
+    } catch (err) { message.error(err?.message || 'Failed to load dispatch orders'); }
     finally { setLoading(false); }
   }, [filterStatus]);
 
@@ -77,7 +77,7 @@ const DispatchOrdersPage = () => {
       setItems(itemRes?.data ?? itemRes ?? []);
       setWarehouses(whRes?.data ?? whRes ?? []);
       setCustomerOrders((coRes?.data?.orders ?? coRes?.data ?? coRes ?? []).filter(o => ['ready', 'in_production', 'active'].includes(o.status)));
-    } catch { message.error('Failed to load reference data'); }
+    } catch (err) { message.error(err?.message || 'Failed to load reference data'); }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

@@ -84,7 +84,7 @@ export default function MoldLifeManagementPage() {
       const data = await moldLifeApi.getDashboard(params);
       setDashboard(data);
       setMolds(Array.isArray(data?.molds) ? data.molds : (Array.isArray(data) ? data : []));
-    } catch { message.error('Failed to load life management dashboard'); }
+    } catch (err) { message.error(err?.message || 'Failed to load life management dashboard'); }
     finally { setLoading(false); }
   }, [search, stageFilter]);
 
@@ -93,7 +93,7 @@ export default function MoldLifeManagementPage() {
     try {
       const data = await moldLifeApi.getAlerts();
       setAlerts(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load alerts'); }
+    } catch (err) { message.error(err?.message || 'Failed to load alerts'); }
     finally { setAlertsLoading(false); }
   }, []);
 
@@ -113,7 +113,7 @@ export default function MoldLifeManagementPage() {
       await moldLifeApi.acknowledgeAlert(alertId);
       message.success('Alert acknowledged');
       loadAlerts();
-    } catch { message.error('Failed to acknowledge alert'); }
+    } catch (err) { message.error(err?.message || 'Failed to acknowledge alert'); }
   };
 
   const handleRequestExtension = async () => {
@@ -127,7 +127,7 @@ export default function MoldLifeManagementPage() {
       loadDashboard();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error('Failed to request life extension');
+      message.error(err?.message || 'Failed to request life extension');
     } finally { setExtensionSaving(false); }
   };
 
@@ -137,7 +137,7 @@ export default function MoldLifeManagementPage() {
       message.success('Life extension approved');
       loadDashboard();
       if (selectedMold) loadMoldLifeStatus(selectedMold.id);
-    } catch { message.error('Failed to approve life extension'); }
+    } catch (err) { message.error(err?.message || 'Failed to approve life extension'); }
   };
 
   const handleMoldClick = (mold) => {
@@ -162,7 +162,7 @@ export default function MoldLifeManagementPage() {
           action_at_100: cfg.action_at_100 ?? 'soft_warning',
         });
       }
-    } catch { message.error('Failed to load mold life status'); }
+    } catch (err) { message.error(err?.message || 'Failed to load mold life status'); }
     finally { setDrawerLoading(false); }
   };
 
@@ -175,7 +175,7 @@ export default function MoldLifeManagementPage() {
       loadDashboard();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error('Failed to update life configuration');
+      message.error(err?.message || 'Failed to update life configuration');
     } finally { setConfigSaving(false); }
   };
   // Resolve each mold's effective life stage using the Mold.life_stage field first,

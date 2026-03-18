@@ -34,7 +34,7 @@ const ShipmentTrackingPage = () => {
       if (search)       params.search = search;
       const res = await dispatchOrderApi.getAll(params);
       setRecords(res?.data ?? res ?? []);
-    } catch { message.error('Failed to load orders'); }
+    } catch (err) { message.error(err?.message || 'Failed to load orders'); }
     finally { setLoading(false); }
   }, [filterStatus, search]);
 

@@ -151,7 +151,7 @@ const TrainingTopicsPage = () => {
   const fetchTopics = useCallback(async () => {
     setLoading(true);
     try { const res = await trainingTopicApi.getAll(); setTopics(res?.data ?? res ?? []); }
-    catch { message.error('Failed to load topics'); }
+    catch (err) { message.error(err?.message || 'Failed to load topics'); }
     finally { setLoading(false); }
   }, []);
 

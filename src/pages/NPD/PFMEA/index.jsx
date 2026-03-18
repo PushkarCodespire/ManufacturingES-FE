@@ -42,7 +42,7 @@ export default function PFMEAPage() {
     try {
       const data = await pfmeaApi.getAll({ search });
       setRecords(Array.isArray(data) ? data : []);
-    } catch { message.error('Failed to load PFMEA records'); }
+    } catch (err) { message.error(err?.message || 'Failed to load PFMEA records'); }
     finally   { setLoading(false); }
   }, [search]);
 

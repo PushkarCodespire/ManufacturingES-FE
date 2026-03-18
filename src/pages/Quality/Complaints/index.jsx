@@ -45,7 +45,7 @@ export default function ComplaintsPage() {
     try {
       const data = await complaintApi.getAll({ search });
       setRecords(Array.isArray(data) ? data : []);
-    } catch { message.error('Failed to load complaints'); }
+    } catch (err) { message.error(err?.message || 'Failed to load complaints'); }
     finally   { setLoading(false); }
   }, [search]);
 

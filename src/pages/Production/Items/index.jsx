@@ -27,27 +27,82 @@ const fmtDateTime = (iso) => (iso ? dayjs(iso).format('DD MMM YYYY HH:mm') : '�
 
 // ── Item Group → auto-fill config ───────────────────────────────────────────
 const ITEM_GROUPS = {
-  Tooling:                { item_type: 'RM',  unit: 'piece' },
-  Tubes:                  { item_type: 'RM',  unit: 'square_meter' },
-  'Round Bars':           { item_type: 'RM',  unit: 'kg' },
-  'Sheet Metal':          { item_type: 'RM',  unit: 'kg' },
-  Castings:               { item_type: 'RM',  unit: 'kg' },
-  Forgings:               { item_type: 'RM',  unit: 'kg' },
-  Fasteners:              { item_type: 'RM',  unit: 'piece' },
-  Marking:                { item_type: 'SFG', unit: 'piece' },
-  Honing:                 { item_type: 'SFG', unit: 'piece' },
-  Drilling:               { item_type: 'SFG', unit: 'piece' },
-  'Machined Parts':       { item_type: 'SFG', unit: 'piece' },
-  Assemblies:             { item_type: 'FG',  unit: 'piece' },
-  'Consumables in KG':    { item_type: 'MRO', unit: 'kg' },
-  'Consumables in Liters':{ item_type: 'MRO', unit: 'liter' },
-  'Cutting Tools':        { item_type: 'MRO', unit: 'piece' },
-  'Packing Material':     { item_type: 'PKG', unit: 'piece' },
-  'Corrugated Boxes':     { item_type: 'PKG', unit: 'piece' },
-  'Packing Quality Check':{ item_type: 'PKG', unit: 'piece' },
+  // ── Raw Materials ──────────────────────────────────────────────────────────
+  Tooling:                    { item_type: 'RM',  unit: 'piece' },
+  Tubes:                      { item_type: 'RM',  unit: 'square_meter' },
+  'Round Bars':               { item_type: 'RM',  unit: 'kg' },
+  'Sheet Metal':              { item_type: 'RM',  unit: 'kg' },
+  Castings:                   { item_type: 'RM',  unit: 'kg' },
+  Forgings:                   { item_type: 'RM',  unit: 'kg' },
+  Fasteners:                  { item_type: 'RM',  unit: 'piece' },
+  Polymers:                   { item_type: 'RM',  unit: 'kg' },
+  'Rubber & Gaskets':         { item_type: 'RM',  unit: 'piece' },
+  // ── Semi-Finished Goods ────────────────────────────────────────────────────
+  Marking:                    { item_type: 'SFG', unit: 'piece' },
+  Honing:                     { item_type: 'SFG', unit: 'piece' },
+  Drilling:                   { item_type: 'SFG', unit: 'piece' },
+  'Machined Parts':           { item_type: 'SFG', unit: 'piece' },
+  'Heat Treated Parts':       { item_type: 'SFG', unit: 'piece' },
+  'Fabricated Structures':    { item_type: 'SFG', unit: 'piece' },
+  // ── Finished Goods ─────────────────────────────────────────────────────────
+  Assemblies:                 { item_type: 'FG',  unit: 'piece' },
+  'Finished Components':      { item_type: 'FG',  unit: 'piece' },
+  'Sub-Assemblies':           { item_type: 'FG',  unit: 'piece' },
+  'Trading Goods':            { item_type: 'FG',  unit: 'piece' },
+  'Spare Parts (Sale)':       { item_type: 'FG',  unit: 'piece' },
+  'By-Products':              { item_type: 'FG',  unit: 'kg' },
+  Scrap:                      { item_type: 'FG',  unit: 'kg' },
+  // ── MRO / Consumables ──────────────────────────────────────────────────────
+  'Consumables in KG':        { item_type: 'MRO', unit: 'kg' },
+  'Consumables in Liters':    { item_type: 'MRO', unit: 'liter' },
+  'Cutting Tools':            { item_type: 'MRO', unit: 'piece' },
+  'Lubricants & Coolants':    { item_type: 'MRO', unit: 'liter' },
+  'Abrasives':                { item_type: 'MRO', unit: 'piece' },
+  // ── Packaging ──────────────────────────────────────────────────────────────
+  'Packing Material':         { item_type: 'PKG', unit: 'piece' },
+  'Corrugated Boxes':         { item_type: 'PKG', unit: 'piece' },
+  'Packing Quality Check':    { item_type: 'PKG', unit: 'piece' },
+  'Shrink Wrap / Strapping':  { item_type: 'PKG', unit: 'roll' },
 };
 
-const ITEM_GROUP_OPTIONS = Object.keys(ITEM_GROUPS).map((g) => ({ label: g, value: g }));
+// Grouped options for <Select> — Ant Design supports { label, options[] } grouping
+const ITEM_GROUP_OPTIONS = [
+  {
+    label: 'Raw Materials',
+    options: [
+      'Tooling', 'Tubes', 'Round Bars', 'Sheet Metal', 'Castings',
+      'Forgings', 'Fasteners', 'Polymers', 'Rubber & Gaskets',
+    ].map((g) => ({ label: g, value: g })),
+  },
+  {
+    label: 'Semi-Finished Goods',
+    options: [
+      'Marking', 'Honing', 'Drilling', 'Machined Parts',
+      'Heat Treated Parts', 'Fabricated Structures',
+    ].map((g) => ({ label: g, value: g })),
+  },
+  {
+    label: 'Finished Goods',
+    options: [
+      'Assemblies', 'Finished Components', 'Sub-Assemblies',
+      'Trading Goods', 'Spare Parts (Sale)', 'By-Products', 'Scrap',
+    ].map((g) => ({ label: g, value: g })),
+  },
+  {
+    label: 'MRO / Consumables',
+    options: [
+      'Consumables in KG', 'Consumables in Liters', 'Cutting Tools',
+      'Lubricants & Coolants', 'Abrasives',
+    ].map((g) => ({ label: g, value: g })),
+  },
+  {
+    label: 'Packaging',
+    options: [
+      'Packing Material', 'Corrugated Boxes', 'Packing Quality Check',
+      'Shrink Wrap / Strapping',
+    ].map((g) => ({ label: g, value: g })),
+  },
+];
 
 // ── Comprehensive UOM list (20–30 options) ──────────────────────────────────
 const UNIT_OPTIONS = [
@@ -407,7 +462,7 @@ const RulesView = ({ onBack, canWrite }) => {
     try {
       const res = await cycleTimeRuleApi.getAll();
       setRules(res ?? []);
-    } catch { message.error('Failed to load rules'); }
+    } catch (err) { message.error(err?.message || 'Failed to load rules'); }
     finally { setLoading(false); }
   }, []);
 
@@ -464,7 +519,7 @@ const RulesView = ({ onBack, canWrite }) => {
       okText: 'Delete', okType: 'danger',
       onOk: async () => {
         try { await cycleTimeRuleApi.delete(rule.id); message.success('Rule deleted'); fetchRules(); }
-        catch { message.error('Failed to delete rule'); }
+        catch (err) { message.error(err?.message || 'Failed to delete rule'); }
       },
     });
   };
@@ -721,10 +776,6 @@ const ListView = ({
       render: (_, r) => r.item_group ? <Text style={{ fontSize: 12 }}>{r.item_group}</Text> : <Text style={{ color: '#d1d5db', fontSize: 12 }}>—</Text>,
     },
     {
-      title: 'Attributes', key: 'attributes', width: 180,
-      render: (_, r) => r.attributes ? <Text style={{ fontSize: 12 }}>{r.attributes}</Text> : <Text style={{ color: '#d1d5db', fontSize: 12 }}>—</Text>,
-    },
-    {
       title: 'Units', key: 'units', width: 120,
       render: (_, r) => r.unit ? <Text style={{ fontSize: 12 }}>{r.unit}</Text> : <Text style={{ color: '#d1d5db', fontSize: 12 }}>—</Text>,
     },
@@ -845,7 +896,7 @@ const AddItemForm = ({ onSave, onCancel, saving }) => {
       const res = await itemApi.upload(fd);
       const url = res?.data?.url;
       if (url) { form.setFieldsValue({ image_url: url }); message.success('Image uploaded'); }
-    } catch { message.error('Upload failed'); }
+    } catch (err) { message.error(err?.message || 'Upload failed'); }
     finally { setUploading(false); }
   };
 
@@ -921,6 +972,10 @@ const EditViewPage = ({ item, onBack, onRefresh, canWrite }) => {
   const [partnerModalOpen, setPartnerModalOpen] = useState(false);
   const [partnerForm] = Form.useForm();
 
+  const [qualityParams,  setQualityParams]  = useState([]);
+  const [qualityLoading, setQualityLoading] = useState(false);
+  const [qualitySaving,  setQualitySaving]  = useState(false);
+
   // Init from item
   useEffect(() => {
     if (!item) return;
@@ -938,6 +993,21 @@ const EditViewPage = ({ item, onBack, onRefresh, canWrite }) => {
     setPartnerCodes(item.partner_codes || []);
   }, [item, form]);
 
+  useEffect(() => {
+    if (!item?.id) return;
+    setQualityLoading(true);
+    itemApi.getQualityParams(item.id)
+      .then((d) => {
+        const rows = Array.isArray(d) ? d : (d?.data ?? []);
+        setQualityParams(rows.map((r) => ({ ...r, _key: r.id })));
+      })
+      .catch(() => {})
+      .finally(() => setQualityLoading(false));
+  }, [item?.id]);
+
+  const updateQP = (key, field, val) =>
+    setQualityParams((prev) => prev.map((r) => (r._key ?? r.id) === key ? { ...r, [field]: val } : r));
+
   const handleGroupChange = (val) => {
     const cfg = ITEM_GROUPS[val];
     form.setFieldsValue({ item_type: cfg?.item_type || '', unit: cfg?.unit || undefined, sku_group_tags: [val] });
@@ -951,7 +1021,7 @@ const EditViewPage = ({ item, onBack, onRefresh, canWrite }) => {
       const res = await itemApi.upload(fd);
       const url = res?.data?.url;
       if (url) { form.setFieldsValue({ image_url: url }); message.success('Image uploaded'); }
-    } catch { message.error('Upload failed'); }
+    } catch (err) { message.error(err?.message || 'Upload failed'); }
     finally { setUploading(false); }
   };
 
@@ -971,7 +1041,7 @@ const EditViewPage = ({ item, onBack, onRefresh, canWrite }) => {
       onRefresh();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error('Failed to update item');
+      message.error(err?.message || 'Failed to update item');
     } finally { setSaving(false); }
   };
 
@@ -1154,12 +1224,128 @@ const EditViewPage = ({ item, onBack, onRefresh, canWrite }) => {
     </div>
   );
 
+  // ── TAB 6: Quality Parameters ─────────────────────────────────────────────
+  const qualityParamsTab = (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div>
+          <Text style={{ fontWeight: 600, fontSize: 13 }}>Quality Parameters (CTQ)</Text>
+          <br />
+          <Text style={{ fontSize: 11, color: '#6b7280' }}>
+            Define inspection parameters for IQC, OQC and Check Sheets. These will auto-populate when this item is selected in any inspection form.
+          </Text>
+        </div>
+        {editing && (
+          <Button
+            size="small" icon={<PlusCircleOutlined />}
+            onClick={() => setQualityParams([...qualityParams, { _key: Date.now() + Math.random(), _new: true, param_name: '', specification: '', min_value: null, max_value: null, unit: '', measurement_method: '', is_critical: false }])}
+          >
+            Add Parameter
+          </Button>
+        )}
+      </div>
+
+      <Table
+        rowKey={(r) => r._key ?? r.id}
+        dataSource={qualityParams}
+        loading={qualityLoading}
+        pagination={false}
+        size="small"
+        locale={{ emptyText: (
+          <div style={{ padding: 24, textAlign: 'center' }}>
+            <CheckCircleOutlined style={{ fontSize: 28, color: '#d1d5db', display: 'block', marginBottom: 8 }} />
+            <Text style={{ color: '#9ca3af', fontSize: 12 }}>No quality parameters defined yet.</Text>
+            {editing && <><br /><Button size="small" type="dashed" style={{ marginTop: 8 }} onClick={() => setQualityParams([{ _key: Date.now() + Math.random(), _new: true, param_name: '', specification: '', min_value: null, max_value: null, unit: '', measurement_method: '', is_critical: false }])}>Add First Parameter</Button></>}
+          </div>
+        )}}
+        columns={[
+          {
+            title: 'Parameter Name', dataIndex: 'param_name', key: 'param_name', width: 160,
+            render: (v, record) => editing
+              ? <Input size="small" value={v} onChange={(e) => updateQP(record._key ?? record.id, 'param_name', e.target.value)} placeholder="e.g. Diameter" />
+              : <Text style={{ fontWeight: 500, fontSize: 12 }}>{v}</Text>,
+          },
+          {
+            title: 'Specification', dataIndex: 'specification', key: 'specification', width: 160,
+            render: (v, record) => editing
+              ? <Input size="small" value={v || ''} onChange={(e) => updateQP(record._key ?? record.id, 'specification', e.target.value)} placeholder="e.g. 10.00 ± 0.05" />
+              : <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+          },
+          {
+            title: 'Min', dataIndex: 'min_value', key: 'min_value', width: 80,
+            render: (v, record) => editing
+              ? <InputNumber size="small" value={v} onChange={(val) => updateQP(record._key ?? record.id, 'min_value', val)} style={{ width: '100%' }} placeholder="Min" />
+              : <Text style={{ fontSize: 12 }}>{v != null ? v : '—'}</Text>,
+          },
+          {
+            title: 'Max', dataIndex: 'max_value', key: 'max_value', width: 80,
+            render: (v, record) => editing
+              ? <InputNumber size="small" value={v} onChange={(val) => updateQP(record._key ?? record.id, 'max_value', val)} style={{ width: '100%' }} placeholder="Max" />
+              : <Text style={{ fontSize: 12 }}>{v != null ? v : '—'}</Text>,
+          },
+          {
+            title: 'Unit', dataIndex: 'unit', key: 'unit', width: 80,
+            render: (v, record) => editing
+              ? <Input size="small" value={v || ''} onChange={(e) => updateQP(record._key ?? record.id, 'unit', e.target.value)} placeholder="mm" />
+              : <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+          },
+          {
+            title: 'Method', dataIndex: 'measurement_method', key: 'measurement_method', width: 150,
+            render: (v, record) => editing
+              ? <Input size="small" value={v || ''} onChange={(e) => updateQP(record._key ?? record.id, 'measurement_method', e.target.value)} placeholder="Vernier / Visual…" />
+              : <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+          },
+          {
+            title: 'CTQ', dataIndex: 'is_critical', key: 'is_critical', width: 60, align: 'center',
+            render: (v, record) => editing
+              ? <input type="checkbox" checked={!!v} onChange={(e) => updateQP(record._key ?? record.id, 'is_critical', e.target.checked)} />
+              : v ? <Tag color="red" style={{ fontSize: 10 }}>CTQ</Tag> : null,
+          },
+          ...(editing ? [{
+            title: '', key: 'del', width: 36,
+            render: (_, record) => (
+              <Button type="text" danger size="small" icon={<DeleteOutlined />}
+                onClick={() => setQualityParams((prev) => prev.filter((p) => (p._key ?? p.id) !== (record._key ?? record.id)))}
+              />
+            ),
+          }] : []),
+        ]}
+      />
+
+      {editing && qualityParams.length > 0 && (
+        <div style={{ marginTop: 12, textAlign: 'right' }}>
+          <Button
+            type="primary" size="small" loading={qualitySaving}
+            onClick={async () => {
+              const invalid = qualityParams.some((p) => !p.param_name?.trim());
+              if (invalid) { message.warning('Parameter Name is required for all rows'); return; }
+              setQualitySaving(true);
+              try {
+                await itemApi.saveQualityParams(item.id, qualityParams);
+                message.success('Quality parameters saved');
+                // Refresh
+                const fresh = await itemApi.getQualityParams(item.id);
+                const freshRows = Array.isArray(fresh) ? fresh : (fresh?.data ?? []);
+                setQualityParams(freshRows.map((r) => ({ ...r, _key: r.id })));
+              } catch (err) { message.error(err?.message || 'Failed to save quality parameters'); }
+              finally { setQualitySaving(false); }
+            }}
+            icon={<CheckCircleOutlined />}
+          >
+            Save Quality Params
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
   const tabItems = [
-    { key: 'alt_unit',     label: 'Alt Unit',          children: altUnitTab },
-    { key: 'batch_sizes',  label: 'Batch Sizes',       children: batchSizesTab },
-    { key: 'racks',        label: 'Racks',             children: racksTab },
-    { key: 'partner_code', label: 'Partner Code',      children: partnerCodeTab },
-    { key: 'tax_info',     label: 'Tax Information',   children: taxInfoTab },
+    { key: 'alt_unit',      label: 'Alt Unit',          children: altUnitTab },
+    { key: 'batch_sizes',   label: 'Batch Sizes',       children: batchSizesTab },
+    { key: 'racks',         label: 'Racks',             children: racksTab },
+    { key: 'partner_code',  label: 'Partner Code',      children: partnerCodeTab },
+    { key: 'tax_info',      label: 'Tax Information',   children: taxInfoTab },
+    { key: 'quality_params', label: 'Quality Params',   children: qualityParamsTab },
   ];
 
   return (
@@ -1277,7 +1463,7 @@ const ItemsPage = () => {
       const res = await itemApi.getAll(params);
       setItems(res?.data ?? []);
       if (res?.meta) setPagination((prev) => ({ ...prev, total: res.meta.total }));
-    } catch { message.error('Failed to load items'); }
+    } catch (err) { message.error(err?.message || 'Failed to load items'); }
     finally { setLoading(false); }
   }, [search, pagination.page, pagination.pageSize]);
 
@@ -1307,14 +1493,14 @@ const ItemsPage = () => {
       okText: 'Delete', okType: 'danger',
       onOk: async () => {
         try { await itemApi.delete(record.id); message.success('Item deleted'); fetchItems(); fetchAllItems(); }
-        catch { message.error('Failed to delete item'); }
+        catch (err) { message.error(err?.message || 'Failed to delete item'); }
       },
     });
   };
 
   const handleDetail = async (record) => {
     try { const res = await itemApi.getById(record.id); setSelected(res?.data ?? res); setView('detail'); }
-    catch { message.error('Failed to load item'); }
+    catch (err) { message.error(err?.message || 'Failed to load item'); }
   };
 
   const refreshSelected = async () => {

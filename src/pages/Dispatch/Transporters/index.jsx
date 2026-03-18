@@ -36,7 +36,7 @@ const TransportersPage = () => {
     try {
       const res = await transporterApi.getAll();
       setRecords(res?.data ?? res ?? []);
-    } catch { message.error('Failed to load transporters'); }
+    } catch (err) { message.error(err?.message || 'Failed to load transporters'); }
     finally { setLoading(false); }
   }, []);
 

@@ -105,7 +105,7 @@ export default function RFQPage() {
       if (statusFilter) params.status = statusFilter;
       const data = await rfqApi.getAll(params);
       setRfqs(data);
-    } catch { message.error('Failed to load RFQs'); }
+    } catch (err) { message.error(err?.message || 'Failed to load RFQs'); }
     finally { setLoading(false); }
   }, [search, statusFilter]);
 

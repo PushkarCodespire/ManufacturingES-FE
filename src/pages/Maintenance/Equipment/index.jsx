@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Button, Tag, Space, Modal, Form, Input, Select,
   Typography, Row, Col, Statistic, Drawer, Descriptions, Divider,
-  message, Tree, Tabs, InputNumber, Progress, Tooltip,
+  message, Tree, Tabs, InputNumber, Progress, Tooltip, Alert, Spin, List,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, ToolOutlined, CheckCircleOutlined,
   ExclamationCircleOutlined, ApartmentOutlined, FileTextOutlined, EditOutlined,
-  BulbOutlined,
+  BulbOutlined, AlertOutlined, ClockCircleOutlined, SyncOutlined, SearchOutlined,
 } from '@ant-design/icons';
 import { equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
@@ -40,6 +40,33 @@ export default function EquipmentPage() {
   const [editForm] = Form.useForm();
   const [critSuggesting, setCritSuggesting] = useState(false);
   const [critSuggestion, setCritSuggestion] = useState(null); // { suggested_criticality, reasons[] }
+  // MNT-003: Failure Pattern Detection
+  const [fpPatterns, setFpPatterns]           = useState(null);   // null = not loaded yet
+  const [fpLoading, setFpLoading]             = useState(false);
+  const [fpEquipFilter, setFpEquipFilter]     = useState(null);   // null = all equipment
+  // MNT-003 per-equipment (detail drawer)
+  const [drawerFp, setDrawerFp]               = useState(null);
+  const [drawerFpLoading, setDrawerFpLoading] = useState(false);
+
+  // ── MNT-003: Failure Pattern Detection ───────────────────────────────────
+  const loadFailurePatterns = useCallback(async (equipId) => {
+    setFpLoading(true);
+    try {
+      const res = await maintenanceAiApi.getFailurePatterns(equipId || undefined);
+      setFpPatterns(Array.isArray(res) ? res : (res?.data ?? res ?? []));
+    } catch (err) { message.error(err?.message || 'Failed to load failure patterns'); }
+    finally { setFpLoading(false); }
+  }, []);
+
+  const loadDrawerFailurePatterns = async (equipId) => {
+    setDrawerFpLoading(true);
+    setDrawerFp(null);
+    try {
+      const res = await maintenanceAiApi.getFailurePatterns(equipId);
+      setDrawerFp(Array.isArray(res) ? res : (res?.data ?? res ?? []));
+    } catch { /* silent */ }
+    finally { setDrawerFpLoading(false); }
+  };
 
   // ── AI: suggest criticality for an existing equipment ─────────────────────
   const suggestCriticality = async (equipId, targetForm) => {
@@ -52,8 +79,8 @@ export default function EquipmentPage() {
       setCritSuggestion(data);
       if (targetForm) targetForm.setFieldsValue({ criticality: data.suggested_criticality });
       message.success(`AI suggests Criticality ${data.suggested_criticality} — applied`);
-    } catch {
-      message.error('AI suggestion failed — check network');
+    } catch (err) {
+      message.error(err?.message || 'AI suggestion failed — check network');
     } finally {
       setCritSuggesting(false);
     }
@@ -101,13 +128,17 @@ export default function EquipmentPage() {
 
   useEffect(() => {
     if (activeTab === 'hierarchy') loadTree();
-  }, [activeTab, loadTree]);
+    // MNT-003: auto-load all-equipment patterns when tab first opened
+    if (activeTab === 'failure-patterns' && fpPatterns === null) loadFailurePatterns(null);
+  }, [activeTab, loadTree, loadFailurePatterns, fpPatterns]);
 
   const openDetail = async (id) => {
     try {
       const res = await equipmentApi.getById(id);
       setSelected(res?.id ? res : (res?.data ?? res));
       setDetailDrawer(true);
+      setDrawerFp(null);
+      loadDrawerFailurePatterns(id); // MNT-003: silently preload per-equipment patterns
     } catch (err) { message.error(err?.message ?? 'Failed to load equipment details'); }
   };
 
@@ -247,6 +278,164 @@ export default function EquipmentPage() {
                   ? <Tree treeData={treeData} defaultExpandAll showLine />
                   : <Text type="secondary">Loading hierarchy...</Text>}
               </Card>
+            ),
+          },
+          {
+            key: 'failure-patterns',
+            label: (
+              <Space size={4}>
+                <AlertOutlined style={{ color: '#dc2626' }} />
+                <span>Failure Patterns</span>
+                {fpPatterns && fpPatterns.length > 0 && (
+                  <Tag color="red" style={{ fontSize: 10, marginLeft: 2 }}>{fpPatterns.length}</Tag>
+                )}
+              </Space>
+            ),
+            children: (
+              <div>
+                {/* Toolbar */}
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
+                  <Select
+                    allowClear
+                    showSearch
+                    placeholder="Filter by equipment (optional)"
+                    style={{ width: 280 }}
+                    filterOption={(i, o) => o.label.toLowerCase().includes(i.toLowerCase())}
+                    options={equipment.map((e) => ({ value: e.id, label: `${e.equipment_code} — ${e.name}` }))}
+                    onChange={(v) => setFpEquipFilter(v ?? null)}
+                  />
+                  <div style={{ flex: 1 }} />
+                  <Button
+                    type="primary"
+                    icon={fpLoading ? <SyncOutlined spin /> : <SearchOutlined />}
+                    loading={fpLoading}
+                    onClick={() => loadFailurePatterns(fpEquipFilter)}
+                    style={{ background: '#dc2626', borderColor: '#dc2626' }}
+                  >
+                    Analyze Patterns
+                  </Button>
+                  {fpPatterns && (
+                    <Button icon={<ReloadOutlined />} onClick={() => loadFailurePatterns(fpEquipFilter)}>Refresh</Button>
+                  )}
+                </div>
+
+                {/* Results */}
+                {fpPatterns === null && !fpLoading && (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#6b7280' }}>
+                    <AlertOutlined style={{ fontSize: 32, marginBottom: 12, color: '#d1d5db' }} />
+                    <div>Click <strong>Analyze Patterns</strong> to detect recurring failure patterns across equipment.</div>
+                    <div style={{ fontSize: 12, marginTop: 4 }}>Analyzes last 90 days of completed work orders with failure codes.</div>
+                  </div>
+                )}
+
+                {fpLoading && (
+                  <div style={{ textAlign: 'center', padding: 40 }}>
+                    <Spin size="large" tip="Detecting patterns..." />
+                  </div>
+                )}
+
+                {fpPatterns !== null && !fpLoading && (
+                  <>
+                    {fpPatterns.length === 0 ? (
+                      <Alert
+                        message="No recurring failure patterns detected"
+                        description="No equipment has ≥2 occurrences of the same failure code in the last 90 days. Either failure codes are not configured on work orders, or failures have not recurred yet."
+                        type="success"
+                        showIcon
+                      />
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                          <Tag color="red">{fpPatterns.filter(p => p.severity === 'high').length} High Severity</Tag>
+                          <Tag color="orange">{fpPatterns.filter(p => p.severity === 'medium').length} Medium</Tag>
+                          <Tag color="default">{fpPatterns.filter(p => p.severity === 'low').length} Low</Tag>
+                          <Tag color="purple">{fpPatterns.filter(p => p.is_periodic).length} Periodic (predictable)</Tag>
+                        </div>
+                        <Table
+                          size="small"
+                          rowKey={(r) => `${r.equipment_id}-${r.failure_code_id}`}
+                          dataSource={fpPatterns}
+                          pagination={{ pageSize: 15 }}
+                          columns={[
+                            {
+                              title: 'Equipment',
+                              width: 160,
+                              render: (_, r) => (
+                                <>
+                                  <Text strong style={{ fontSize: 12 }}>{r.equipment_code}</Text>
+                                  <br />
+                                  <Text type="secondary" style={{ fontSize: 11 }}>{r.equipment_name}</Text>
+                                </>
+                              ),
+                            },
+                            {
+                              title: 'Criticality',
+                              dataIndex: 'equipment_criticality',
+                              width: 80,
+                              render: (v) => <Tag color={v === 'A' ? 'red' : v === 'B' ? 'orange' : 'blue'}>{v}</Tag>,
+                            },
+                            {
+                              title: 'Failure',
+                              width: 180,
+                              render: (_, r) => (
+                                <>
+                                  <Text strong style={{ fontSize: 12 }}>{r.failure_name}</Text>
+                                  {r.failure_code && <Tag style={{ marginLeft: 4, fontSize: 10 }}>{r.failure_code}</Tag>}
+                                  <br />
+                                  <Text type="secondary" style={{ fontSize: 11 }}>{r.failure_category}</Text>
+                                </>
+                              ),
+                            },
+                            {
+                              title: 'Occurrences (90d)',
+                              dataIndex: 'occurrences_90d',
+                              width: 130,
+                              render: (v, r) => (
+                                <Space size={4}>
+                                  <Tag color={r.severity === 'high' ? 'red' : r.severity === 'medium' ? 'orange' : 'default'}>
+                                    {v}×
+                                  </Tag>
+                                  <Text type="secondary" style={{ fontSize: 11 }}>
+                                    every ~{r.avg_interval_days}d
+                                  </Text>
+                                </Space>
+                              ),
+                            },
+                            {
+                              title: 'Pattern',
+                              width: 110,
+                              render: (_, r) => (
+                                <Tooltip title={r.is_periodic ? 'Consistent intervals — highly predictable' : 'Random intervals — harder to predict'}>
+                                  <Tag color={r.is_periodic ? 'purple' : 'default'} style={{ fontSize: 11 }}>
+                                    {r.is_periodic ? '⏱ Periodic' : '↔ Random'}
+                                  </Tag>
+                                </Tooltip>
+                              ),
+                            },
+                            {
+                              title: 'Last Occurrence',
+                              dataIndex: 'last_occurrence',
+                              width: 130,
+                              render: (v) => v ? new Date(v).toLocaleDateString() : '—',
+                            },
+                            {
+                              title: 'Recommendation',
+                              render: (_, r) => (
+                                <Tooltip title={r.typical_cause ? `Typical cause: ${r.typical_cause}` : undefined}>
+                                  <Text style={{ fontSize: 12, color: r.is_periodic ? '#7c3aed' : '#dc2626' }}>
+                                    {r.recommendation}
+                                  </Text>
+                                </Tooltip>
+                              ),
+                            },
+                          ]}
+                          rowClassName={(r) => r.severity === 'high' ? 'ant-table-row-danger' : ''}
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
             ),
           },
         ]}
@@ -391,6 +580,49 @@ export default function EquipmentPage() {
                   <div key={d.id}><FileTextOutlined /> <Text>{d.file_name}</Text> <Tag>{d.document_type}</Tag></div>
                 ))}
               </>
+            )}
+
+            {/* MNT-003: Failure Patterns for this equipment */}
+            <Divider orientation="left">
+              <Space size={4}>
+                <AlertOutlined style={{ color: '#dc2626' }} />
+                <span style={{ fontSize: 13, color: '#dc2626' }}>Failure Patterns (90 days)</span>
+              </Space>
+            </Divider>
+            {drawerFpLoading ? (
+              <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                <Spin size="small" tip="Analyzing..." />
+              </div>
+            ) : drawerFp === null ? (
+              <Text type="secondary" style={{ fontSize: 12 }}>Loading pattern data...</Text>
+            ) : drawerFp.length === 0 ? (
+              <Text type="secondary" style={{ fontSize: 12 }}>✓ No recurring failure patterns detected in last 90 days</Text>
+            ) : (
+              <List
+                size="small"
+                dataSource={drawerFp}
+                renderItem={(p) => (
+                  <List.Item style={{ padding: '6px 0' }}>
+                    <div style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 }}>
+                        <Space size={4} wrap>
+                          <Tag color={p.severity === 'high' ? 'red' : p.severity === 'medium' ? 'orange' : 'default'} style={{ fontSize: 10 }}>
+                            {p.severity?.toUpperCase()}
+                          </Tag>
+                          <Text strong style={{ fontSize: 12 }}>{p.failure_name}</Text>
+                          {p.is_periodic && (
+                            <Tooltip title="Consistent timing — schedule PM to prevent">
+                              <Tag color="purple" style={{ fontSize: 10 }}>Periodic</Tag>
+                            </Tooltip>
+                          )}
+                        </Space>
+                        <Tag color="default" style={{ fontSize: 10 }}>{p.occurrences_90d}× / every ~{p.avg_interval_days}d</Tag>
+                      </div>
+                      <Text type="secondary" style={{ fontSize: 11 }}>{p.recommendation}</Text>
+                    </div>
+                  </List.Item>
+                )}
+              />
             )}
 
             <Divider />

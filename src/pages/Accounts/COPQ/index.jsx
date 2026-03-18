@@ -1,11 +1,43 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Card, Button, Input, Table, Tag, Space, Drawer, Form, Select, DatePicker, InputNumber, message, Popconfirm, Row, Col, Statistic } from 'antd';
-import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, RightOutlined, WarningOutlined, DollarOutlined } from '@ant-design/icons';
+import { Typography, Card, Button, Input, Table, Tag, Space, Drawer, Form, Select, DatePicker, InputNumber, message, Popconfirm, Row, Col, Statistic, Divider } from 'antd';
+import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, RightOutlined, WarningOutlined, DollarOutlined, BulbOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import { copqEntryApi } from '../../../api/accounts.api';
 import { itemApi } from '../../../api/item.api';
 import { userApi } from '../../../api/user.api';
+import aiApi from '../../../api/ai.api';
+import useAiSuggestion from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard from '../../../components/AiSuggestion/AiSuggestionCard';
+
+const parseInsight = (raw) => {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !raw.raw_text) return raw;
+  const text = raw.raw_text ?? raw;
+  if (typeof text !== 'string') return raw;
+
+  // 1. Try to extract JSON from within a fenced code block (handles trailing content after ```)
+  const fenced = text.match(/```(?:json)?\s*([\s\S]+?)```/i);
+  if (fenced) {
+    try {
+      const parsed = JSON.parse(fenced[1].trim());
+      // Capture any trailing text after the closing ``` as a note
+      const closingIdx = text.indexOf('```', text.indexOf(fenced[1]) + fenced[1].length);
+      const after = closingIdx >= 0 ? text.slice(closingIdx + 3).trim() : '';
+      if (after) parsed._note = after.replace(/\*\*/g, ''); // strip markdown bold
+      return parsed;
+    } catch {}
+  }
+
+  // 2. Try stripping fences from start only (closing ``` may be mid-string)
+  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/```[\s\S]*$/, '').trim();
+  try { return JSON.parse(stripped); } catch {}
+
+  // 3. Try parsing directly
+  try { return JSON.parse(text.trim()); } catch {}
+
+  return null; // give up — nothing to show
+};
 
 const { Title, Text } = Typography;
 
@@ -38,6 +70,20 @@ const COPQPage = () => {
   const [saving, setSaving]         = useState(false);
   const [form] = Form.useForm();
 
+  // AI narrative state
+  const aiNarrative = useAiSuggestion(aiApi.getCopqAiNarrative);
+  const [aiNarrativeFrom, setAiNarrativeFrom] = useState(dayjs().startOf('month'));
+  const [aiNarrativeTo, setAiNarrativeTo] = useState(dayjs());
+  const [aiNarrativeVisible, setAiNarrativeVisible] = useState(false);
+
+  const fetchAiNarrative = () => {
+    setAiNarrativeVisible(true);
+    aiNarrative.fetch({
+      from: aiNarrativeFrom.format('YYYY-MM-DD'),
+      to:   aiNarrativeTo.format('YYYY-MM-DD'),
+    });
+  };
+
   const currentMonth = dayjs().format('YYYY-MM');
 
   const load = useCallback(async () => {
@@ -48,7 +94,7 @@ const COPQPage = () => {
       if (catFilter) params.category = catFilter;
       const data = await copqEntryApi.getAll(params);
       setRows(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load COPQ entries'); }
+    } catch (err) { message.error(err?.message || 'Failed to load COPQ entries'); }
     finally { setLoading(false); }
   }, [search, catFilter]);
 
@@ -216,6 +262,165 @@ const COPQPage = () => {
           <Button icon={<ReloadOutlined />} onClick={() => { load(); loadSummary(); }}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Entry</Button>
         </div>
+
+        {/* AI Narrative panel */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+          <BulbOutlined style={{ color: '#7c3aed', fontSize: 15 }} />
+          <Text style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>AI Narrative</Text>
+          <DatePicker
+            size="small"
+            value={aiNarrativeFrom}
+            onChange={(v) => v && setAiNarrativeFrom(v)}
+            format="DD MMM YYYY"
+            placeholder="From"
+            style={{ width: 130 }}
+          />
+          <Text type="secondary" style={{ fontSize: 12 }}>to</Text>
+          <DatePicker
+            size="small"
+            value={aiNarrativeTo}
+            onChange={(v) => v && setAiNarrativeTo(v)}
+            format="DD MMM YYYY"
+            placeholder="To"
+            style={{ width: 130 }}
+          />
+          <Button
+            size="small"
+            icon={<BulbOutlined />}
+            style={{ color: '#7c3aed', borderColor: '#7c3aed' }}
+            loading={aiNarrative.loading}
+            onClick={fetchAiNarrative}
+          >
+            Generate Narrative
+          </Button>
+          {aiNarrativeVisible && (
+            <Button
+              size="small"
+              type="text"
+              onClick={() => { setAiNarrativeVisible(false); aiNarrative.reset(); }}
+            >
+              Hide
+            </Button>
+          )}
+        </div>
+
+        {aiNarrativeVisible && (
+          <AiSuggestionCard
+            loading={aiNarrative.loading}
+            error={aiNarrative.error}
+            aiAvailable={aiNarrative.aiAvailable}
+            cached={aiNarrative.cached}
+            onRetry={fetchAiNarrative}
+            onDismiss={() => { setAiNarrativeVisible(false); aiNarrative.reset(); }}
+          >
+            {(() => {
+              const d = aiNarrative.data;
+              if (!d) return null;
+              const insight = parseInsight(d.ai_insight);
+              if (!insight) return null;
+              return (
+                <div style={{ fontSize: 13 }}>
+                  {/* Period + context */}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                    {d.period && (
+                      <Tag color="blue">
+                        {typeof d.period === 'object'
+                          ? `${d.period.from || ''} — ${d.period.to || ''}`
+                          : String(d.period)}
+                      </Tag>
+                    )}
+                    {d.total_cost != null && (
+                      <Tag color="red">Total COPQ: ₹{parseFloat(d.total_cost).toLocaleString('en-IN')}</Tag>
+                    )}
+                    {d.top_category && <Tag color="orange">Top: {String(d.top_category)}</Tag>}
+                    {insight.confidence && <Tag color="geekblue">Confidence: {insight.confidence}</Tag>}
+                  </div>
+
+                  {/* Executive summary */}
+                  {insight.executive_summary && (
+                    <div style={{ marginBottom: 12 }}>
+                      <Text strong style={{ fontSize: 12, color: '#374151' }}>Executive Summary</Text>
+                      <div style={{
+                        marginTop: 4, padding: '8px 12px',
+                        background: '#f8fafc', border: '1px solid #e2e8f0',
+                        borderRadius: 6, fontSize: 12, lineHeight: 1.6, color: '#374151',
+                      }}>
+                        {insight.executive_summary}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Benchmarking */}
+                  {insight.benchmarking_insight && (
+                    <div style={{ marginBottom: 12 }}>
+                      <Text strong style={{ fontSize: 12, color: '#374151' }}>Benchmarking</Text>
+                      <div style={{ marginTop: 4, fontSize: 12, color: '#4b5563' }}>
+                        {insight.benchmarking_insight}
+                      </div>
+                    </div>
+                  )}
+
+                  <Divider style={{ margin: '10px 0' }} />
+
+                  {/* Key findings */}
+                  {Array.isArray(insight.key_findings) && insight.key_findings.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <Text strong style={{ fontSize: 12, color: '#374151' }}>Key Findings</Text>
+                      <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                        {insight.key_findings.map((item, i) => (
+                          <li key={i} style={{ fontSize: 12, color: '#4b5563', marginBottom: 2 }}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Cost drivers */}
+                  {Array.isArray(insight.cost_drivers) && insight.cost_drivers.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <Text strong style={{ fontSize: 12, color: '#374151' }}>Cost Drivers</Text>
+                      <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                        {insight.cost_drivers.map((item, i) => (
+                          <li key={i} style={{ fontSize: 12, color: '#4b5563', marginBottom: 2 }}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Improvement opportunities */}
+                  {Array.isArray(insight.improvement_opportunities) && insight.improvement_opportunities.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <Text strong style={{ fontSize: 12, color: '#374151' }}>Improvement Opportunities</Text>
+                      <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                        {insight.improvement_opportunities.map((item, i) => (
+                          <li key={i} style={{ fontSize: 12, color: '#4b5563', marginBottom: 2 }}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Priority actions */}
+                  {Array.isArray(insight.priority_actions) && insight.priority_actions.length > 0 && (
+                    <div style={{ marginBottom: 4 }}>
+                      <Text strong style={{ fontSize: 12, color: '#374151' }}>Priority Actions</Text>
+                      <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                        {insight.priority_actions.map((item, i) => (
+                          <li key={i} style={{ fontSize: 12, color: '#4b5563', marginBottom: 2 }}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {insight._note && (
+                    <div style={{ marginTop: 8, padding: '8px 12px', background: '#fefce8', border: '1px solid #fde68a', borderRadius: 6, fontSize: 11, color: '#92400e', fontStyle: 'italic' }}>
+                      {insight._note}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </AiSuggestionCard>
+        )}
+
         <Table rowKey="id" loading={loading} columns={columns} dataSource={rows} size="small" scroll={{ x: 1100 }}
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }} />
       </Card>

@@ -150,8 +150,8 @@ const ConfigurationPage = () => {
     try {
       const data = await siteApi.getAll(search ? { search } : {});
       setSites(data ?? []);
-    } catch {
-      message.error('Failed to load sites');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load sites');
     } finally {
       setLoading(false);
     }
@@ -173,8 +173,8 @@ const ConfigurationPage = () => {
           await siteApi.toggleStatus(record.id);
           message.success(`Site "${record.name}" ${record.is_active ? 'deactivated' : 'activated'}`);
           fetchSites();
-        } catch {
-          message.error('Failed to update site status');
+        } catch (err) {
+          message.error(err?.message || 'Failed to update site status');
         } finally {
           setToggleLoading(null);
         }

@@ -68,7 +68,7 @@ export default function IQCPage() {
         );
       }
       setInspections(rows);
-    } catch { message.error('Failed to load IQC inspections'); }
+    } catch (err) { message.error(err?.message || 'Failed to load IQC inspections'); }
     finally { setLoading(false); }
   }, [search, resultFilter, vendorFilter, dateFrom, dateTo]);
 

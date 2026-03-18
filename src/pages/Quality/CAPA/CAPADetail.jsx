@@ -236,7 +236,7 @@ export default function CAPADetailPage() {
       setActionDrawer(false);
     } catch (err) {
       if (err?.errorFields) return;
-      message.error('Form error');
+      message.error(err?.message || 'Form error');
     } finally { setActionSaving(false); }
   };
 

@@ -38,7 +38,7 @@ const PaymentsPage = () => {
       if (statusFilter) params.status = statusFilter;
       const data = await paymentApi.getAll(params);
       setRows(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load payments'); }
+    } catch (err) { message.error(err?.message || 'Failed to load payments'); }
     finally { setLoading(false); }
   }, [search, typeFilter, statusFilter]);
 

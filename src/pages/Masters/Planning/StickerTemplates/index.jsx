@@ -617,7 +617,7 @@ const PrintPreviewModal = ({ record, open, onClose }) => {
     try {
       const res = await stickerTemplateApi.render(record.id, { entity_data });
       setResult(res?.data ?? res);
-    } catch { message.error('Failed to render label'); }
+    } catch (err) { message.error(err?.message || 'Failed to render label'); }
     finally { setRendering(false); }
   };
 
@@ -836,8 +836,8 @@ const StickerTemplatesPage = () => {
     try {
       const data = await stickerTemplateApi.getAll(search ? { search } : {});
       setTemplates(data ?? []);
-    } catch {
-      message.error('Failed to load sticker templates');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load sticker templates');
     } finally {
       setLoading(false);
     }
@@ -857,8 +857,8 @@ const StickerTemplatesPage = () => {
           await stickerTemplateApi.delete(record.id);
           message.success(`"${record.name}" deleted`);
           fetchTemplates();
-        } catch {
-          message.error('Failed to delete template');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete template');
         }
       },
     });

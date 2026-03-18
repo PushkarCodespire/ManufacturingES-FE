@@ -768,8 +768,8 @@ const PackagesPage = () => {
     try {
       const data = await packageApi.getAll();
       setPackages(data ?? []);
-    } catch {
-      message.error('Failed to load packages');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load packages');
     } finally {
       setLoading(false);
     }
@@ -789,8 +789,8 @@ const PackagesPage = () => {
           await packageApi.delete(record.id);
           message.success(`"${record.name}" deleted`);
           fetchPackages();
-        } catch {
-          message.error('Failed to delete package');
+        } catch (err) {
+          message.error(err?.message || 'Failed to delete package');
         }
       },
     });

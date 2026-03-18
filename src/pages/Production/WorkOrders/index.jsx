@@ -2,23 +2,47 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Drawer,
   Form, Select, DatePicker, InputNumber, Divider, message, Tooltip,
-  Popconfirm, Badge, Row, Col, Dropdown,
+  Popconfirm, Badge, Row, Col, Dropdown, Alert,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
-  DownOutlined,
+  DownOutlined, BulbOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import AppLayout       from '../../../components/AppLayout';
-import usePermissions  from '../../../hooks/usePermissions';
-import { workOrderApi } from '../../../api/production.api';
-import { itemApi }      from '../../../api/item.api';
-import { machineApi }   from '../../../api/machine.api';
-import { shiftApi }     from '../../../api/shift.api';
-import api              from '../../../api/axios';
+import AppLayout           from '../../../components/AppLayout';
+import usePermissions      from '../../../hooks/usePermissions';
+import useAiSuggestion     from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard    from '../../../components/AiSuggestion/AiSuggestionCard';
+import { workOrderApi }    from '../../../api/production.api';
+import { itemApi }         from '../../../api/item.api';
+import { machineApi }      from '../../../api/machine.api';
+import { shiftApi }        from '../../../api/shift.api';
+import api                 from '../../../api/axios';
+import aiApi               from '../../../api/ai.api';
 
 const { Title, Text } = Typography;
+
+const parseInsight = (raw) => {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !raw.raw_text) return raw;
+  const text = raw.raw_text ?? raw;
+  if (typeof text !== 'string') return raw;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]+?)```/i);
+  if (fenced) { try { return JSON.parse(fenced[1].trim()); } catch {} }
+  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/```[\s\S]*$/, '').trim();
+  try { return JSON.parse(stripped); } catch {}
+  try { return JSON.parse(text.trim()); } catch {}
+  return null;
+};
+
+const DELAY_RISK_COLOR = {
+  none:     'green',
+  low:      'cyan',
+  medium:   'orange',
+  high:     'red',
+  critical: 'red',
+};
 
 const STATUS_CONFIG = {
   draft:       { color: 'default',    label: 'Draft'       },
@@ -68,6 +92,18 @@ export default function WorkOrdersPage() {
   const [editing,    setEditing]    = useState(null);
   const [saving,     setSaving]     = useState(false);
 
+  // ── AI delay risk ──────────────────────────────────────────────────────────
+  const aiDelay    = useAiSuggestion(aiApi.getWoAiDelayRisk);
+  const [aiWoDrawerOpen, setAiWoDrawerOpen] = useState(false);
+  const [aiWoRecord,     setAiWoRecord]     = useState(null);
+
+  const openAiWoDrawer = (wo) => {
+    setAiWoRecord(wo);
+    aiDelay.reset();
+    setAiWoDrawerOpen(true);
+    aiDelay.fetch(wo.id);
+  };
+
   const [form] = Form.useForm();
 
   // ── Load work orders ───────────────────────────────────────────────────────
@@ -79,7 +115,7 @@ export default function WorkOrdersPage() {
       if (statusFilter) params.status = statusFilter;
       const data = await workOrderApi.getAll(params);
       setWorkOrders(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load work orders'); }
+    } catch (err) { message.error(err?.message || 'Failed to load work orders'); }
     finally { setLoading(false); }
   }, [search, statusFilter]);
 
@@ -242,6 +278,19 @@ export default function WorkOrdersPage() {
       title: 'Created By', key: 'creator', width: 120,
       render: (_, r) => <Text style={{ fontSize: 12 }}>{r.Creator?.name || '—'}</Text>,
     },
+    {
+      title: 'AI', key: 'ai', width: 54, align: 'center',
+      render: (_, r) => (
+        <Tooltip title="AI Delay Risk Analysis">
+          <Button
+            size="small"
+            type="text"
+            icon={<BulbOutlined style={{ color: '#7c3aed' }} />}
+            onClick={() => openAiWoDrawer(r)}
+          />
+        </Tooltip>
+      ),
+    },
     ...(canWrite ? [{
       title: 'Actions', key: 'actions', width: 160,
       render: (_, r) => {
@@ -353,6 +402,92 @@ export default function WorkOrdersPage() {
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
         />
       </Card>
+
+      {/* ── AI Delay Risk Drawer ──────────────────────────────────────────── */}
+      <Drawer
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <BulbOutlined style={{ color: '#7c3aed' }} />
+            <span>AI Delay Risk — {aiWoRecord?.wo_no}</span>
+          </div>
+        }
+        open={aiWoDrawerOpen}
+        onClose={() => setAiWoDrawerOpen(false)}
+        width={500}
+        destroyOnClose={false}
+      >
+        <AiSuggestionCard
+          loading={aiDelay.loading}
+          error={aiDelay.error}
+          aiAvailable={aiDelay.aiAvailable}
+          cached={aiDelay.cached}
+          onRetry={() => aiWoRecord && aiDelay.fetch(aiWoRecord.id)}
+          onDismiss={() => setAiWoDrawerOpen(false)}
+          style={{ marginBottom: 16 }}
+        >
+          {(() => {
+            const insight = parseInsight(aiDelay.data?.ai_insight);
+            if (!insight) return null;
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Risk badges */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Tag color={DELAY_RISK_COLOR[insight.delay_risk] || 'default'} style={{ fontWeight: 600 }}>
+                    Risk: {String(insight.delay_risk || '—').toUpperCase()}
+                  </Tag>
+                  <Tag color="purple">Confidence: {insight.confidence || '—'}</Tag>
+                  {insight.expedite_required && (
+                    <Tag color="red" icon={<ThunderboltOutlined />}>Expedite Required</Tag>
+                  )}
+                </div>
+
+                {/* Risk summary */}
+                {insight.risk_summary && (
+                  <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
+                    {insight.risk_summary}
+                  </div>
+                )}
+
+                {/* Risk factors */}
+                {Array.isArray(insight.risk_factors) && insight.risk_factors.length > 0 && (
+                  <div>
+                    <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>
+                      Risk Factors
+                    </Text>
+                    <ul style={{ margin: 0, paddingLeft: 20, color: '#dc2626', fontSize: 13 }}>
+                      {insight.risk_factors.map((f, i) => <li key={i} style={{ marginBottom: 3 }}>{f}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Recommended actions */}
+                {Array.isArray(insight.recommended_actions) && insight.recommended_actions.length > 0 && (
+                  <div>
+                    <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>
+                      Recommended Actions
+                    </Text>
+                    <ul style={{ margin: 0, paddingLeft: 20, color: '#16a34a', fontSize: 13 }}>
+                      {insight.recommended_actions.map((a, i) => <li key={i} style={{ marginBottom: 3 }}>{a}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </AiSuggestionCard>
+
+        {/* WO context */}
+        {aiWoRecord && (
+          <div style={{ background: '#f9fafb', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#6b7280' }}>
+            <Text strong style={{ display: 'block', marginBottom: 6, color: '#374151', fontSize: 13 }}>Work Order Details</Text>
+            <div>Item: <strong style={{ color: '#111827' }}>{aiWoRecord.Item?.name || '—'}</strong></div>
+            <div>Planned Qty: <strong style={{ color: '#111827' }}>{aiWoRecord.planned_qty ? parseFloat(aiWoRecord.planned_qty).toLocaleString() : '—'}</strong></div>
+            <div>Produced Qty: <strong style={{ color: '#111827' }}>{aiWoRecord.produced_qty ? parseFloat(aiWoRecord.produced_qty).toLocaleString() : '0'}</strong></div>
+            <div>Planned End: <strong style={{ color: '#111827' }}>{aiWoRecord.planned_end ? dayjs(aiWoRecord.planned_end).format('DD MMM YYYY') : '—'}</strong></div>
+            <div>Status: <strong style={{ color: '#111827' }}>{STATUS_CONFIG[aiWoRecord.status]?.label || aiWoRecord.status || '—'}</strong></div>
+          </div>
+        )}
+      </Drawer>
 
       {/* ── Create / Edit Drawer ──────────────────────────────────────────── */}
       <Drawer

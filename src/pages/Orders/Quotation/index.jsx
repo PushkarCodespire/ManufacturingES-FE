@@ -36,8 +36,13 @@ const emptyItem = () => ({
   unit_price: 0, discount: 0, gst_rate: 18, total_price: 0,
 });
 
-const calcTotal = (qty, price, disc) =>
+// Base amount before GST: qty × unit_price × (1 - disc%)
+const calcBase = (qty, price, disc) =>
   parseFloat(((qty || 0) * (price || 0) * (1 - (disc || 0) / 100)).toFixed(2));
+
+// Total including GST: base × (1 + gst_rate%)
+const calcTotal = (qty, price, disc, gst) =>
+  parseFloat((calcBase(qty, price, disc) * (1 + (gst || 0) / 100)).toFixed(2));
 
 export default function QuotationPage() {
   const { can } = usePermissions();
@@ -80,7 +85,7 @@ export default function QuotationPage() {
       if (statusFilter) params.status = statusFilter;
       const data = await quotationApi.getAll(params);
       setQuotations(data);
-    } catch { message.error('Failed to load quotations'); }
+    } catch (err) { message.error(err?.message || 'Failed to load quotations'); }
     finally { setLoading(false); }
   }, [search, statusFilter]);
 
@@ -131,7 +136,14 @@ export default function QuotationPage() {
     setDrawerOpen(true);
   };
 
-  const grandTotal = lineItems.reduce((s, r) => s + calcTotal(r.qty, r.unit_price, r.discount), 0);
+  const grossTotal    = parseFloat((lineItems.reduce((s, r) => s + (r.qty || 0) * (r.unit_price || 0), 0)).toFixed(2));
+  const discountAmt   = parseFloat((lineItems.reduce((s, r) => s + (r.qty || 0) * (r.unit_price || 0) * (r.discount || 0) / 100, 0)).toFixed(2));
+  const subtotal      = parseFloat((grossTotal - discountAmt).toFixed(2));
+  const gstAmount     = parseFloat((lineItems.reduce((s, r) => {
+    const base = calcBase(r.qty, r.unit_price, r.discount);
+    return s + base * (r.gst_rate || 0) / 100;
+  }, 0)).toFixed(2));
+  const grandTotal    = parseFloat((subtotal + gstAmount).toFixed(2));
 
   const onSave = async () => {
     try {
@@ -148,7 +160,7 @@ export default function QuotationPage() {
         ...(editing && { status: vals.status }),
         items: lineItems.map(({ _key, ...it }) => ({
           ...it,
-          total_price: calcTotal(it.qty, it.unit_price, it.discount),
+          total_price: calcTotal(it.qty, it.unit_price, it.discount, it.gst_rate),
         })),
       };
       if (editing) {
@@ -367,7 +379,25 @@ export default function QuotationPage() {
         width={800}
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text strong>Grand Total: ₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                Gross: ₹{grossTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                {discountAmt > 0 && (
+                  <span style={{ marginLeft: 12, color: '#dc2626' }}>
+                    Discount: −₹{discountAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                )}
+                <span style={{ marginLeft: 12 }}>
+                  Subtotal: ₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+                <span style={{ marginLeft: 12 }}>
+                  GST: ₹{gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </Text>
+              <Text strong style={{ fontSize: 14 }}>
+                Grand Total (incl. GST): ₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </Text>
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
               {canWrite && (
@@ -428,14 +458,16 @@ export default function QuotationPage() {
           </Divider>
 
           {/* Header row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '180px 90px 60px 80px 70px 70px 70px 32px', gap: 6, marginBottom: 6 }}>
-            {['Item', 'Description', 'Qty', 'Unit', 'Unit Price', 'Disc %', 'GST %', ''].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '180px 90px 60px 80px 70px 60px 60px 90px 32px', gap: 6, marginBottom: 6 }}>
+            {['Item', 'Description', 'Qty', 'Unit', 'Unit Price', 'Disc %', 'GST %', 'Total (₹)', ''].map((h) => (
               <Text key={h} style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>{h}</Text>
             ))}
           </div>
 
-          {lineItems.map((row) => (
-            <div key={row._key} style={{ display: 'grid', gridTemplateColumns: '180px 90px 60px 80px 70px 70px 70px 32px', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+          {lineItems.map((row) => {
+            const rowTotal = calcTotal(row.qty, row.unit_price, row.discount, row.gst_rate);
+            return (
+            <div key={row._key} style={{ display: 'grid', gridTemplateColumns: '180px 90px 60px 80px 70px 60px 60px 90px 32px', gap: 6, marginBottom: 8, alignItems: 'center' }}>
               <Select
                 size="small" showSearch allowClear optionFilterProp="label"
                 value={row.item_id} placeholder="Item"
@@ -461,10 +493,14 @@ export default function QuotationPage() {
                 onChange={(v) => updateLine(row._key, 'discount', v)} style={{ width: '100%' }} />
               <InputNumber size="small" min={0} precision={1} value={row.gst_rate}
                 onChange={(v) => updateLine(row._key, 'gst_rate', v)} style={{ width: '100%' }} />
+              <Text style={{ fontSize: 12, fontWeight: 600, color: '#111827', textAlign: 'right' }}>
+                ₹{rowTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </Text>
               <Button size="small" type="text" danger icon={<MinusCircleOutlined />}
                 onClick={() => removeLine(row._key)} disabled={lineItems.length === 1} />
             </div>
-          ))}
+            );
+          })}
 
           <Button type="dashed" onClick={addLine} icon={<PlusCircleOutlined />} style={{ width: '100%', marginTop: 4 }}>
             Add Item

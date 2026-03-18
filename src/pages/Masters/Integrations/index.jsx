@@ -651,7 +651,7 @@ const LogsModal = ({ integrationId, integrationLabel, open, onClose }) => {
       : integrationApi.getAllLogs();
     req
       .then((d) => setLogs(d ?? []))
-      .catch(() => message.error('Failed to load logs'))
+      .catch((err) => message.error(err?.message || 'Failed to load logs'))
       .finally(() => setLoading(false));
   }, [open, integrationId]);
 
@@ -766,8 +766,8 @@ const IntegrationsPage = () => {
     try {
       const data = await integrationApi.getAll();
       setIntegrations(data ?? []);
-    } catch {
-      message.error('Failed to load integrations');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load integrations');
     } finally {
       setLoading(false);
     }
@@ -783,8 +783,8 @@ const IntegrationsPage = () => {
       if (res.success) message.success(res.message);
       else             message.warning(res.message);
       fetchIntegrations();
-    } catch {
-      message.error('Connection test failed');
+    } catch (err) {
+      message.error(err?.message || 'Connection test failed');
     } finally {
       setTesting((p) => ({ ...p, [record.id]: false }));
     }

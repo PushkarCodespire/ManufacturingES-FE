@@ -292,8 +292,8 @@ const AddTagForm = ({ sites, onDone, onCancel }) => {
       });
       message.success('Tag created successfully');
       onDone();
-    } catch {
-      message.error('Failed to create tag');
+    } catch (err) {
+      message.error(err?.message || 'Failed to create tag');
     } finally {
       setSaving(false);
     }
@@ -385,8 +385,8 @@ const TagManagementPage = () => {
     try {
       const res = await tagApi.getAll(search ? { search } : {});
       setTags(res?.data ?? res ?? []);
-    } catch {
-      message.error('Failed to load tags');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load tags');
     } finally {
       setLoading(false);
     }

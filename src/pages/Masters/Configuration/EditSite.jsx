@@ -388,8 +388,8 @@ const EditSitePage = () => {
         downtime_template:           data.downtime_template   ?? 'duration_instances',
         show_powered_by_pdf:         data.show_powered_by_pdf ?? true,
       });
-    } catch {
-      message.error('Failed to load site details');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load site details');
       navigate('/masters/configuration');
     } finally {
       setLoading(false);

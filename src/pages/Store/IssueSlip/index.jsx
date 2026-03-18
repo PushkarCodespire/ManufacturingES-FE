@@ -63,7 +63,7 @@ export default function IssueSlipPage() {
       if (statusFilter) params.status = statusFilter;
       const data = await issueSlipApi.getAll(params);
       setSlips(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load issue slips'); }
+    } catch (err) { message.error(err?.message || 'Failed to load issue slips'); }
     finally { setLoading(false); }
   }, [search, statusFilter]);
 

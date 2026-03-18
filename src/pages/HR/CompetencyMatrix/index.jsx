@@ -83,8 +83,8 @@ const CompetencyMatrixPage = () => {
     try {
       const res = await trainingRecordApi.getMatrix();
       setMatrixData(res?.data ?? res ?? null);
-    } catch {
-      message.error('Failed to load competency matrix');
+    } catch (err) {
+      message.error(err?.message || 'Failed to load competency matrix');
     } finally {
       setLoading(false);
     }

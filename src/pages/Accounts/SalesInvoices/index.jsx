@@ -41,7 +41,7 @@ const SalesInvoicesPage = () => {
       if (statusFilter) params.status = statusFilter;
       const data = await salesInvoiceApi.getAll(params);
       setRows(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load invoices'); }
+    } catch (err) { message.error(err?.message || 'Failed to load invoices'); }
     finally { setLoading(false); }
   }, [search, statusFilter]);
 

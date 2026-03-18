@@ -67,7 +67,7 @@ export default function InwardChallanPage() {
       if (statusFilter) p.status    = statusFilter;
       const data = await subcontractApi.getAll(p);
       setChallans(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load inward challans'); }
+    } catch (err) { message.error(err?.message || 'Failed to load inward challans'); }
     finally { setLoading(false); }
   }, [search, vendorFilter, statusFilter]);
 

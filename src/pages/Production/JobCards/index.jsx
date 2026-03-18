@@ -7,17 +7,33 @@ import {
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
-  CheckOutlined,
+  CheckOutlined, BulbOutlined, ClockCircleOutlined, CheckCircleFilled, CloseCircleFilled,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import AppLayout       from '../../../components/AppLayout';
-import usePermissions  from '../../../hooks/usePermissions';
+import AppLayout           from '../../../components/AppLayout';
+import usePermissions      from '../../../hooks/usePermissions';
+import useAiSuggestion     from '../../../hooks/useAiSuggestion';
+import AiSuggestionCard    from '../../../components/AiSuggestion/AiSuggestionCard';
 import { jobCardApi, workOrderApi } from '../../../api/production.api';
 import { machineApi }   from '../../../api/machine.api';
 import { shiftApi }     from '../../../api/shift.api';
 import { userApi }      from '../../../api/user.api';
+import aiApi            from '../../../api/ai.api';
 
 const { Title, Text } = Typography;
+
+const parseInsight = (raw) => {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !raw.raw_text) return raw;
+  const text = raw.raw_text ?? raw;
+  if (typeof text !== 'string') return raw;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]+?)```/i);
+  if (fenced) { try { return JSON.parse(fenced[1].trim()); } catch {} }
+  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/```[\s\S]*$/, '').trim();
+  try { return JSON.parse(stripped); } catch {}
+  try { return JSON.parse(text.trim()); } catch {}
+  return null;
+};
 
 const STATUS_CONFIG = {
   open:   { color: 'orange', label: 'Open'   },
@@ -42,6 +58,18 @@ export default function JobCardsPage() {
   const [editing,     setEditing]     = useState(null);
   const [saving,      setSaving]      = useState(false);
 
+  // ── AI ETA ────────────────────────────────────────────────────────────────
+  const aiEta    = useAiSuggestion(aiApi.getJobCardAiEta);
+  const [aiJcDrawerOpen, setAiJcDrawerOpen] = useState(false);
+  const [aiJcRecord,     setAiJcRecord]     = useState(null);
+
+  const openAiJcDrawer = (jc) => {
+    setAiJcRecord(jc);
+    aiEta.reset();
+    setAiJcDrawerOpen(true);
+    aiEta.fetch(jc.id);
+  };
+
   // Close modal
   const [closeModal,      setCloseModal]      = useState(false);
   const [closingCard,     setClosingCard]     = useState(null);
@@ -61,7 +89,7 @@ export default function JobCardsPage() {
       if (woFilter)     params.work_order_id = woFilter;
       const data = await jobCardApi.getAll(params);
       setJobCards(Array.isArray(data) ? data : (data?.data ?? []));
-    } catch { message.error('Failed to load job cards'); }
+    } catch (err) { message.error(err?.message || 'Failed to load job cards'); }
     finally { setLoading(false); }
   }, [search, statusFilter, woFilter]);
 
@@ -215,6 +243,19 @@ export default function JobCardsPage() {
         return <Tag color={cfg.color}>{cfg.label}</Tag>;
       },
     },
+    {
+      title: 'AI', key: 'ai', width: 54, align: 'center',
+      render: (_, r) => (
+        <Tooltip title="AI ETA Prediction">
+          <Button
+            size="small"
+            type="text"
+            icon={<BulbOutlined style={{ color: '#7c3aed' }} />}
+            onClick={() => openAiJcDrawer(r)}
+          />
+        </Tooltip>
+      ),
+    },
     ...(canWrite ? [{
       title: 'Actions', key: 'actions', width: 150,
       render: (_, r) => {
@@ -333,6 +374,103 @@ export default function JobCardsPage() {
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
         />
       </Card>
+
+      {/* ── AI ETA Drawer ─────────────────────────────────────────────────── */}
+      <Drawer
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <BulbOutlined style={{ color: '#7c3aed' }} />
+            <span>AI ETA Prediction — {aiJcRecord?.job_no}</span>
+          </div>
+        }
+        open={aiJcDrawerOpen}
+        onClose={() => setAiJcDrawerOpen(false)}
+        width={500}
+        destroyOnClose={false}
+      >
+        <AiSuggestionCard
+          loading={aiEta.loading}
+          error={aiEta.error}
+          aiAvailable={aiEta.aiAvailable}
+          cached={aiEta.cached}
+          onRetry={() => aiJcRecord && aiEta.fetch(aiJcRecord.id)}
+          onDismiss={() => setAiJcDrawerOpen(false)}
+          style={{ marginBottom: 16 }}
+        >
+          {(() => {
+            const insight = parseInsight(aiEta.data?.ai_insight);
+            if (!insight) return null;
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Status badges */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {insight.on_track === true && (
+                    <Tag color="green" icon={<CheckCircleFilled />}>On Track</Tag>
+                  )}
+                  {insight.on_track === false && (
+                    <Tag color="red" icon={<CloseCircleFilled />}>Behind Schedule</Tag>
+                  )}
+                  {insight.on_track == null && (
+                    <Tag color="default" icon={<ClockCircleOutlined />}>Not Started</Tag>
+                  )}
+                  <Tag color="purple">Confidence: {insight.confidence || '—'}</Tag>
+                </div>
+
+                {/* ETA assessment */}
+                {insight.eta_assessment && (
+                  <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
+                    {insight.eta_assessment}
+                  </div>
+                )}
+
+                {/* Current rate */}
+                {insight.current_rate_assessment && (
+                  <div style={{ fontSize: 12, color: '#6b7280', fontStyle: 'italic', paddingLeft: 2 }}>
+                    {insight.current_rate_assessment}
+                  </div>
+                )}
+
+                {/* Risk factors */}
+                {Array.isArray(insight.risk_factors) && insight.risk_factors.length > 0 && (
+                  <div>
+                    <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>
+                      Risk Factors
+                    </Text>
+                    <ul style={{ margin: 0, paddingLeft: 20, color: '#dc2626', fontSize: 13 }}>
+                      {insight.risk_factors.map((f, i) => <li key={i} style={{ marginBottom: 3 }}>{f}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Recommended actions */}
+                {Array.isArray(insight.recommended_actions) && insight.recommended_actions.length > 0 && (
+                  <div>
+                    <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>
+                      Recommended Actions
+                    </Text>
+                    <ul style={{ margin: 0, paddingLeft: 20, color: '#16a34a', fontSize: 13 }}>
+                      {insight.recommended_actions.map((a, i) => <li key={i} style={{ marginBottom: 3 }}>{a}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </AiSuggestionCard>
+
+        {/* Job card context */}
+        {aiJcRecord && (
+          <div style={{ background: '#f9fafb', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#6b7280' }}>
+            <Text strong style={{ display: 'block', marginBottom: 6, color: '#374151', fontSize: 13 }}>Job Card Details</Text>
+            <div>Work Order: <strong style={{ color: '#111827' }}>{aiJcRecord.WorkOrder?.wo_no || '—'}</strong></div>
+            <div>Machine: <strong style={{ color: '#111827' }}>{aiJcRecord.Machine?.name || '—'}</strong></div>
+            <div>Operator: <strong style={{ color: '#111827' }}>{aiJcRecord.Operator?.name || '—'}</strong></div>
+            <div>Start Time: <strong style={{ color: '#111827' }}>{aiJcRecord.start_time ? dayjs(aiJcRecord.start_time).format('DD MMM YYYY HH:mm') : '—'}</strong></div>
+            <div>Qty Produced: <strong style={{ color: '#111827' }}>{aiJcRecord.qty_produced != null ? parseFloat(aiJcRecord.qty_produced).toLocaleString() : '—'}</strong></div>
+            <div>Status: <strong style={{ color: '#111827' }}>{STATUS_CONFIG[aiJcRecord.status]?.label || aiJcRecord.status || '—'}</strong></div>
+          </div>
+        )}
+      </Drawer>
 
       {/* ── Create / Edit Drawer ──────────────────────────────────────────── */}
       <Drawer

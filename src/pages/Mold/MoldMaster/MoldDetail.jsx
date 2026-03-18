@@ -7,7 +7,7 @@ import {
 import {
   ArrowLeftOutlined, PlusOutlined, ReloadOutlined, RightOutlined,
   DeleteOutlined, UploadOutlined, QrcodeOutlined, ToolOutlined,
-  CheckCircleOutlined, StopOutlined,
+  CheckCircleOutlined, StopOutlined, SwapOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -29,6 +29,19 @@ const LIFE_STAGE_COLOR = {
   critical: 'red', end_of_life: 'magenta', extended_life: 'purple',
 };
 const CAVITY_STATUS_COLOR = { active: 'green', blocked: 'red', flagged: 'orange', under_repair: 'blue', trial_pending: 'purple' };
+
+// Valid status transitions — only show allowed next states
+const VALID_TRANSITIONS = {
+  registered:       ['trial_pending', 'in_storage'],
+  trial_pending:    ['production_ready', 'repair_needed'],
+  production_ready: ['in_production', 'in_storage'],
+  in_production:    ['production_ready', 'in_storage', 'repair_needed'],
+  in_storage:       ['in_production', 'production_ready', 'repair_needed'],
+  repair_needed:    ['in_repair'],
+  in_repair:        ['production_ready', 'in_storage', 'end_of_life'],
+  end_of_life:      ['decommissioned'],
+  decommissioned:   [],
+};
 
 const fmtLabel = (v) => v ? v.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '\u2014';
 const fmtDate = (iso) => iso ? dayjs(iso).format('DD MMM YYYY') : '\u2014';
@@ -77,12 +90,17 @@ const MoldDetailPage = () => {
   const [lifeForm] = Form.useForm();
   const [lifeSaving, setLifeSaving] = useState(false);
 
+  // Change status modal
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [statusChanging, setStatusChanging] = useState(false);
+  const [statusForm] = Form.useForm();
+
   const fetchMold = useCallback(async () => {
     setLoading(true);
     try {
       const data = await moldMasterApi.getById(id);
       setMold(data);
-    } catch { message.error('Failed to load mold details'); }
+    } catch (err) { message.error(err?.message || 'Failed to load mold details'); }
     finally { setLoading(false); }
   }, [id]);
 
@@ -151,12 +169,12 @@ const MoldDetailPage = () => {
       setPartModalOpen(false);
       partForm.resetFields();
       fetchMold();
-    } catch (err) { if (!err?.errorFields) message.error('Failed to add part mapping'); }
+    } catch (err) { if (!err?.errorFields) message.error(err?.message || 'Failed to add part mapping'); }
   };
 
   const handleRemovePart = async (mapId) => {
     try { await moldMasterApi.removePartMapping(id, mapId); message.success('Part mapping removed'); fetchMold(); }
-    catch { message.error('Failed to remove part mapping'); }
+    catch (err) { message.error(err?.message || 'Failed to remove part mapping'); }
   };
 
   const handleAddMachine = async () => {
@@ -167,7 +185,7 @@ const MoldDetailPage = () => {
       setMachineModalOpen(false);
       machineForm.resetFields();
       fetchMold();
-    } catch (err) { if (!err?.errorFields) message.error('Failed to add machine compatibility'); }
+    } catch (err) { if (!err?.errorFields) message.error(err?.message || 'Failed to add machine compatibility'); }
   };
 
   const handleBlockCavity = async () => {
@@ -178,7 +196,7 @@ const MoldDetailPage = () => {
       setBlockReason('');
       fetchCavities();
       fetchMold();
-    } catch { message.error('Failed to block cavity'); }
+    } catch (err) { message.error(err?.message || 'Failed to block cavity'); }
   };
 
   const handleUnblockCavity = async (cavId) => {
@@ -187,7 +205,26 @@ const MoldDetailPage = () => {
       message.success('Cavity unblocked');
       fetchCavities();
       fetchMold();
-    } catch { message.error('Failed to unblock cavity'); }
+    } catch (err) { message.error(err?.message || 'Failed to unblock cavity'); }
+  };
+
+  const handleChangeStatus = async () => {
+    try {
+      const values = await statusForm.validateFields();
+      setStatusChanging(true);
+      await moldMasterApi.update(id, {
+        status: values.status,
+        ...(values.notes ? { notes: values.notes } : {}),
+      });
+      message.success(`Status changed to ${fmtLabel(values.status)}`);
+      setStatusModalOpen(false);
+      statusForm.resetFields();
+      fetchMold();
+    } catch (err) {
+      if (!err?.errorFields) message.error(err?.message || 'Failed to change status');
+    } finally {
+      setStatusChanging(false);
+    }
   };
 
   const handleSaveLifeConfig = async () => {
@@ -197,7 +234,7 @@ const MoldDetailPage = () => {
       await moldLifeApi.updateLifeConfig(id, values);
       message.success('Life configuration updated');
       fetchLifeConfig();
-    } catch (err) { if (!err?.errorFields) message.error('Failed to update life config'); }
+    } catch (err) { if (!err?.errorFields) message.error(err?.message || 'Failed to update life config'); }
     finally { setLifeSaving(false); }
   };
 
@@ -262,7 +299,7 @@ const MoldDetailPage = () => {
     { key: 'cavities', label: 'Cavities', children: (
       <>
         {canWriteCavity && <Button type="primary" icon={<PlusOutlined />} size="small" style={{ marginBottom: 12, borderRadius: 8 }}
-          onClick={() => { Modal.confirm({ title: 'Add Cavity', content: (<Form id="addCavForm"><Form.Item label="Cavity Number" name="cavity_number"><InputNumber min={1} /></Form.Item><Form.Item label="Position" name="position"><Input /></Form.Item></Form>), onOk: async () => { try { await moldCavityApi.createCavity(id, { cavity_number: 1, position: 'A1' }); message.success('Cavity added'); fetchCavities(); fetchMold(); } catch { message.error('Failed'); } } }); }}>Add Cavity</Button>}
+          onClick={() => { Modal.confirm({ title: 'Add Cavity', content: (<Form id="addCavForm"><Form.Item label="Cavity Number" name="cavity_number"><InputNumber min={1} /></Form.Item><Form.Item label="Position" name="position"><Input /></Form.Item></Form>), onOk: async () => { try { await moldCavityApi.createCavity(id, { cavity_number: 1, position: 'A1' }); message.success('Cavity added'); fetchCavities(); fetchMold(); } catch (err) { message.error(err?.message || 'Failed'); } } }); }}>Add Cavity</Button>}
         <Table rowKey="id" size="small" dataSource={cavities} loading={cavityLoading} pagination={false}
           columns={[
             { title: '#', dataIndex: 'cavity_number', key: 'cavity_number', width: 60 },
@@ -373,6 +410,16 @@ const MoldDetailPage = () => {
           <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>{mold.name}</Title>
           <Tag color={STATUS_COLOR[mold.status] ?? 'default'} style={{ borderRadius: 20 }}>{fmtLabel(mold.status)}</Tag>
           {mold.life_stage && <Tag color={LIFE_STAGE_COLOR[mold.life_stage] ?? 'default'} style={{ borderRadius: 20 }}>{fmtLabel(mold.life_stage)}</Tag>}
+          {canWrite && (VALID_TRANSITIONS[mold.status]?.length ?? 0) > 0 && (
+            <Button
+              size="small"
+              icon={<SwapOutlined />}
+              onClick={() => { statusForm.resetFields(); setStatusModalOpen(true); }}
+              style={{ borderRadius: 8, marginLeft: 4 }}
+            >
+              Change Status
+            </Button>
+          )}
         </div>
       </div>
 
@@ -458,6 +505,48 @@ const MoldDetailPage = () => {
         <Form layout="vertical">
           <Form.Item label="Reason for Blocking" required>
             <Input.TextArea rows={3} value={blockReason} onChange={(e) => setBlockReason(e.target.value)} placeholder="Enter reason for blocking this cavity" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Change Status Modal */}
+      <Modal
+        title={<span><SwapOutlined style={{ marginRight: 8, color: '#1d4ed8' }} />Change Mold Status</span>}
+        open={statusModalOpen}
+        onCancel={() => { setStatusModalOpen(false); statusForm.resetFields(); }}
+        onOk={handleChangeStatus}
+        confirmLoading={statusChanging}
+        okText="Change Status"
+        width={460}
+      >
+        <Form form={statusForm} layout="vertical" style={{ marginTop: 16 }}>
+          <div style={{ marginBottom: 16, padding: '10px 14px', background: '#f9fafb', borderRadius: 8, border: '1px solid #e8eaed' }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>Current Status</Text>
+            <div style={{ marginTop: 4 }}>
+              <Tag color={STATUS_COLOR[mold?.status] ?? 'default'} style={{ borderRadius: 20, fontSize: 13, padding: '2px 10px' }}>
+                {fmtLabel(mold?.status)}
+              </Tag>
+            </div>
+          </div>
+          <Form.Item
+            name="status"
+            label="New Status"
+            rules={[{ required: true, message: 'Please select a new status' }]}
+          >
+            <Select
+              placeholder="Select new status…"
+              size="large"
+              optionLabelProp="label"
+            >
+              {(VALID_TRANSITIONS[mold?.status] ?? []).map((s) => (
+                <Select.Option key={s} value={s} label={fmtLabel(s)}>
+                  <Tag color={STATUS_COLOR[s] ?? 'default'} style={{ borderRadius: 20, marginRight: 8 }}>{fmtLabel(s)}</Tag>
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item name="notes" label="Reason / Notes (optional)">
+            <Input.TextArea rows={3} placeholder="e.g. Trial run completed, approved for production…" />
           </Form.Item>
         </Form>
       </Modal>

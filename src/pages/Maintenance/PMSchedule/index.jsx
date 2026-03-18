@@ -41,12 +41,36 @@ export default function PMSchedulePage() {
   const [form] = Form.useForm();
   const [schedForm] = Form.useForm();
   // MNT-005: PM optimization recommendations (schedule_id → recommendation)
-  const [pmOptMap, setPmOptMap] = useState({});
+  const [pmOptMap, setPmOptMap]     = useState({});
+  const [pmOptLoading, setPmOptLoading] = useState(false);
+  const [pmOptLoaded, setPmOptLoaded]   = useState(false);   // true once first load completes
   // MNT-004 + MNT-015: Wave 3 AI
   const [techSuggestions, setTechSuggestions] = useState(null);
   const [techLoading, setTechLoading]         = useState(false);
   const [smartSchedule, setSmartSchedule]     = useState(null);
   const [smartLoading, setSmartLoading]       = useState(false);
+
+  // MNT-005: load/refresh PM optimization (covers ALL active schedules)
+  const loadPmOpt = useCallback(async () => {
+    setPmOptLoading(true);
+    try {
+      const res  = await maintenanceAiApi.getPmOptimization();
+      // After double-unwrap: res is already the array
+      const list = Array.isArray(res) ? res : (res?.data ?? []);
+      const map  = {};
+      list.forEach((r) => { map[r.schedule_id] = r; });
+      setPmOptMap(map);
+      setPmOptLoaded(true);
+      if (list.length === 0) {
+        message.info('No active PM schedules found — AI Insight column will update once active schedules exist');
+      }
+    } catch (err) {
+      console.error('[PMSchedule] getPmOptimization failed:', err);
+      message.warning('AI Insight could not load — check server logs. You can retry with the Refresh AI button.');
+    } finally {
+      setPmOptLoading(false);
+    }
+  }, []);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -65,16 +89,8 @@ export default function PMSchedulePage() {
   }, []);
 
   useEffect(() => {
-    // MNT-005: load PM optimization silently
-    maintenanceAiApi.getPmOptimization()
-      .then((res) => {
-        const list = res?.data ?? res ?? [];
-        const map = {};
-        (Array.isArray(list) ? list : []).forEach((r) => { map[r.schedule_id] = r; });
-        setPmOptMap(map);
-      })
-      .catch(() => {});
-  }, []); // run once
+    loadPmOpt(); // MNT-005: load on mount with proper error handling
+  }, [loadPmOpt]);
 
   useEffect(() => {
     loadAll();
@@ -100,7 +116,7 @@ export default function PMSchedulePage() {
     try {
       const res = await maintenanceAiApi.getSmartSchedule();
       setSmartSchedule(res?.data ? res : { data: res?.data ?? res ?? [], summary: res?.summary });
-    } catch { message.error('Failed to load smart schedule'); }
+    } catch (err) { message.error(err?.message || 'Failed to load smart schedule'); }
     finally { setSmartLoading(false); }
   };
 
@@ -219,11 +235,36 @@ export default function PMSchedulePage() {
     { title: 'Last Completed', dataIndex: 'last_completed_date', render: (v) => v || '—' },
     { title: 'Status', dataIndex: 'status', render: (v) => <Tag color={SCHED_COLOR[v]}>{v?.toUpperCase()}</Tag> },
     {
-      title: <Space size={4}><BulbOutlined style={{ color: '#7c3aed' }} /><span>AI Insight</span></Space>,
+      title: (
+        <Space size={4}>
+          <BulbOutlined style={{ color: '#7c3aed' }} />
+          <span>AI Insight</span>
+          {pmOptLoading && <span style={{ fontSize: 10, color: '#9ca3af' }}>(loading…)</span>}
+        </Space>
+      ),
       key: 'ai',
+      width: 190,
       render: (_, r) => {
+        // Show spinner while first load is in progress
+        if (pmOptLoading && !pmOptLoaded) {
+          return <Tag color="default" style={{ fontSize: 11, color: '#9ca3af' }}>Analyzing…</Tag>;
+        }
         const opt = pmOptMap[r.id];
-        if (!opt) return <Tag color="default" style={{ fontSize: 11 }}>—</Tag>;
+        if (!opt) {
+          // Distinguish: inactive schedule vs no-data
+          if (r.status !== 'active') {
+            return (
+              <Tooltip title="AI insights only apply to active schedules">
+                <Tag color="default" style={{ fontSize: 11, color: '#d1d5db' }}>Inactive</Tag>
+              </Tooltip>
+            );
+          }
+          return (
+            <Tooltip title="Active schedule not yet analyzed — click Refresh AI to load insights">
+              <Tag color="default" style={{ fontSize: 11, color: '#9ca3af' }}>Pending</Tag>
+            </Tooltip>
+          );
+        }
         const cfg = {
           tighten:          { color: 'red',    icon: <ArrowDownOutlined />, label: `Tighten → ${opt.suggested_interval_days}d` },
           extend:           { color: 'green',  icon: <ArrowUpOutlined />,  label: `Can extend → ${opt.suggested_interval_days}d` },
@@ -231,7 +272,7 @@ export default function PMSchedulePage() {
           maintain:         { color: 'blue',   icon: <CheckCircleOutlined />, label: 'Interval OK' },
         }[opt.action] || { color: 'default', icon: null, label: opt.action };
         return (
-          <Tooltip title={opt.reason}>
+          <Tooltip title={`${opt.reason} (Compliance: ${opt.pm_compliance_pct}%, Breakdowns 6m: ${opt.breakdowns_6m})`}>
             <Tag color={cfg.color} icon={cfg.icon} style={{ fontSize: 11, cursor: 'help' }}>{cfg.label}</Tag>
           </Tooltip>
         );
@@ -283,7 +324,28 @@ export default function PMSchedulePage() {
           {
             key: 'schedules',
             label: `Schedules (${schedules.length})`,
-            children: <Table columns={schedColumns} dataSource={schedules} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />,
+            children: (
+              <div>
+                {/* AI Insight toolbar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '8px 12px', background: '#f5f3ff', borderRadius: 8, border: '1px solid #e9d5ff' }}>
+                  <BulbOutlined style={{ color: '#7c3aed', fontSize: 14 }} />
+                  <Text style={{ fontSize: 12, color: '#6b7280', flex: 1 }}>
+                    <strong style={{ color: '#7c3aed' }}>AI Insight</strong> — interval optimization based on 6-month breakdown frequency &amp; PM compliance.
+                    {pmOptLoaded && ` ${Object.keys(pmOptMap).length} active schedule(s) analyzed.`}
+                  </Text>
+                  <Button
+                    size="small"
+                    icon={<ReloadOutlined />}
+                    loading={pmOptLoading}
+                    onClick={loadPmOpt}
+                    style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
+                  >
+                    Refresh AI
+                  </Button>
+                </div>
+                <Table columns={schedColumns} dataSource={schedules} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />
+              </div>
+            ),
           },
           {
             key: 'smart-schedule',
