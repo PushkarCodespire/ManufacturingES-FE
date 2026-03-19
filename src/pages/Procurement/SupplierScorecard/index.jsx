@@ -47,7 +47,7 @@ export default function SupplierScorecardPage() {
       const res = await vendorApi.scorecard(vendorId);
       setScorecard(res?.data ?? res);
     } catch (err) {
-      message.error(err?.response?.data?.message || 'Failed to load scorecard');
+      message.error(err?.message || 'Failed to load scorecard');
     } finally { setLoading(false); }
   };
 

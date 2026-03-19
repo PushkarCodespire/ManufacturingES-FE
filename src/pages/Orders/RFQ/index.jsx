@@ -189,7 +189,7 @@ export default function RFQPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return; // Ant validation
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -198,7 +198,7 @@ export default function RFQPage() {
       await rfqApi.delete(id);
       message.success('RFQ deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Line item helpers ─────────────────────────────────────────────────────────
@@ -240,7 +240,7 @@ export default function RFQPage() {
       updateLine(key, 'drawing_name', res.original_name || file.name);
       message.success('Drawing attached');
     } catch (err) {
-      message.error(err?.response?.data?.message || 'Drawing upload failed');
+      message.error(err?.message || 'Drawing upload failed');
     } finally {
       setUploadingKey(null);
       // Reset the input so the same file can be re-selected if needed

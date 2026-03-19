@@ -178,7 +178,7 @@ export default function PurchaseOrdersPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -187,7 +187,7 @@ export default function PurchaseOrdersPage() {
       await purchaseOrderApi.send(id);
       message.success('Purchase order sent to vendor');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Send failed'); }
+    } catch (err) { message.error(err?.message || 'Send failed'); }
   };
 
   const openReceiveModal = (record) => {
@@ -210,7 +210,7 @@ export default function PurchaseOrdersPage() {
       setReceiveModal(false);
       load();
     } catch (err) {
-      message.error(err?.response?.data?.message || 'Receive failed');
+      message.error(err?.message || 'Receive failed');
     } finally { setReceiveSaving(false); }
   };
 
@@ -219,7 +219,7 @@ export default function PurchaseOrdersPage() {
       await purchaseOrderApi.delete(id);
       message.success('Purchase order deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Line item helpers ──────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ import {
 } from '@ant-design/icons';
 import { roleRequirementApi } from '../../../api/roleRequirement.api';
 import AppLayout        from '../../../components/AppLayout';
-import { useAuth }     from '../../../context/AuthContext';
+import usePermissions   from '../../../hooks/usePermissions';
 import api              from '../../../api/axios';
 
 const { Title, Text } = Typography;
@@ -19,8 +19,8 @@ const CATEGORY_COLORS = {
 
 // ── MAIN PAGE ────────────────────────────────────────────────────────────────
 const RoleRequirementsPage = () => {
-  const { user } = useAuth();
-  const canWrite = ['hr_admin', 'it_admin', 'plant_head'].includes(user?.role?.name);
+  const { can } = usePermissions();
+  const canWrite = can('other-role_requirements-create_edit_delete');
 
   const [roles,    setRoles]    = useState([]);
   const [topics,   setTopics]   = useState([]);
@@ -82,7 +82,7 @@ const RoleRequirementsPage = () => {
       await roleRequirementApi.bulkSaveForRole({ role_id: selected.id, topic_ids: checked });
       message.success(`Requirements saved for ${selected.label || selected.name}`);
     } catch (err) {
-      message.error(err?.response?.data?.message || 'Failed to save');
+      message.error(err?.message || 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -98,20 +98,17 @@ const RoleRequirementsPage = () => {
 
   return (
     <AppLayout>
-      {/* Breadcrumb */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <Text style={{ color: '#9ca3af', fontSize: 12 }}>Masters</Text>
-          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>HR &amp; Training</Text>
-          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>Role Requirements</Text>
-        </div>
-        <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>Role Requirements</Title>
-        <Text style={{ color: '#6b7280', fontSize: 13 }}>
-          Define which training topics are required for each role
-        </Text>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+        <Text style={{ color: '#9ca3af', fontSize: 12 }}>Masters</Text>
+        <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>HR &amp; Training</Text>
+        <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>Role Requirements</Text>
       </div>
+      <Title level={3} style={{ margin: 0 }}>Role Requirements</Title>
+      <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 20 }}>
+        Define which training topics are required for each role.
+      </Text>
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
         {/* ── Left: Roles Panel ─────────────────────────────── */}

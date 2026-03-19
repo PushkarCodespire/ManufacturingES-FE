@@ -9,7 +9,7 @@ import {
 import dayjs from 'dayjs';
 import { trainingEffectivenessApi } from '../../../api/trainingEffectiveness.api';
 import AppLayout                    from '../../../components/AppLayout';
-import { useAuth }                 from '../../../context/AuthContext';
+import usePermissions               from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
 
@@ -49,7 +49,7 @@ const EvaluationModal = ({ item, onClose, onDone }) => {
       form.resetFields();
       onDone();
     } catch (err) {
-      message.error(err?.response?.data?.message || 'Failed to submit');
+      message.error(err?.message || 'Failed to submit');
     } finally {
       setSaving(false);
     }
@@ -245,20 +245,11 @@ const PendingTab = ({ canWrite }) => {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 12 }}>
-          {[
-            { label: 'Pending', value: items.length, color: '#6b7280', bg: '#f9fafb' },
-            { label: 'Overdue', value: items.filter((i) => dayjs(i.scheduled_date).isBefore(dayjs(), 'day')).length, color: '#dc2626', bg: '#fef2f2' },
-          ].map((s) => (
-            <div key={s.label} style={{ padding: '6px 14px', background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 80 }}>
-              <Text style={{ color: s.color, fontWeight: 700, fontSize: 18, lineHeight: 1.2 }}>{s.value}</Text>
-              <Text style={{ color: s.color, fontSize: 11, opacity: 0.8 }}>{s.label}</Text>
-            </div>
-          ))}
-        </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+        <Tag>Pending: {items.length}</Tag>
+        <Tag color="red">Overdue: {items.filter((i) => dayjs(i.scheduled_date).isBefore(dayjs(), 'day')).length}</Tag>
         <div style={{ flex: 1 }} />
-        <Button icon={<ReloadOutlined />} onClick={fetchPending} style={{ borderRadius: 8 }}>Refresh</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchPending}>Refresh</Button>
       </div>
 
       <Card style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '16px 20px' }}>
@@ -388,8 +379,8 @@ const HistoryTab = () => {
 
 // ── MAIN PAGE ────────────────────────────────────────────────────────────────
 const EffectivenessPage = () => {
-  const { user } = useAuth();
-  const canWrite = ['hr_admin', 'it_admin', 'plant_head'].includes(user?.role?.name);
+  const { can } = usePermissions();
+  const canWrite = can('other-effectiveness-create_edit_delete');
 
   const tabItems = [
     {
@@ -416,19 +407,17 @@ const EffectivenessPage = () => {
 
   return (
     <AppLayout>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <Text style={{ color: '#9ca3af', fontSize: 12 }}>Masters</Text>
-          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>HR &amp; Training</Text>
-          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>Effectiveness</Text>
-        </div>
-        <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>Training Effectiveness</Title>
-        <Text style={{ color: '#6b7280', fontSize: 13 }}>
-          Evaluate 30/60/90-day effectiveness of completed training
-        </Text>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+        <Text style={{ color: '#9ca3af', fontSize: 12 }}>Masters</Text>
+        <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>HR &amp; Training</Text>
+        <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>Effectiveness</Text>
       </div>
+      <Title level={3} style={{ margin: 0 }}>Training Effectiveness</Title>
+      <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 20 }}>
+        Evaluate 30/60/90-day effectiveness of completed training.
+      </Text>
 
       <Tabs
         defaultActiveKey="pending"

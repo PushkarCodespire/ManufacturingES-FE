@@ -228,7 +228,7 @@ export default function BOMExplosionPage() {
           const res = await bomApi.explode({ item_id: card.itemId, planned_qty: card.plannedQty });
           return { key: card.key, itemId: card.itemId, itemName, data: res?.data ?? res };
         } catch (err) {
-          const msg = err?.response?.data?.message || 'Failed';
+          const msg = err?.message || 'Failed';
           return {
             key:      card.key,
             itemId:   card.itemId,

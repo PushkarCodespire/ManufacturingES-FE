@@ -184,33 +184,22 @@ const CompetencyMatrixPage = () => {
 
   return (
     <AppLayout>
-      {/* Breadcrumb */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <Text style={{ color: '#9ca3af', fontSize: 12 }}>Masters</Text>
-          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>HR &amp; Training</Text>
-          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>Competency Matrix</Text>
-        </div>
-        <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>Competency Matrix</Title>
-        <Text style={{ color: '#6b7280', fontSize: 13 }}>Visual overview of employee training coverage vs role requirements</Text>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+        <Text style={{ color: '#9ca3af', fontSize: 12 }}>Masters</Text>
+        <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>HR &amp; Training</Text>
+        <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>Competency Matrix</Text>
       </div>
+      <Title level={3} style={{ margin: 0 }}>Competency Matrix</Title>
+      <Text type="secondary" style={{ fontSize: 13 }}>Visual overview of employee training coverage vs role requirements.</Text>
 
-      {/* Summary cards */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        {[
-          { label: 'Coverage', value: `${coverage}%`, color: '#1d4ed8', bg: '#eff6ff' },
-          { label: 'Critical Gaps', value: gapCount, color: '#dc2626', bg: '#fef2f2' },
-          { label: 'Expiring', value: expiringCount, color: '#d97706', bg: '#fffbeb' },
-          { label: 'Employees', value: employees.length, color: '#16a34a', bg: '#f0fdf4' },
-          { label: 'Topics', value: topics.length, color: '#7c3aed', bg: '#faf5ff' },
-        ].map((s) => (
-          <div key={s.label} style={{ padding: '8px 16px', background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 100 }}>
-            <Text style={{ color: s.color, fontWeight: 700, fontSize: 20, lineHeight: 1.2 }}>{s.value}</Text>
-            <Text style={{ color: s.color, fontSize: 11, opacity: 0.8 }}>{s.label}</Text>
-          </div>
-        ))}
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <Tag color="blue">Coverage: {coverage}%</Tag>
+        <Tag color="red">Critical Gaps: {gapCount}</Tag>
+        <Tag color="orange">Expiring: {expiringCount}</Tag>
+        <Tag color="green">Employees: {employees.length}</Tag>
+        <Tag color="purple">Topics: {topics.length}</Tag>
       </div>
 
       {/* Filters */}

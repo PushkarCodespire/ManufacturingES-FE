@@ -130,7 +130,7 @@ export default function OutwardChallanPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -139,7 +139,7 @@ export default function OutwardChallanPage() {
       await subcontractApi.receive(id);
       message.success('Challan marked as received');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Failed to mark received'); }
+    } catch (err) { message.error(err?.message || 'Failed to mark received'); }
   };
 
   const onCancel = async (id) => {
@@ -147,7 +147,7 @@ export default function OutwardChallanPage() {
       await subcontractApi.cancel(id);
       message.success('Challan cancelled');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Cancel failed'); }
+    } catch (err) { message.error(err?.message || 'Cancel failed'); }
   };
 
   const onDelete = async (id) => {
@@ -155,7 +155,7 @@ export default function OutwardChallanPage() {
       await subcontractApi.delete(id);
       message.success('Challan deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Line item helpers ──────────────────────────────────────────────────────

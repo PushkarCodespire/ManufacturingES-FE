@@ -416,7 +416,7 @@ const TagManagementPage = () => {
           message.success(`Tag "${tag.name}" deactivated`);
           fetchTags();
         } catch (err) {
-          message.error(err?.response?.data?.message || 'Failed to deactivate tag');
+          message.error(err?.message || 'Failed to deactivate tag');
         }
       },
     });

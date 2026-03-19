@@ -195,7 +195,7 @@ export default function LQCPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -212,7 +212,7 @@ export default function LQCPage() {
         }
       }
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Update failed'); }
+    } catch (err) { message.error(err?.message || 'Update failed'); }
   };
 
   const onDelete = async (id) => {
@@ -220,7 +220,7 @@ export default function LQCPage() {
       await lqcApi.delete(id);
       message.success('Inspection deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Parameter row helpers ──────────────────────────────────────────────────

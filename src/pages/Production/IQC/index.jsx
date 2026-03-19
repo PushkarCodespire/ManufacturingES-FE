@@ -125,7 +125,7 @@ export default function IQCPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -134,7 +134,7 @@ export default function IQCPage() {
       await iqcApi.delete(id);
       message.success('Inspection deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Columns ────────────────────────────────────────────────────────────────

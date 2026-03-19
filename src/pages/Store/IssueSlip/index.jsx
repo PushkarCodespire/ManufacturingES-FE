@@ -111,7 +111,7 @@ export default function IssueSlipPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -120,7 +120,7 @@ export default function IssueSlipPage() {
       await issueSlipApi.delete(id);
       message.success('Issue slip deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Line item helpers ──────────────────────────────────────────────────────

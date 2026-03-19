@@ -290,7 +290,7 @@ const ShiftFormView = ({ shift, onBack, onSaved }) => {
       onSaved();
     } catch (err) {
       message.error(
-        err?.response?.data?.message || err?.message ||
+        err?.message || err?.message ||
         (isEdit ? 'Failed to update shift' : 'Failed to create shift')
       );
     } finally {
@@ -484,7 +484,7 @@ const ShiftsPage = () => {
           message.success(`Shift "${record.name}" deleted`);
           fetchShifts();
         } catch (err) {
-          message.error(err?.response?.data?.message || 'Failed to delete shift');
+          message.error(err?.message || 'Failed to delete shift');
         }
       },
     });

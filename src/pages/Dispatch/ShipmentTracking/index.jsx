@@ -104,28 +104,18 @@ const ShipmentTrackingPage = () => {
 
   return (
     <AppLayout>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <Text style={{ color: '#9ca3af', fontSize: 12 }}>Dispatch</Text>
-          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>Shipment Tracking</Text>
-        </div>
-        <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>Shipment Tracking</Title>
-        <Text style={{ color: '#6b7280', fontSize: 13 }}>Real-time status of all dispatch orders</Text>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+        <Text style={{ color: '#9ca3af', fontSize: 12 }}>Dispatch</Text>
+        <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>Shipment Tracking</Text>
       </div>
+      <Title level={3} style={{ margin: 0 }}>Shipment Tracking</Title>
+      <Text type="secondary" style={{ fontSize: 13 }}>Real-time status of all dispatch orders.</Text>
 
-      {/* Stats */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-        {[
-          { label: 'Total Orders', value: records.length, color: '#1d4ed8', bg: '#eff6ff' },
-          { label: 'In Transit',   value: inTransit,      color: '#d97706', bg: '#fffbeb' },
-          { label: 'Delivered',    value: delivered,      color: '#16a34a', bg: '#f0fdf4' },
-        ].map((s) => (
-          <div key={s.label} style={{ padding: '8px 16px', background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 100 }}>
-            <Text style={{ color: s.color, fontWeight: 700, fontSize: 20, lineHeight: 1.2 }}>{s.value}</Text>
-            <Text style={{ color: s.color, fontSize: 11, opacity: 0.8 }}>{s.label}</Text>
-          </div>
-        ))}
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 16 }}>
+        <Tag color="blue">Total: {records.length}</Tag>
+        <Tag color="orange">In Transit: {inTransit}</Tag>
+        <Tag color="green">Delivered: {delivered}</Tag>
       </div>
 
       <Card style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }} styles={{ body: { padding: '16px 20px' } }}>

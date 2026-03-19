@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Table, Button, Form, Input, InputNumber,
-  Select, DatePicker, Modal, message, Tooltip, Space, Card, Tag,
+  Select, DatePicker, message, Tooltip, Space, Card, Tag, Drawer, Popconfirm,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, EditOutlined,
-  ArrowLeftOutlined, SearchOutlined, RightOutlined, FileTextOutlined,
-  BulbOutlined, AlertOutlined,
+  SearchOutlined, RightOutlined, FileTextOutlined,
+  BulbOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { trainingRecordApi }  from '../../../api/trainingRecord.api';
-import { trainingTopicApi }   from '../../../api/trainingTopic.api';
 import AppLayout              from '../../../components/AppLayout';
-import { useAuth }           from '../../../context/AuthContext';
+import usePermissions         from '../../../hooks/usePermissions';
 import api                    from '../../../api/axios';
 import aiApi                  from '../../../api/ai.api';
 import useAiSuggestion        from '../../../hooks/useAiSuggestion';
@@ -34,23 +33,129 @@ const parseInsight = (raw) => {
 };
 
 const COMPLIANCE_RISK_COLOR = { low: 'green', medium: 'orange', high: 'red', critical: 'red' };
-
 const STATUS_COLORS  = { active: 'green', expiring_soon: 'orange', expired: 'red' };
 const STATUS_LABELS  = { active: 'Active', expiring_soon: 'Expiring Soon', expired: 'Expired' };
-const EVAL_COLORS    = { pending: 'default', effective: 'green', partially_effective: 'orange', not_effective: 'red' };
 
 const fmtDate = (iso) => (iso ? dayjs(iso).format('DD MMM YYYY') : '—');
 
-// ── LIST VIEW ────────────────────────────────────────────────────────────────
-const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWrite, filters, setFilters, employees, topics, aiSkillGap, onFetchSkillGap, aiCardVisible, setAiCardVisible }) => {
+const TrainingRecordsPage = () => {
+  const { can } = usePermissions();
+  const canWrite = can('other-training_records-create_edit_delete');
+
+  const [records,    setRecords]    = useState([]);
+  const [employees,  setEmployees]  = useState([]);
+  const [topics,     setTopics]     = useState([]);
+  const [loading,    setLoading]    = useState(false);
+  const [saving,     setSaving]     = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing,    setEditing]    = useState(null);
+  const [filters,    setFilters]    = useState({ search: '', employee_id: null, topic_id: null, status: null });
+  const [expiry,     setExpiry]     = useState(null);
+  const [form] = Form.useForm();
+
+  const aiSkillGap = useAiSuggestion(aiApi.getSkillGapAnalysis);
+  const [aiCardVisible, setAiCardVisible] = useState(false);
+  const fetchSkillGap = () => { aiSkillGap.reset(); aiSkillGap.fetch(); };
+
+  const fetchBase = useCallback(async () => {
+    try {
+      const [empRes, topRes] = await Promise.all([
+        api.get('/users').then((r) => r.data),
+        api.get('/hr/training-topics', { params: { is_active: true } }).then((r) => r.data),
+      ]);
+      setEmployees(empRes?.data ?? empRes ?? []);
+      setTopics(topRes?.data ?? topRes ?? []);
+    } catch { /* silent */ }
+  }, []);
+
+  const fetchRecords = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (filters.employee_id) params.employee_id = filters.employee_id;
+      if (filters.topic_id)    params.topic_id    = filters.topic_id;
+      if (filters.status)      params.status      = filters.status;
+      const res = await trainingRecordApi.getAll(params);
+      setRecords(res?.data ?? res ?? []);
+    } catch (err) { message.error(err?.message || 'Failed to load records'); }
+    finally { setLoading(false); }
+  }, [filters.employee_id, filters.topic_id, filters.status]);
+
+  useEffect(() => { fetchBase(); }, [fetchBase]);
+  useEffect(() => { fetchRecords(); }, [fetchRecords]);
+
+  const recalcExpiry = (date, months) => {
+    if (date && months) setExpiry(dayjs(date).add(months, 'month').format('DD MMM YYYY'));
+    else setExpiry(null);
+  };
+
+  const openDrawer = (record = null) => {
+    setEditing(record);
+    setExpiry(null);
+    if (record) {
+      form.setFieldsValue({
+        employee_id:     record.employee_id,
+        topic_id:        record.topic_id,
+        training_date:   record.training_date ? dayjs(record.training_date) : null,
+        trainer_name:    record.trainer_name,
+        trainer_id:      record.trainer_id,
+        score:           record.score,
+        validity_months: record.validity_months,
+        notes:           record.notes,
+      });
+      if (record.expiry_date) setExpiry(fmtDate(record.expiry_date));
+    } else {
+      form.setFieldsValue({ validity_months: 12 });
+    }
+    setDrawerOpen(true);
+  };
+
+  const closeDrawer = () => { setDrawerOpen(false); setEditing(null); setExpiry(null); form.resetFields(); };
+
+  const handleTopicChange = (topicId) => {
+    const t = topics.find((x) => x.id === topicId);
+    if (t) {
+      form.setFieldValue('validity_months', t.validity_months);
+      const date = form.getFieldValue('training_date');
+      recalcExpiry(date, t.validity_months);
+    }
+  };
+
+  const handleSave = async () => {
+    let values; try { values = await form.validateFields(); } catch { return; }
+    if (values.training_date) values.training_date = values.training_date.format('YYYY-MM-DD');
+    setSaving(true);
+    try {
+      if (editing) { await trainingRecordApi.update(editing.id, values); message.success('Record updated'); }
+      else         { await trainingRecordApi.create(values);              message.success('Record created'); }
+      closeDrawer();
+      fetchRecords();
+    } catch (err) { message.error(err?.message || 'Failed to save'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (r) => {
+    try { await trainingRecordApi.delete(r.id); message.success('Deleted'); fetchRecords(); }
+    catch (err) { message.error(err?.message || 'Failed to delete'); }
+  };
+
+  const filtered = filters.search
+    ? records.filter((r) =>
+        r.Employee?.name?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        r.Topic?.name?.toLowerCase().includes(filters.search.toLowerCase()))
+    : records;
+
+  const total    = records.length;
+  const active   = records.filter((r) => r.status === 'active').length;
+  const expiring = records.filter((r) => r.status === 'expiring_soon').length;
+  const expired  = records.filter((r) => r.status === 'expired').length;
+
   const base = [
     {
       title: 'Employee', key: 'employee', width: 160,
       render: (_, r) => (
         <div>
-          <Text style={{ fontSize: 13, fontWeight: 600, color: '#111827', display: 'block' }}>
-            {r.Employee?.name || '—'}
-          </Text>
+          <Text style={{ fontSize: 13, fontWeight: 600, color: '#111827', display: 'block' }}>{r.Employee?.name || '—'}</Text>
           <Text style={{ fontSize: 11, color: '#9ca3af' }}>{r.Employee?.employee_id}</Text>
         </div>
       ),
@@ -60,9 +165,7 @@ const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWri
       render: (_, r) => (
         <div>
           <Text style={{ fontSize: 13, display: 'block' }}>{r.Topic?.name || '—'}</Text>
-          <Tag color={r.Topic?.category === 'Safety' ? 'red' : 'blue'} style={{ fontSize: 10, marginTop: 2 }}>
-            {r.Topic?.category}
-          </Tag>
+          <Tag color={r.Topic?.category === 'Safety' ? 'red' : 'blue'} style={{ fontSize: 10, marginTop: 2 }}>{r.Topic?.category}</Tag>
         </div>
       ),
     },
@@ -87,7 +190,6 @@ const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWri
           <Space size={4}>
             {types.map((t) => {
               const ev = evals.find((e) => e.evaluation_type === t);
-              const color = ev ? (EVAL_COLORS[ev.result] || 'default') : '#e5e7eb';
               const label = t === 'day_30' ? '30' : t === 'day_60' ? '60' : '90';
               return (
                 <Tooltip key={t} title={`Day ${label}: ${ev ? ev.result?.replace('_', ' ') : 'pending'}`}>
@@ -119,29 +221,51 @@ const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWri
     title: 'Actions', key: 'actions', width: 90, align: 'center',
     render: (_, r) => (
       <Space size={4}>
-        <Tooltip title="Edit"><Button type="text" size="small" icon={<EditOutlined style={{ color: '#1d4ed8' }} />} onClick={() => onEdit(r)} /></Tooltip>
-        <Tooltip title="Delete"><Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => onDelete(r)} /></Tooltip>
+        <Tooltip title="Edit">
+          <Button type="text" size="small" icon={<EditOutlined style={{ color: '#1d4ed8' }} />} onClick={() => openDrawer(r)} />
+        </Tooltip>
+        <Popconfirm
+          title="Delete this training record?"
+          description={`${r.Employee?.name} — ${r.Topic?.name}. This cannot be undone.`}
+          okText="Delete" okType="danger"
+          onConfirm={() => handleDelete(r)}
+        >
+          <Tooltip title="Delete">
+            <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+          </Tooltip>
+        </Popconfirm>
       </Space>
     ),
   }] : base;
 
-  const statusOpts = [
-    { value: 'active', label: 'Active' },
-    { value: 'expiring_soon', label: 'Expiring Soon' },
-    { value: 'expired', label: 'Expired' },
-  ];
-
   return (
-    <div>
+    <AppLayout>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+        <Text style={{ color: '#9ca3af', fontSize: 12 }}>Masters</Text>
+        <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>HR &amp; Training</Text>
+        <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>Training Records</Text>
+      </div>
+      <Title level={3} style={{ margin: 0 }}>Training Records</Title>
+      <Text type="secondary" style={{ fontSize: 13 }}>Log and manage employee training completions.</Text>
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 16 }}>
+        <Tag color="blue">Total: {total}</Tag>
+        <Tag color="green">Active: {active}</Tag>
+        <Tag color="orange">Expiring: {expiring}</Tag>
+        <Tag color="red">Expired: {expired}</Tag>
+      </div>
+
       {/* AI Skill Gap Panel */}
-      {aiCardVisible ? (
+      {aiCardVisible && (
         <AiSuggestionCard
           title="AI Skill Gap Analysis"
           loading={aiSkillGap?.loading}
           error={aiSkillGap?.error}
           aiAvailable={aiSkillGap?.aiAvailable}
           cached={aiSkillGap?.cached}
-          onRetry={onFetchSkillGap}
+          onRetry={fetchSkillGap}
           onDismiss={() => setAiCardVisible(false)}
           style={{ marginBottom: 20 }}
         >
@@ -151,22 +275,17 @@ const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWri
             if (!insight) return null;
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {/* Risk badges */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <Tag color={COMPLIANCE_RISK_COLOR[insight.compliance_risk] || 'default'} style={{ fontWeight: 600 }}>
                     Compliance Risk: {String(insight.compliance_risk || '—').toUpperCase()}
                   </Tag>
                   <Tag color="purple">Confidence: {insight.confidence || '—'}</Tag>
                 </div>
-
-                {/* Gap summary */}
                 {insight.gap_summary && (
                   <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
                     {insight.gap_summary}
                   </div>
                 )}
-
-                {/* Highest priority roles */}
                 {Array.isArray(insight.highest_priority_roles) && insight.highest_priority_roles.length > 0 && (
                   <div>
                     <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>Highest Priority Roles</Text>
@@ -175,8 +294,6 @@ const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWri
                     </div>
                   </div>
                 )}
-
-                {/* Critical topics */}
                 {Array.isArray(insight.critical_topics_to_schedule) && insight.critical_topics_to_schedule.length > 0 && (
                   <div>
                     <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>Critical Topics to Schedule</Text>
@@ -185,8 +302,6 @@ const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWri
                     </div>
                   </div>
                 )}
-
-                {/* Immediate actions */}
                 {Array.isArray(insight.immediate_actions) && insight.immediate_actions.length > 0 && (
                   <div>
                     <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>Immediate Actions</Text>
@@ -195,8 +310,6 @@ const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWri
                     </ul>
                   </div>
                 )}
-
-                {/* Recommended training calendar */}
                 {Array.isArray(insight.recommended_training_calendar) && insight.recommended_training_calendar.length > 0 && (
                   <div>
                     <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 6 }}>Recommended Training Calendar</Text>
@@ -209,358 +322,138 @@ const ListView = ({ records, loading, onRefresh, onNew, onEdit, onDelete, canWri
             );
           })()}
         </AiSuggestionCard>
-      ) : null}
-
-      {/* Summary chips */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-        {[
-          { label: 'Total', value: records.length, color: '#1d4ed8', bg: '#eff6ff' },
-          { label: 'Active', value: records.filter((r) => r.status === 'active').length, color: '#16a34a', bg: '#f0fdf4' },
-          { label: 'Expiring', value: records.filter((r) => r.status === 'expiring_soon').length, color: '#d97706', bg: '#fffbeb' },
-          { label: 'Expired', value: records.filter((r) => r.status === 'expired').length, color: '#dc2626', bg: '#fef2f2' },
-        ].map((s) => (
-          <div key={s.label} style={{ padding: '8px 16px', background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 90 }}>
-            <Text style={{ color: s.color, fontWeight: 700, fontSize: 20, lineHeight: 1.2 }}>{s.value}</Text>
-            <Text style={{ color: s.color, fontSize: 11, opacity: 0.8 }}>{s.label}</Text>
-          </div>
-        ))}
-      </div>
+      )}
 
       <Card style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '16px 20px' }}>
-        {/* Filters */}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
           <Input
             placeholder="Search employee or topic…"
-            prefix={<SearchOutlined style={{ color: '#9ca3af' }} />}
+            prefix={<SearchOutlined />}
             value={filters.search}
             onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
             style={{ width: 220, borderRadius: 8 }}
             allowClear
           />
           <Select
-            placeholder="Filter by employee"
-            allowClear
-            showSearch
+            placeholder="Filter by employee" allowClear showSearch
             filterOption={(inp, opt) => (opt?.label ?? '').toLowerCase().includes(inp.toLowerCase())}
             options={employees.map((e) => ({ value: e.id, label: `${e.name} (${e.employee_id})` }))}
             onChange={(v) => setFilters((f) => ({ ...f, employee_id: v }))}
-            style={{ width: 200, borderRadius: 8 }}
+            style={{ width: 200 }}
           />
           <Select
-            placeholder="Filter by topic"
-            allowClear
-            showSearch
+            placeholder="Filter by topic" allowClear showSearch
             filterOption={(inp, opt) => (opt?.label ?? '').toLowerCase().includes(inp.toLowerCase())}
             options={topics.map((t) => ({ value: t.id, label: t.name }))}
             onChange={(v) => setFilters((f) => ({ ...f, topic_id: v }))}
-            style={{ width: 180, borderRadius: 8 }}
+            style={{ width: 180 }}
           />
           <Select
-            placeholder="Status"
-            allowClear
-            options={statusOpts}
+            placeholder="Status" allowClear
+            options={[
+              { value: 'active', label: 'Active' },
+              { value: 'expiring_soon', label: 'Expiring Soon' },
+              { value: 'expired', label: 'Expired' },
+            ]}
             onChange={(v) => setFilters((f) => ({ ...f, status: v }))}
-            style={{ width: 150, borderRadius: 8 }}
+            style={{ width: 150 }}
           />
           <div style={{ flex: 1 }} />
           {!aiCardVisible && (
             <Button
-              size="middle"
               icon={<BulbOutlined style={{ color: '#7c3aed' }} />}
-              style={{ borderColor: '#7c3aed', color: '#7c3aed', borderRadius: 8 }}
-              onClick={() => { setAiCardVisible(true); onFetchSkillGap(); }}
+              style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
+              onClick={() => { setAiCardVisible(true); fetchSkillGap(); }}
             >
               AI Skill Gap
             </Button>
           )}
-          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>Refresh</Button>
+          <Button icon={<ReloadOutlined />} onClick={fetchRecords}>Refresh</Button>
           {canWrite && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
-              Add Record
-            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>Add Record</Button>
           )}
         </div>
 
         <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={records}
-          loading={loading}
+          rowKey="id" columns={columns} dataSource={filtered} loading={loading}
           pagination={{ pageSize: 15, showSizeChanger: true, showTotal: (t) => `${t} records` }}
-          scroll={{ x: 900 }}
-          size="middle"
-          locale={{
-            emptyText: (
-              <div style={{ padding: 40, textAlign: 'center' }}>
-                <FileTextOutlined style={{ fontSize: 32, color: '#d1d5db', display: 'block', marginBottom: 12 }} />
-                <Text style={{ color: '#9ca3af' }}>No training records yet</Text>
-              </div>
-            ),
-          }}
+          scroll={{ x: 900 }} size="middle"
+          locale={{ emptyText: (
+            <div style={{ padding: 40, textAlign: 'center' }}>
+              <FileTextOutlined style={{ fontSize: 32, color: '#d1d5db', display: 'block', marginBottom: 12 }} />
+              <Text style={{ color: '#9ca3af' }}>No training records yet</Text>
+            </div>
+          )}}
         />
       </Card>
-    </div>
-  );
-};
 
-// ── FORM VIEW ────────────────────────────────────────────────────────────────
-const RecordFormView = ({ record, onBack, onSaved, employees, topics }) => {
-  const isEdit = !!record;
-  const [form] = Form.useForm();
-  const [saving, setSaving]     = useState(false);
-  const [expiry, setExpiry]     = useState(null);
-  const [selTopic, setSelTopic] = useState(null);
-
-  useEffect(() => {
-    if (isEdit) {
-      const t = topics.find((t) => t.id === record.topic_id);
-      setSelTopic(t);
-      form.setFieldsValue({
-        employee_id:      record.employee_id,
-        topic_id:         record.topic_id,
-        training_date:    record.training_date ? dayjs(record.training_date) : null,
-        trainer_name:     record.trainer_name,
-        trainer_id:       record.trainer_id,
-        score:            record.score,
-        validity_months:  record.validity_months,
-        notes:            record.notes,
-      });
-      if (record.expiry_date) setExpiry(fmtDate(record.expiry_date));
-    }
-  }, [record, form, isEdit, topics]);
-
-  const recalcExpiry = (date, months) => {
-    if (date && months) {
-      const d = dayjs(date).add(months, 'month');
-      setExpiry(d.format('DD MMM YYYY'));
-    } else {
-      setExpiry(null);
-    }
-  };
-
-  const handleTopicChange = (topicId) => {
-    const t = topics.find((x) => x.id === topicId);
-    setSelTopic(t);
-    if (t) {
-      form.setFieldValue('validity_months', t.validity_months);
-      const date = form.getFieldValue('training_date');
-      recalcExpiry(date, t.validity_months);
-    }
-  };
-
-  const handleDateChange = (date) => {
-    const months = form.getFieldValue('validity_months');
-    recalcExpiry(date, months);
-  };
-
-  const handleValidityChange = (months) => {
-    const date = form.getFieldValue('training_date');
-    recalcExpiry(date, months);
-  };
-
-  const handleSubmit = async () => {
-    let values; try { values = await form.validateFields(); } catch { return; }
-    // Format date
-    if (values.training_date) values.training_date = values.training_date.format('YYYY-MM-DD');
-    setSaving(true);
-    try {
-      if (isEdit) { await trainingRecordApi.update(record.id, values); message.success('Record updated'); }
-      else        { await trainingRecordApi.create(values);            message.success('Record created'); }
-      form.resetFields(); onSaved();
-    } catch (err) { message.error(err?.response?.data?.message || 'Failed to save'); }
-    finally { setSaving(false); }
-  };
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={onBack} style={{ color: '#374151', paddingLeft: 0 }} />
-        <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>
-          {isEdit ? `Edit Record` : 'Add Training Record'}
-        </Title>
-      </div>
-
-      <div style={{ background: '#fff', border: '1px solid #e8eaed', borderRadius: 12, padding: '28px 32px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-        <Form form={form} layout="vertical" requiredMark={false} size="large" initialValues={{ validity_months: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
-
-            <Form.Item name="employee_id" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Employee *</span>} rules={[{ required: true, message: 'Required' }]}>
-              <Select
-                showSearch
-                placeholder="Select employee"
+      <Drawer
+        title={editing ? 'Edit Training Record' : 'Add Training Record'}
+        width={640}
+        open={drawerOpen}
+        onClose={closeDrawer}
+        footer={
+          canWrite ? (
+            <Space>
+              <Button type="primary" loading={saving} onClick={handleSave}>
+                {editing ? 'Save Changes' : 'Create Record'}
+              </Button>
+              <Button onClick={closeDrawer}>Cancel</Button>
+            </Space>
+          ) : null
+        }
+      >
+        <Form form={form} layout="vertical" requiredMark={false}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+            <Form.Item name="employee_id" label="Employee" rules={[{ required: true, message: 'Required' }]} style={{ gridColumn: 'span 2' }}>
+              <Select showSearch placeholder="Select employee"
                 filterOption={(inp, opt) => (opt?.label ?? '').toLowerCase().includes(inp.toLowerCase())}
-                options={employees.map((e) => ({ value: e.id, label: `${e.name} (${e.employee_id})` }))}
-              />
+                options={employees.map((e) => ({ value: e.id, label: `${e.name} (${e.employee_id})` }))} />
             </Form.Item>
-
-            <Form.Item name="topic_id" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Training Topic *</span>} rules={[{ required: true, message: 'Required' }]}>
-              <Select
-                showSearch
-                placeholder="Select topic"
+            <Form.Item name="topic_id" label="Training Topic" rules={[{ required: true, message: 'Required' }]} style={{ gridColumn: 'span 2' }}>
+              <Select showSearch placeholder="Select topic"
                 filterOption={(inp, opt) => (opt?.label ?? '').toLowerCase().includes(inp.toLowerCase())}
                 options={topics.map((t) => ({ value: t.id, label: `${t.name} (${t.category})` }))}
-                onChange={handleTopicChange}
-              />
+                onChange={handleTopicChange} />
             </Form.Item>
-
-            <Form.Item name="training_date" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Training Date *</span>} rules={[{ required: true, message: 'Required' }]}>
-              <DatePicker style={{ width: '100%' }} onChange={handleDateChange} />
+            <Form.Item name="training_date" label="Training Date" rules={[{ required: true, message: 'Required' }]}>
+              <DatePicker style={{ width: '100%' }}
+                onChange={(date) => {
+                  const months = form.getFieldValue('validity_months');
+                  recalcExpiry(date, months);
+                }} />
             </Form.Item>
-
-            <Form.Item name="validity_months" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Validity (Months)</span>}>
-              <InputNumber min={1} max={120} addonAfter="months" style={{ width: '100%' }} onChange={handleValidityChange} />
+            <Form.Item name="validity_months" label="Validity (Months)">
+              <InputNumber min={1} max={120} addonAfter="months" style={{ width: '100%' }}
+                onChange={(months) => {
+                  const date = form.getFieldValue('training_date');
+                  recalcExpiry(date, months);
+                }} />
             </Form.Item>
-
             {expiry && (
-              <Form.Item label={<span style={{ fontWeight: 500, fontSize: 13 }}>Computed Expiry</span>}>
+              <Form.Item label="Computed Expiry" style={{ gridColumn: 'span 2' }}>
                 <div style={{ padding: '8px 12px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 14, color: '#374151' }}>
                   {expiry}
                 </div>
               </Form.Item>
             )}
-
-            <Form.Item name="trainer_name" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Trainer Name</span>}>
+            <Form.Item name="trainer_name" label="Trainer Name">
               <Input placeholder="External trainer name" />
             </Form.Item>
-
-            <Form.Item name="trainer_id" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Internal Trainer</span>}>
-              <Select
-                showSearch
-                allowClear
-                placeholder="Select internal trainer"
-                filterOption={(inp, opt) => (opt?.label ?? '').toLowerCase().includes(inp.toLowerCase())}
-                options={employees.map((e) => ({ value: e.id, label: `${e.name} (${e.employee_id})` }))}
-              />
-            </Form.Item>
-
-            <Form.Item name="score" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Score (0–100)</span>}>
+            <Form.Item name="score" label="Score (0–100)">
               <InputNumber min={0} max={100} addonAfter="%" style={{ width: '100%' }} />
             </Form.Item>
+            <Form.Item name="trainer_id" label="Internal Trainer" style={{ gridColumn: 'span 2' }}>
+              <Select showSearch allowClear placeholder="Select internal trainer"
+                filterOption={(inp, opt) => (opt?.label ?? '').toLowerCase().includes(inp.toLowerCase())}
+                options={employees.map((e) => ({ value: e.id, label: `${e.name} (${e.employee_id})` }))} />
+            </Form.Item>
           </div>
-
-          <Form.Item name="notes" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Notes</span>}>
+          <Form.Item name="notes" label="Notes">
             <Input.TextArea rows={3} placeholder="Optional notes…" />
           </Form.Item>
-
-          <div>
-            <Button type="primary" loading={saving} onClick={handleSubmit} style={{ borderRadius: 8, fontWeight: 600, paddingInline: 28 }}>
-              {isEdit ? 'Save Changes' : 'Create Record'}
-            </Button>
-            <Button onClick={onBack} style={{ marginLeft: 12, borderRadius: 8 }}>Cancel</Button>
-          </div>
         </Form>
-      </div>
-    </div>
-  );
-};
-
-// ── MAIN PAGE ────────────────────────────────────────────────────────────────
-const TrainingRecordsPage = () => {
-  const { user } = useAuth();
-  const canWrite = ['hr_admin', 'it_admin', 'plant_head'].includes(user?.role?.name);
-
-  const [records,  setRecords]  = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [topics,   setTopics]   = useState([]);
-  const [loading,  setLoading]  = useState(false);
-  const [view,     setView]     = useState('list');
-  const [editing,  setEditing]  = useState(null);
-  const [filters,  setFilters]  = useState({ search: '', employee_id: null, topic_id: null, status: null });
-
-  // ── AI Skill Gap ───────────────────────────────────────────────────────────
-  const aiSkillGap      = useAiSuggestion(aiApi.getSkillGapAnalysis);
-  const [aiCardVisible, setAiCardVisible] = useState(false);
-
-  const fetchSkillGap = () => {
-    aiSkillGap.reset();
-    aiSkillGap.fetch();
-  };
-
-  const fetchBase = useCallback(async () => {
-    try {
-      const [empRes, topRes] = await Promise.all([
-        api.get('/users').then((r) => r.data),
-        api.get('/hr/training-topics', { params: { is_active: true } }).then((r) => r.data),
-      ]);
-      setEmployees(empRes?.data ?? empRes ?? []);
-      setTopics(topRes?.data ?? topRes ?? []);
-    } catch { /* silent */ }
-  }, []);
-
-  const fetchRecords = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = {};
-      if (filters.employee_id) params.employee_id = filters.employee_id;
-      if (filters.topic_id)    params.topic_id    = filters.topic_id;
-      if (filters.status)      params.status      = filters.status;
-      const res = await trainingRecordApi.getAll(params);
-      setRecords(res?.data ?? res ?? []);
-    } catch (err) { message.error(err?.message || 'Failed to load records'); }
-    finally { setLoading(false); }
-  }, [filters.employee_id, filters.topic_id, filters.status]);
-
-  useEffect(() => { fetchBase(); }, [fetchBase]);
-  useEffect(() => { fetchRecords(); }, [fetchRecords]);
-
-  const handleDelete = (r) => Modal.confirm({
-    title: `Delete this training record?`,
-    content: `${r.Employee?.name} — ${r.Topic?.name}. This cannot be undone.`,
-    okText: 'Delete', okType: 'danger',
-    onOk: async () => {
-      try { await trainingRecordApi.delete(r.id); message.success('Deleted'); fetchRecords(); }
-      catch (err) { message.error(err?.response?.data?.message || 'Failed'); }
-    },
-  });
-
-  const filtered = filters.search
-    ? records.filter((r) =>
-        r.Employee?.name?.toLowerCase().includes(filters.search.toLowerCase()) ||
-        r.Topic?.name?.toLowerCase().includes(filters.search.toLowerCase()),
-      )
-    : records;
-
-  return (
-    <AppLayout>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <Text style={{ color: '#9ca3af', fontSize: 12 }}>Masters</Text>
-          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>HR &amp; Training</Text>
-          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>Training Records</Text>
-        </div>
-        <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>Training Records</Title>
-        <Text style={{ color: '#6b7280', fontSize: 13 }}>Log and manage employee training completions</Text>
-      </div>
-
-      {view === 'list' ? (
-        <ListView
-          records={filtered}
-          loading={loading}
-          onRefresh={fetchRecords}
-          onNew={() => { setEditing(null); setView('form'); }}
-          onEdit={(r) => { setEditing(r); setView('form'); }}
-          onDelete={handleDelete}
-          canWrite={canWrite}
-          filters={filters}
-          setFilters={setFilters}
-          employees={employees}
-          topics={topics}
-          aiSkillGap={aiSkillGap}
-          onFetchSkillGap={fetchSkillGap}
-          aiCardVisible={aiCardVisible}
-          setAiCardVisible={setAiCardVisible}
-        />
-      ) : (
-        <RecordFormView
-          record={editing}
-          onBack={() => { setView('list'); setEditing(null); }}
-          onSaved={() => { setView('list'); setEditing(null); fetchRecords(); }}
-          employees={employees}
-          topics={topics}
-        />
-      )}
+      </Drawer>
     </AppLayout>
   );
 };

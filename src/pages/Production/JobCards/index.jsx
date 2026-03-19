@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Drawer,
   Form, Select, Modal, InputNumber, message, Tooltip,
-  Popconfirm, Row, Col, Alert,
+  Row, Col, Alert,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
-  EditOutlined, DeleteOutlined, RightOutlined,
-  CheckOutlined, BulbOutlined, ClockCircleOutlined, CheckCircleFilled, CloseCircleFilled,
+  EditOutlined, RightOutlined,
+  BulbOutlined, ClockCircleOutlined, CheckCircleFilled, CloseCircleFilled,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
@@ -156,7 +156,7 @@ export default function JobCardsPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -179,7 +179,7 @@ export default function JobCardsPage() {
       setCloseModal(false);
       load();
     } catch (err) {
-      message.error(err?.response?.data?.message || 'Close failed');
+      message.error(err?.message || 'Close failed');
     } finally { setClosingSaving(false); }
   };
 
@@ -188,7 +188,7 @@ export default function JobCardsPage() {
       await jobCardApi.delete(id);
       message.success('Job card deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Table columns ──────────────────────────────────────────────────────────
@@ -256,49 +256,6 @@ export default function JobCardsPage() {
         </Tooltip>
       ),
     },
-    ...(canWrite ? [{
-      title: 'Actions', key: 'actions', width: 150,
-      render: (_, r) => {
-        const isOpen    = r.status === 'open';
-        const canDelete = isOpen && !r.start_time;
-
-        return (
-          <Space size={4}>
-            {isOpen && (
-              <Tooltip title="Close Job Card">
-                <Button
-                  size="small"
-                  type="primary"
-                  ghost
-                  icon={<CheckOutlined />}
-                  style={{ borderColor: '#16a34a', color: '#16a34a' }}
-                  onClick={() => openCloseModal(r)}
-                >
-                  Close
-                </Button>
-              </Tooltip>
-            )}
-            {isOpen && (
-              <Tooltip title="Edit">
-                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
-              </Tooltip>
-            )}
-            {canDelete && (
-              <Popconfirm
-                title="Delete this job card?"
-                onConfirm={() => onDelete(r.id)}
-                okText="Delete"
-                okType="danger"
-              >
-                <Tooltip title="Delete">
-                  <Button size="small" danger icon={<DeleteOutlined />} />
-                </Tooltip>
-              </Popconfirm>
-            )}
-          </Space>
-        );
-      },
-    }] : []),
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────────

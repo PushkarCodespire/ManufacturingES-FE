@@ -171,7 +171,7 @@ export default function PFMEADetailPage() {
 
   // ── Expandable row (actions) ───────────────────────────────────────────────
   const expandedRowRender = (item) => {
-    const actions = item.PfmeaActions ?? [];
+    const actions = item.Actions ?? item.PfmeaActions ?? [];
     const cols = [
       { title: 'Action Description', dataIndex: 'action_desc',  key: 'desc',  ellipsis: true },
       { title: 'Responsible', key: 'resp', width: 130,
@@ -233,7 +233,7 @@ export default function PFMEADetailPage() {
       }},
     { title: 'Controls', dataIndex: 'current_controls', key: 'ctrl', width: 130, ellipsis: true },
     { title: 'Actions', key: 'acts_cnt', width: 70,
-      render: (_, r) => <Tag color="blue">{r.PfmeaActions?.length ?? 0}</Tag> },
+      render: (_, r) => <Tag color="blue">{(r.Actions ?? r.PfmeaActions)?.length ?? 0}</Tag> },
     ...(canWrite ? [{
       title: '', key: 'acts', width: 90,
       render: (_, r) => (
@@ -250,7 +250,7 @@ export default function PFMEADetailPage() {
   if (loading) return <AppLayout><div style={{ padding: 40, color: '#6b7280' }}>Loading…</div></AppLayout>;
   if (!pfmea)  return <AppLayout><div style={{ padding: 40, color: '#ef4444' }}>PFMEA not found.</div></AppLayout>;
 
-  const items = pfmea.PfmeaItems ?? [];
+  const items = pfmea.Items ?? pfmea.PfmeaItems ?? [];
 
   return (
     <AppLayout>

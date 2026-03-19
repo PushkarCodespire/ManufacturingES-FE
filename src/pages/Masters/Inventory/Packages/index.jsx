@@ -146,7 +146,7 @@ const PackageBuilder = ({ pkg, onBack, onSaved, canWrite }) => {
       }
       onSaved();
     } catch (err) {
-      message.error(err?.response?.data?.message || err?.message || 'Failed to save');
+      message.error(err?.message || err?.message || 'Failed to save');
     } finally {
       setSaving(false);
     }

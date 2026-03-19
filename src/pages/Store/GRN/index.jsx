@@ -212,7 +212,7 @@ export default function GRNPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -221,7 +221,7 @@ export default function GRNPage() {
       await grnApi.approve(id);
       message.success('GRN approved — inventory updated');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Approval failed'); }
+    } catch (err) { message.error(err?.message || 'Approval failed'); }
   };
 
   const onDelete = async (id) => {
@@ -229,7 +229,7 @@ export default function GRNPage() {
       await grnApi.delete(id);
       message.success('GRN deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Line item helpers ──────────────────────────────────────────────────────

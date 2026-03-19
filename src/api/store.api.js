@@ -15,8 +15,8 @@ export const inventoryApi = {
   getStock:     (params = {}) => api.get('/inventory/stock',     { params }).then((r) => r.data),
   getLedger:    (params = {}) => api.get('/inventory/ledger',    { params }).then((r) => r.data),
   getDashboard: ()            => api.get('/inventory/dashboard').then((r) => r.data),
-  getStockAge:  (params = {}) => api.get('/inventory/stock-age', { params }).then((r) => r.data),
-  getDeadStock: (params = {}) => api.get('/inventory/dead-stock',{ params }).then((r) => r.data),
+  getStockAge:  (params = {}) => api.get('/inventory/stock-age', { params }),   // returns {data, summary} — no extra .data unwrap
+  getDeadStock: (params = {}) => api.get('/inventory/dead-stock',{ params }),   // returns {data, summary} — no extra .data unwrap
 };
 
 // ── Material Request ──────────────────────────────────────────────────────────

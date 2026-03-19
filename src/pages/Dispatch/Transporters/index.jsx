@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Button, Table, Space, Tag, Form, Input, Switch, Tooltip,
-  message, Card, Select, Modal,
+  message, Card, Select, Drawer, Popconfirm,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
-  CarOutlined, RightOutlined, SearchOutlined, ArrowLeftOutlined,
+  CarOutlined, RightOutlined, SearchOutlined,
 } from '@ant-design/icons';
 import { transporterApi } from '../../../api/transporter.api';
 import AppLayout from '../../../components/AppLayout';
-import { useAuth } from '../../../context/AuthContext';
+import usePermissions from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -20,13 +20,13 @@ const VEHICLE_OPTIONS = [
 ];
 
 const TransportersPage = () => {
-  const { user } = useAuth();
-  const canWrite = ['dispatch_manager', 'it_admin', 'plant_head'].includes(user?.role?.name);
+  const { can } = usePermissions();
+  const canWrite = can('dispatch-transporters-create_edit_delete');
 
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving,  setSaving]  = useState(false);
-  const [view,    setView]    = useState('list');
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [search,  setSearch]  = useState('');
   const [form] = Form.useForm();
@@ -42,13 +42,15 @@ const TransportersPage = () => {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const openForm = (record = null) => {
+  const openDrawer = (record = null) => {
     setEditing(record);
     form.setFieldsValue(record
       ? { ...record, vehicle_types: record.vehicle_types ?? [] }
       : { is_active: true, vehicle_types: [] });
-    setView('form');
+    setDrawerOpen(true);
   };
+
+  const closeDrawer = () => { setDrawerOpen(false); setEditing(null); form.resetFields(); };
 
   const handleSave = async () => {
     try {
@@ -61,34 +63,31 @@ const TransportersPage = () => {
         await transporterApi.create(values);
         message.success('Transporter created');
       }
-      setView('list');
+      closeDrawer();
       fetchAll();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Failed to save');
+      message.error(err?.message || 'Failed to save');
     } finally { setSaving(false); }
   };
 
-  const handleDelete = (record) => {
-    Modal.confirm({
-      title: `Delete "${record.name}"?`,
-      content: 'This action cannot be undone.',
-      okText: 'Delete', okType: 'danger',
-      onOk: async () => {
-        try {
-          await transporterApi.delete(record.id);
-          message.success('Transporter deleted');
-          fetchAll();
-        } catch (err) {
-          message.error(err?.response?.data?.message || 'Failed to delete');
-        }
-      },
-    });
+  const handleDelete = async (record) => {
+    try {
+      await transporterApi.delete(record.id);
+      message.success('Transporter deleted');
+      fetchAll();
+    } catch (err) {
+      message.error(err?.message || 'Failed to delete');
+    }
   };
 
   const filtered = search
     ? records.filter((r) => r.name?.toLowerCase().includes(search.toLowerCase()))
     : records;
+
+  const total    = records.length;
+  const active   = records.filter((r) => r.is_active).length;
+  const inactive = records.filter((r) => !r.is_active).length;
 
   const columns = [
     {
@@ -122,11 +121,18 @@ const TransportersPage = () => {
       render: (_, record) => (
         <Space size={4}>
           <Tooltip title="Edit">
-            <Button type="text" size="small" icon={<EditOutlined style={{ color: '#1d4ed8' }} />} onClick={() => openForm(record)} />
+            <Button type="text" size="small" icon={<EditOutlined style={{ color: '#1d4ed8' }} />} onClick={() => openDrawer(record)} />
           </Tooltip>
-          <Tooltip title="Delete">
-            <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record)} />
-          </Tooltip>
+          <Popconfirm
+            title="Delete transporter?"
+            description="This action cannot be undone."
+            okText="Delete" okType="danger"
+            onConfirm={() => handleDelete(record)}
+          >
+            <Tooltip title="Delete">
+              <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+            </Tooltip>
+          </Popconfirm>
         </Space>
       ),
     }] : []),
@@ -134,112 +140,97 @@ const TransportersPage = () => {
 
   return (
     <AppLayout>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <Text style={{ color: '#9ca3af', fontSize: 12 }}>Dispatch</Text>
-          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>Transporters</Text>
-        </div>
-        <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>Transporters</Title>
-        <Text style={{ color: '#6b7280', fontSize: 13 }}>Manage transport partners and their vehicle types</Text>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+        <Text style={{ color: '#9ca3af', fontSize: 12 }}>Dispatch</Text>
+        <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>Transporters</Text>
+      </div>
+      <Title level={3} style={{ margin: 0 }}>Transporters</Title>
+      <Text type="secondary" style={{ fontSize: 13 }}>Manage transport partners and their vehicle types.</Text>
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 16 }}>
+        <Tag color="blue">Total: {total}</Tag>
+        <Tag color="green">Active: {active}</Tag>
+        {inactive > 0 && <Tag>Inactive: {inactive}</Tag>}
       </div>
 
-      {view === 'list' ? (
-        <>
-          {/* Stats */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-            {[
-              { label: 'Total',    value: records.length,                             color: '#1d4ed8', bg: '#eff6ff' },
-              { label: 'Active',   value: records.filter((r) => r.is_active).length,  color: '#16a34a', bg: '#f0fdf4' },
-              { label: 'Inactive', value: records.filter((r) => !r.is_active).length, color: '#9ca3af', bg: '#f9fafb' },
-            ].map((s) => (
-              <div key={s.label} style={{ padding: '8px 16px', background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 90 }}>
-                <Text style={{ color: s.color, fontWeight: 700, fontSize: 20, lineHeight: 1.2 }}>{s.value}</Text>
-                <Text style={{ color: s.color, fontSize: 11, opacity: 0.8 }}>{s.label}</Text>
-              </div>
-            ))}
-          </div>
-
-          <Card style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '16px 20px' }}>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
-              <Input
-                placeholder="Search transporters…"
-                prefix={<SearchOutlined style={{ color: '#9ca3af' }} />}
-                value={search} onChange={(e) => setSearch(e.target.value)}
-                style={{ width: 240, borderRadius: 8 }} allowClear
-              />
-              <div style={{ flex: 1 }} />
-              <Button icon={<ReloadOutlined />} onClick={fetchAll} style={{ borderRadius: 8 }}>Refresh</Button>
-              {canWrite && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => openForm()} style={{ borderRadius: 8, fontWeight: 600 }}>
-                  Add Transporter
-                </Button>
-              )}
+      <Card style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '16px 20px' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
+          <Input
+            placeholder="Search transporters…"
+            prefix={<SearchOutlined />}
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            style={{ width: 240, borderRadius: 8 }} allowClear
+          />
+          <div style={{ flex: 1 }} />
+          <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
+          {canWrite && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>
+              Add Transporter
+            </Button>
+          )}
+        </div>
+        <Table
+          rowKey="id" dataSource={filtered} columns={columns} loading={loading}
+          size="middle" scroll={{ x: 900 }}
+          pagination={{ pageSize: 15, showSizeChanger: true, showTotal: (t) => `${t} transporters` }}
+          locale={{ emptyText: (
+            <div style={{ padding: 40, textAlign: 'center' }}>
+              <CarOutlined style={{ fontSize: 32, color: '#d1d5db', display: 'block', marginBottom: 12 }} />
+              <Text style={{ color: '#9ca3af' }}>No transporters yet</Text>
             </div>
-            <Table
-              rowKey="id" dataSource={filtered} columns={columns} loading={loading}
-              size="middle" scroll={{ x: 900 }}
-              pagination={{ pageSize: 15, showSizeChanger: true, showTotal: (t) => `${t} transporters` }}
-              locale={{ emptyText: (
-                <div style={{ padding: 40, textAlign: 'center' }}>
-                  <CarOutlined style={{ fontSize: 32, color: '#d1d5db', display: 'block', marginBottom: 12 }} />
-                  <Text style={{ color: '#9ca3af' }}>No transporters yet</Text>
-                </div>
-              )}}
-            />
-          </Card>
-        </>
-      ) : (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-            <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => setView('list')} style={{ color: '#374151', paddingLeft: 0 }} />
-            <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>
-              {editing ? `Edit — ${editing.name}` : 'Add Transporter'}
-            </Title>
+          )}}
+        />
+      </Card>
+
+      <Drawer
+        title={editing ? `Edit — ${editing.name}` : 'Add Transporter'}
+        width={520}
+        open={drawerOpen}
+        onClose={closeDrawer}
+        footer={
+          canWrite ? (
+            <Space>
+              <Button type="primary" loading={saving} onClick={handleSave}>
+                {editing ? 'Save Changes' : 'Create Transporter'}
+              </Button>
+              <Button onClick={closeDrawer}>Cancel</Button>
+            </Space>
+          ) : null
+        }
+      >
+        <Form form={form} layout="vertical" disabled={!canWrite} requiredMark={false}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+            <Form.Item name="name" label="Company / Transporter Name" rules={[{ required: true, message: 'Name is required' }]} style={{ gridColumn: 'span 2' }}>
+              <Input placeholder="e.g. Shree Transport Co." />
+            </Form.Item>
+            <Form.Item name="contact_person" label="Contact Person">
+              <Input placeholder="e.g. Ramesh Kumar" />
+            </Form.Item>
+            <Form.Item name="phone" label="Phone">
+              <Input placeholder="+91 98765 43210" />
+            </Form.Item>
+            <Form.Item name="email" label="Email">
+              <Input placeholder="contact@transporter.com" />
+            </Form.Item>
+            <Form.Item name="gstin" label="GSTIN">
+              <Input placeholder="22AAAAA0000A1Z5" />
+            </Form.Item>
           </div>
-          <div style={{ background: '#fff', border: '1px solid #e8eaed', borderRadius: 12, padding: '28px 32px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', maxWidth: 720 }}>
-            <Form form={form} layout="vertical" disabled={!canWrite} requiredMark={false} size="large">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px' }}>
-                <Form.Item name="name" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Company / Transporter Name *</span>} rules={[{ required: true, message: 'Name is required' }]}>
-                  <Input placeholder="e.g. Shree Transport Co." />
-                </Form.Item>
-                <Form.Item name="contact_person" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Contact Person</span>}>
-                  <Input placeholder="e.g. Ramesh Kumar" />
-                </Form.Item>
-                <Form.Item name="phone" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Phone</span>}>
-                  <Input placeholder="+91 98765 43210" />
-                </Form.Item>
-                <Form.Item name="email" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Email</span>}>
-                  <Input placeholder="contact@transporter.com" />
-                </Form.Item>
-                <Form.Item name="gstin" label={<span style={{ fontWeight: 500, fontSize: 13 }}>GSTIN</span>}>
-                  <Input placeholder="22AAAAA0000A1Z5" />
-                </Form.Item>
-                <Form.Item name="is_active" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Active</span>} valuePropName="checked">
-                  <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
-                </Form.Item>
-              </div>
-              <Form.Item name="vehicle_types" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Vehicle Types</span>}>
-                <Select mode="multiple" placeholder="Select vehicle types" options={VEHICLE_OPTIONS.map((v) => ({ value: v, label: v }))} />
-              </Form.Item>
-              <Form.Item name="address" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Address</span>}>
-                <TextArea rows={2} placeholder="Company address" />
-              </Form.Item>
-              <Form.Item name="notes" label={<span style={{ fontWeight: 500, fontSize: 13 }}>Notes</span>}>
-                <TextArea rows={2} placeholder="Any additional notes" />
-              </Form.Item>
-              {canWrite && (
-                <div>
-                  <Button type="primary" loading={saving} onClick={handleSave} style={{ borderRadius: 8, fontWeight: 600, paddingInline: 28 }}>
-                    {editing ? 'Save Changes' : 'Create Transporter'}
-                  </Button>
-                  <Button onClick={() => setView('list')} style={{ marginLeft: 12, borderRadius: 8 }}>Cancel</Button>
-                </div>
-              )}
-            </Form>
-          </div>
-        </>
-      )}
+          <Form.Item name="vehicle_types" label="Vehicle Types">
+            <Select mode="multiple" placeholder="Select vehicle types" options={VEHICLE_OPTIONS.map((v) => ({ value: v, label: v }))} />
+          </Form.Item>
+          <Form.Item name="address" label="Address">
+            <TextArea rows={2} placeholder="Company address" />
+          </Form.Item>
+          <Form.Item name="notes" label="Notes">
+            <TextArea rows={2} placeholder="Any additional notes" />
+          </Form.Item>
+          <Form.Item name="is_active" label="Active" valuePropName="checked">
+            <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
+          </Form.Item>
+        </Form>
+      </Drawer>
     </AppLayout>
   );
 };

@@ -504,7 +504,7 @@ const AddWarehouseView = ({ onBack, onSaved }) => {
       form.resetFields();
       onSaved();
     } catch (err) {
-      message.error(err?.response?.data?.message || err?.message || 'Failed to create warehouse');
+      message.error(err?.message || err?.message || 'Failed to create warehouse');
     } finally {
       setSaving(false);
     }
@@ -734,7 +734,7 @@ const DetailView = ({ warehouse, onBack, onSaved, canWrite }) => {
       setEditing(false);
       onSaved();
     } catch (err) {
-      message.error(err?.response?.data?.message || err?.message || 'Failed to update warehouse');
+      message.error(err?.message || err?.message || 'Failed to update warehouse');
     } finally {
       setSaving(false);
     }
@@ -1027,7 +1027,7 @@ const WarehousesPage = () => {
           message.success(`Warehouse "${record.name}" deleted`);
           fetchWarehouses();
         } catch (err) {
-          message.error(err?.response?.data?.message || 'Failed to delete warehouse');
+          message.error(err?.message || 'Failed to delete warehouse');
         }
       },
     });

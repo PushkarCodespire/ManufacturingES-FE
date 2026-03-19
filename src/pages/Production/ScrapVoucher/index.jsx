@@ -141,7 +141,7 @@ export default function ScrapVoucherPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -156,7 +156,7 @@ export default function ScrapVoucherPage() {
         message.info(`COPQ entry created${cost ? `: ${cost}` : ''} — linked to Cost of Poor Quality`);
       }
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Authorization failed'); }
+    } catch (err) { message.error(err?.message || 'Authorization failed'); }
   };
 
   const onReject = async (id) => {
@@ -164,7 +164,7 @@ export default function ScrapVoucherPage() {
       await scrapApi.reject(id);
       message.success('Scrap voucher rejected');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Rejection failed'); }
+    } catch (err) { message.error(err?.message || 'Rejection failed'); }
   };
 
   const onDelete = async (id) => {
@@ -172,7 +172,7 @@ export default function ScrapVoucherPage() {
       await scrapApi.delete(id);
       message.success('Scrap voucher deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Table columns ──────────────────────────────────────────────────────────

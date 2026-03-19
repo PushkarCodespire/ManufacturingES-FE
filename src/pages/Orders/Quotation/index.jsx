@@ -174,7 +174,7 @@ export default function QuotationPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -183,7 +183,7 @@ export default function QuotationPage() {
       await quotationApi.delete(id);
       message.success('Quotation deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   const addLine = () => setLineItems((p) => [...p, emptyItem()]);

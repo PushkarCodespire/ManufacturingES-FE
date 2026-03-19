@@ -154,7 +154,7 @@ export default function PMSchedulePage() {
       message.success('PM Work Order completed. Schedule updated.');
       setWoDrawer(false);
       loadAll();
-    } catch (err) { message.error(err?.response?.data?.message || 'Failed to complete WO'); }
+    } catch (err) { message.error(err?.message || 'Failed to complete WO'); }
   };
 
   const createTemplate = async (values) => {

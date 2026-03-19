@@ -165,7 +165,7 @@ export default function SCARPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -188,7 +188,7 @@ export default function SCARPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Update failed');
+      message.error(err?.message || 'Update failed');
     } finally { setSaving(false); }
   };
 
@@ -197,7 +197,7 @@ export default function SCARPage() {
       await scarApi.delete(id);
       message.success('SCAR deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   const openRespond = (scar) => {
@@ -225,7 +225,7 @@ export default function SCARPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Respond failed');
+      message.error(err?.message || 'Respond failed');
     } finally { setSaving(false); }
   };
 
@@ -234,7 +234,7 @@ export default function SCARPage() {
       await scarApi.close(id);
       message.success('SCAR closed successfully');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Close failed'); }
+    } catch (err) { message.error(err?.message || 'Close failed'); }
   };
 
   const isOverdue = (scar) => {

@@ -118,7 +118,7 @@ const MoldMasterPage = () => {
       closeDrawer(); fetchMolds();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message ?? 'Failed to save mold');
+      message.error(err?.message ?? 'Failed to save mold');
     } finally { setSaving(false); }
   };
 

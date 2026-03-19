@@ -97,7 +97,7 @@ export default function AiInsightsPage() {
       // If drawer is open for this mold, refresh it too
       if (drawerMold?.id === moldId) openDrawer(drawerMold);
     } catch (err) {
-      message.error(err?.response?.data?.message || 'Failed to generate prediction');
+      message.error(err?.message || 'Failed to generate prediction');
     } finally {
       setGenerating((p) => ({ ...p, [moldId]: false }));
     }

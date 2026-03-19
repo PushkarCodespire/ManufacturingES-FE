@@ -182,7 +182,7 @@ export default function IQCDetail() {
       const res = await iqcApi.updateResults(id, validParams.map(({ _key, ...p }) => p));
       message.success(`Measurements saved. Auto-verdict: ${(res?.auto_verdict || autoVerdict).toUpperCase()}`);
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Save failed'); }
+    } catch (err) { message.error(err?.message || 'Save failed'); }
     finally { setSaving(false); }
   };
 
@@ -192,7 +192,7 @@ export default function IQCDetail() {
       await iqcApi.updateResult(id, result);
       message.success(`Verdict set to ${RESULT_CONFIG[result]?.label}`);
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Failed'); }
+    } catch (err) { message.error(err?.message || 'Failed'); }
   };
 
   // ── Set disposition + on-hold (IQC-006) ───────────────────────────────────
@@ -209,7 +209,7 @@ export default function IQCDetail() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Failed');
+      message.error(err?.message || 'Failed');
     } finally { setSaving(false); }
   };
 
@@ -221,7 +221,7 @@ export default function IQCDetail() {
       const data = res?.data ?? res;
       message.success(`CAPA created: ${data?.capa_no || 'Done'}`);
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Failed to create CAPA'); }
+    } catch (err) { message.error(err?.message || 'Failed to create CAPA'); }
     finally { setCascadeLoading(false); }
   };
 

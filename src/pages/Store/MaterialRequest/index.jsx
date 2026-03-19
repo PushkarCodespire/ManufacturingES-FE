@@ -142,7 +142,7 @@ export default function MaterialRequestPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -151,7 +151,7 @@ export default function MaterialRequestPage() {
       await materialRequestApi.approve(id);
       message.success('Material request approved');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Approval failed'); }
+    } catch (err) { message.error(err?.message || 'Approval failed'); }
   };
 
   const onDelete = async (id) => {
@@ -159,7 +159,7 @@ export default function MaterialRequestPage() {
       await materialRequestApi.delete(id);
       message.success('Material request deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Line item helpers ──────────────────────────────────────────────────────

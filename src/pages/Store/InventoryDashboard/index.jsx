@@ -56,7 +56,7 @@ export default function InventoryDashboardPage() {
     setDashLoading(true);
     try {
       const res = await inventoryApi.getDashboard();
-      setDashboard(res?.data ?? null);
+      setDashboard(res ?? null);
     } catch (err) { message.error(err?.message || 'Failed to load dashboard'); }
     finally { setDashLoading(false); }
   }, []);

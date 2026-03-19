@@ -196,7 +196,7 @@ export default function WorkOrdersPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -205,7 +205,7 @@ export default function WorkOrdersPage() {
       await workOrderApi.updateStatus(id, status);
       message.success(`Status updated to ${STATUS_CONFIG[status]?.label || status}`);
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Status update failed'); }
+    } catch (err) { message.error(err?.message || 'Status update failed'); }
   };
 
   const onDelete = async (id) => {
@@ -213,7 +213,7 @@ export default function WorkOrdersPage() {
       await workOrderApi.delete(id);
       message.success('Work order deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Table columns ──────────────────────────────────────────────────────────

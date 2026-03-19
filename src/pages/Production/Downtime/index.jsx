@@ -314,7 +314,7 @@ const FormView = ({ reason, onBack, onSaved, canWrite }) => {
       }
       onSaved();
     } catch (err) {
-      message.error(err?.response?.data?.message || 'Failed to save');
+      message.error(err?.message || 'Failed to save');
     } finally {
       setSaving(false);
     }

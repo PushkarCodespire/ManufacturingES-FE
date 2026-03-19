@@ -195,7 +195,7 @@ export default function OQCPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -204,7 +204,7 @@ export default function OQCPage() {
       await oqcApi.updateResult(id, result);
       message.success(`Result set to ${RESULT_CONFIG[result]?.label || result}`);
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Update failed'); }
+    } catch (err) { message.error(err?.message || 'Update failed'); }
   };
 
   const onGenerateDoc = async (id, type) => {
@@ -212,7 +212,7 @@ export default function OQCPage() {
       await oqcApi.generateDoc(id, type);
       message.success(type === 'cert' ? 'Test Certificate generated' : 'COC generated');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Failed to generate document'); }
+    } catch (err) { message.error(err?.message || 'Failed to generate document'); }
   };
 
   const onDelete = async (id) => {
@@ -220,7 +220,7 @@ export default function OQCPage() {
       await oqcApi.delete(id);
       message.success('Inspection deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Parameter row helpers ──────────────────────────────────────────────────

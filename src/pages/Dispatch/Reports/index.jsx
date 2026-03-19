@@ -154,22 +154,20 @@ const DispatchReportsPage = () => {
 
   return (
     <AppLayout>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <Text style={{ color: '#9ca3af', fontSize: 12 }}>Dispatch</Text>
-          <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>Reports</Text>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+        <Text style={{ color: '#9ca3af', fontSize: 12 }}>Dispatch</Text>
+        <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>Reports</Text>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <Title level={3} style={{ margin: 0 }}>Dispatch Reports</Title>
+          <Text type="secondary" style={{ fontSize: 13 }}>Overview and analytics for dispatch operations.</Text>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>Dispatch Reports</Title>
-            <Text style={{ color: '#6b7280', fontSize: 13 }}>Overview and analytics for dispatch operations</Text>
-          </div>
-          <Space>
-            <RangePicker value={dateRange} onChange={setDateRange} style={{ borderRadius: 8 }} />
-            <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading} style={{ borderRadius: 8 }}>Refresh</Button>
-          </Space>
-        </div>
+        <Space style={{ marginTop: 4 }}>
+          <RangePicker value={dateRange} onChange={setDateRange} style={{ borderRadius: 8 }} />
+          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading} style={{ borderRadius: 8 }}>Refresh</Button>
+        </Space>
       </div>
 
       {/* KPI Cards */}

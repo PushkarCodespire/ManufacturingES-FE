@@ -675,7 +675,7 @@ const EmployeeDetailPage = () => {
         6,
       );
     } catch (err) {
-      message.error(err?.response?.data?.message || 'Failed to save permissions');
+      message.error(err?.message || 'Failed to save permissions');
     } finally {
       setSavingPerms(false);
     }
@@ -696,7 +696,7 @@ const EmployeeDetailPage = () => {
       setEditing(false);
       fetchUser();
     } catch (err) {
-      message.error(err?.response?.data?.message || err?.message || 'Failed to update employee');
+      message.error(err?.message || err?.message || 'Failed to update employee');
     } finally {
       setSaving(false);
     }

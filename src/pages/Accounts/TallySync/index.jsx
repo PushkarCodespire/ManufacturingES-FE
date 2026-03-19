@@ -101,7 +101,7 @@ const TallySyncPage = () => {
       await Promise.all([fetchDashboard(), fetchLogs(1, logPageSize, logFilter)]);
       setLogPage(1);
     } catch (err) {
-      message.error(`${label} sync failed: ${err?.response?.data?.message || err.message}`);
+      message.error(`${label} sync failed: ${err?.message || err.message}`);
     } finally {
       setSyncing((prev) => ({ ...prev, [key]: false }));
     }

@@ -199,7 +199,7 @@ export default function MoldSelectionPage() {
       fetchReservations();
       if (partId) handleSearch();
     } catch (err) {
-      message.error(err?.response?.data?.message || err?.message || 'Failed to reserve mold');
+      message.error(err?.message || err?.message || 'Failed to reserve mold');
     } finally {
       setReserving(false);
     }
@@ -213,7 +213,7 @@ export default function MoldSelectionPage() {
       message.success('Reservation released');
       fetchReservations();
     } catch (err) {
-      message.error(err?.response?.data?.message || 'Failed to release reservation');
+      message.error(err?.message || 'Failed to release reservation');
     } finally {
       setReleasing(null);
     }

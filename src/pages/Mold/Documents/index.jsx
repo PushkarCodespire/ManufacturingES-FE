@@ -197,7 +197,7 @@ export default function MoldDocumentsPage() {
                   { title: 'Type', dataIndex: ['RepairType', 'name'], render: (v) => v || '—' },
                   { title: 'Damage', dataIndex: 'damage_description', ellipsis: true },
                   { title: 'Status', dataIndex: 'status', render: (v) => <Tag>{v?.replace(/_/g, ' ')}</Tag> },
-                  { title: 'Cost', dataIndex: 'total_cost', render: (v) => v ? `₹${Number(v).toLocaleString()}` : '—' },
+                  { title: 'Cost', dataIndex: 'actual_cost', render: (v) => v ? `₹${Number(v).toLocaleString()}` : '—' },
                 ]}
               />
             </>

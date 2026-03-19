@@ -185,7 +185,7 @@ export default function PQCPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -194,7 +194,7 @@ export default function PQCPage() {
       await pqcApi.updateResult(id, result);
       message.success(`Result set to ${RESULT_CONFIG[result]?.label || result}`);
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Update failed'); }
+    } catch (err) { message.error(err?.message || 'Update failed'); }
   };
 
   const onDelete = async (id) => {
@@ -202,7 +202,7 @@ export default function PQCPage() {
       await pqcApi.delete(id);
       message.success('Inspection deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Parameter row helpers ──────────────────────────────────────────────────

@@ -138,7 +138,7 @@ export default function SchedulingPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || 'Save failed');
+      message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -147,7 +147,7 @@ export default function SchedulingPage() {
       await scheduleApi.publish(id);
       message.success('Schedule published');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Publish failed'); }
+    } catch (err) { message.error(err?.message || 'Publish failed'); }
   };
 
   const onDelete = async (id) => {
@@ -155,7 +155,7 @@ export default function SchedulingPage() {
       await scheduleApi.delete(id);
       message.success('Schedule deleted');
       load();
-    } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+    } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
   // ── Table columns ──────────────────────────────────────────────────────────
