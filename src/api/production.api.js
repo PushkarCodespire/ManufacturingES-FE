@@ -10,12 +10,14 @@ export const workOrderApi = {
 };
 
 export const jobCardApi = {
-  getAll:  (params) => api.get('/job-cards', { params }),
-  getById: (id)     => api.get(`/job-cards/${id}`),
-  create:  (data)   => api.post('/job-cards', data),
-  update:  (id, d)  => api.patch(`/job-cards/${id}`, d),
-  close:   (id, d)  => api.patch(`/job-cards/${id}/close`, d),
-  delete:  (id)     => api.delete(`/job-cards/${id}`),
+  getAll:          (params) => api.get('/job-cards', { params }),
+  getById:         (id)     => api.get(`/job-cards/${id}`),
+  create:          (data)   => api.post('/job-cards', data),
+  update:          (id, d)  => api.patch(`/job-cards/${id}`, d),
+  close:           (id, d)  => api.patch(`/job-cards/${id}/close`, d),
+  cancel:          (id)     => api.patch(`/job-cards/${id}/cancel`),
+  delete:          (id)     => api.delete(`/job-cards/${id}`),
+  getCapacityPlan: ()       => api.get('/job-cards/capacity-plan'),
 };
 
 export const iqcApi = {

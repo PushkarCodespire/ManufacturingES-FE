@@ -47,6 +47,7 @@ const DELAY_RISK_COLOR = {
 const STATUS_CONFIG = {
   draft:       { color: 'default',    label: 'Draft'       },
   open:        { color: 'blue',       label: 'Open'        },
+  released:    { color: 'cyan',       label: 'Released'    },
   in_progress: { color: 'processing', label: 'In Progress' },
   on_hold:     { color: 'orange',     label: 'On Hold'     },
   completed:   { color: 'green',      label: 'Completed'   },
@@ -62,7 +63,8 @@ const FPI_STATUS_CONFIG = {
 
 const STATUS_TRANSITIONS = {
   draft:       ['open', 'cancelled'],
-  open:        ['in_progress', 'on_hold', 'cancelled'],
+  open:        ['released', 'in_progress', 'on_hold', 'cancelled'],
+  released:    ['in_progress', 'on_hold', 'cancelled'],
   in_progress: ['on_hold', 'completed', 'cancelled'],
   on_hold:     ['in_progress', 'cancelled'],
   completed:   [],
@@ -216,6 +218,20 @@ export default function WorkOrdersPage() {
     } catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
+  const handleGenerateJC = async (record) => {
+    try {
+      const res = await api.post(`/work-orders/${record.id}/generate-job-cards`);
+      if (res.success) {
+        message.success(res.message || 'Job cards generated');
+        load();
+      } else {
+        message.error(res.message || 'Failed to generate job cards');
+      }
+    } catch (err) {
+      message.error(err?.message || 'Failed to generate job cards');
+    }
+  };
+
   // ── Table columns ──────────────────────────────────────────────────────────
   const columns = [
     {
@@ -267,6 +283,28 @@ export default function WorkOrdersPage() {
       },
     },
     {
+      title: 'Steps', key: 'step_progress', width: 110,
+      render: (_, r) => {
+        const cards       = Array.isArray(r.JobCards) ? r.JobCards : [];
+        const routingCards = cards.filter((jc) => jc.routing_step_id);
+        const total       = routingCards.length;
+        const done        = routingCards.filter((jc) => jc.status === 'closed').length;
+        if (total === 0) return <Text type="secondary" style={{ fontSize: 11 }}>No routing</Text>;
+        const pct = Math.round((done / total) * 100);
+        return (
+          <Tooltip title={`${done}/${total} steps completed`}>
+            <div>
+              <Text style={{ fontSize: 11 }}>{done}/{total}</Text>
+              <Badge
+                count={`${pct}%`}
+                style={{ backgroundColor: pct === 100 ? '#16a34a' : pct > 0 ? '#d97706' : '#6b7280', fontSize: 10, marginLeft: 4 }}
+              />
+            </div>
+          </Tooltip>
+        );
+      },
+    },
+    {
       title: 'FPI', dataIndex: 'fpi_status', key: 'fpi_status', width: 100,
       render: (s) => {
         if (!s || s === 'not_required') return <Text type="secondary" style={{ fontSize: 11 }}>—</Text>;
@@ -303,6 +341,16 @@ export default function WorkOrdersPage() {
             {canEdit && (
               <Tooltip title="Edit">
                 <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+              </Tooltip>
+            )}
+            {(r.status === 'released' || r.status === 'in_progress') && (
+              <Tooltip title="Generate Job Cards from Routing">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<ThunderboltOutlined style={{ color: '#7c3aed' }} />}
+                  onClick={() => handleGenerateJC(r)}
+                />
               </Tooltip>
             )}
             {transitions.length > 0 && (

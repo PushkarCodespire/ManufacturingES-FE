@@ -76,7 +76,9 @@ const NAV_ITEMS_DEF = [
           { key: 'm-tools',            label: 'Tools',               permission: 'production-tools-read' },
           { key: 'm-downtime',         label: 'Downtime',            permission: 'production-downtime-read' },
           { key: 'm-quality',          label: 'Quality',             permission: 'production-quality-read' },
-          { key: 'm-production-forms', label: 'Production Forms',    permission: 'production-production_forms-read' }
+          { key: 'm-production-forms', label: 'Production Forms',    permission: 'production-production_forms-read' },
+          { key: 'm-work-centers',    label: 'Work Centers',        permission: 'production-work_centers-read'     },
+          { key: 'm-routings',        label: 'Routings',            permission: 'production-routings-read'         },
         ],
       },
       // ── Planning (SubMenu) ─────────────────────────
@@ -163,7 +165,13 @@ const NAV_ITEMS_DEF = [
     label: 'Procurement',
     icon:  <ShoppingCartOutlined />,
     children: [
-      { key: 'purchase-orders',     label: 'Purchase Orders',     permission: 'plan-po-create_po-read' },
+      { key: 'procurement-analytics',  label: 'Analytics',             permission: 'plan-procurement-analytics-procurement_analytics-read' },
+      { key: 'budget-management',      label: 'Budget Management',     permission: 'plan-budget-management-budget_management-read' },
+      { key: 'vendor-invoices',        label: 'Vendor Invoices',       permission: 'plan-vendor-invoices-vendor_invoices-read' },
+      { key: 'purchase-returns',       label: 'Purchase Returns',      permission: 'plan-purchase-returns-purchase_returns-read' },
+      { key: 'purchase-requisitions', label: 'Purchase Requisitions', permission: 'plan-pr-purchase_requisition-read' },
+      { key: 'vendor-rfq',            label: 'Vendor RFQ',            permission: 'plan-vendor-rfq-vendor_rfq-read' },
+      { key: 'purchase-orders',       label: 'Purchase Orders',       permission: 'plan-po-create_po-read' },
       { key: 'bom-explosion',       label: 'BOM Explosion',       permission: 'plan-bom-explosion-bom_explosion-read' },
       { key: 'supplier-scorecard',  label: 'Supplier Scorecard',  permission: 'plan-supplier-scorecard-supplier_scorecard-read' },
       { key: 'scar',                label: 'SCAR',                permission: 'plan-scar-scar-read' },
@@ -224,6 +232,7 @@ const NAV_ITEMS_DEF = [
       { key: 'pqc',                  label: 'PQC Inspection',    permission: 'prod-quality_level-pqc-read'                       },
       { key: 'oqc',                  label: 'OQC Inspection',    permission: 'prod-quality_level-oqc-read'                       },
       { key: 'production-scheduling',label: 'Scheduling',        permission: 'prod-mrp_expected_production-create_plan-read'     },
+      { key: 'capacity-planning',    label: 'Capacity Planning', permission: 'prod-dpr-daily_production_report-read'             },
       { key: 'scrap-vouchers',       label: 'Scrap Authorization',permission: 'prod-dpr-rejection_entry-read'                   },
     ],
   },
@@ -334,6 +343,8 @@ const KEY_TO_PATH = {
   'm-tools':            '/masters/production/tools',
   'm-downtime':         '/masters/production/downtime',
   'm-quality':          '/masters/production/quality',
+  'm-work-centers': '/masters/production/work-centers',
+  'm-routings':     '/masters/production/routings',
   'm-warehouses':      '/masters/inventory/warehouses',
   'm-packages':        '/masters/inventory/packages',
   'm-reports':         '/masters/other/reports',
@@ -365,6 +376,7 @@ const KEY_TO_PATH = {
   'pqc':                   '/production/pqc',
   'oqc':                   '/production/oqc',
   'production-scheduling': '/production/scheduling',
+  'capacity-planning':     '/production/capacity-planning',
   'scrap-vouchers':        '/production/scrap',
   // Quality & NPD module
   'q-capa':         '/quality/capa',
@@ -375,7 +387,13 @@ const KEY_TO_PATH = {
   'q-check-sheets': '/quality/check-sheets',
   'q-pfmea':        '/quality/pfmea',
   // Procurement module
-  'purchase-orders':    '/procurement/purchase-orders',
+  'procurement-analytics':  '/procurement/analytics',
+  'budget-management':      '/procurement/budget-management',
+  'vendor-invoices':        '/procurement/vendor-invoices',
+  'purchase-returns':       '/procurement/purchase-returns',
+  'purchase-requisitions': '/procurement/purchase-requisitions',
+  'vendor-rfq':            '/procurement/vendor-rfq',
+  'purchase-orders':       '/procurement/purchase-orders',
   'bom-explosion':      '/procurement/bom-explosion',
   'supplier-scorecard': '/procurement/supplier-scorecard',
   'scar':               '/procurement/scar',
@@ -443,6 +461,8 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/masters/production/tools'))            return { selected: 'm-tools',            open: ['masters', 'grp-production'] };
   if (pathname.startsWith('/masters/production/downtime'))         return { selected: 'm-downtime',         open: ['masters', 'grp-production'] };
   if (pathname.startsWith('/masters/production/quality'))          return { selected: 'm-quality',          open: ['masters', 'grp-production'] };
+  if (pathname.startsWith('/masters/production/work-centers'))    return { selected: 'm-work-centers',    open: ['masters', 'grp-production'] };
+  if (pathname.startsWith('/masters/production/routings'))        return { selected: 'm-routings',        open: ['masters', 'grp-production'] };
   // Inventory sub-group
   if (pathname.startsWith('/masters/inventory/warehouses')) return { selected: 'm-warehouses', open: ['masters', 'grp-inventory'] };
   if (pathname.startsWith('/masters/inventory/packages'))   return { selected: 'm-packages',   open: ['masters', 'grp-inventory'] };
@@ -482,9 +502,16 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/production/lqc'))          return { selected: 'lqc',                   open: ['production'] };
   if (pathname.startsWith('/production/pqc'))          return { selected: 'pqc',                   open: ['production'] };
   if (pathname.startsWith('/production/oqc'))          return { selected: 'oqc',                   open: ['production'] };
-  if (pathname.startsWith('/production/scheduling'))   return { selected: 'production-scheduling', open: ['production'] };
-  if (pathname.startsWith('/production/scrap'))        return { selected: 'scrap-vouchers',        open: ['production'] };
+  if (pathname.startsWith('/production/scheduling'))         return { selected: 'production-scheduling', open: ['production'] };
+  if (pathname.startsWith('/production/capacity-planning')) return { selected: 'capacity-planning',      open: ['production'] };
+  if (pathname.startsWith('/production/scrap'))             return { selected: 'scrap-vouchers',         open: ['production'] };
   // Procurement module
+  if (pathname.startsWith('/procurement/analytics'))            return { selected: 'procurement-analytics',  open: ['procurement'] };
+  if (pathname.startsWith('/procurement/budget-management'))    return { selected: 'budget-management',  open: ['procurement'] };
+  if (pathname.startsWith('/procurement/vendor-invoices'))      return { selected: 'vendor-invoices',    open: ['procurement'] };
+  if (pathname.startsWith('/procurement/purchase-returns'))     return { selected: 'purchase-returns',   open: ['procurement'] };
+  if (pathname.startsWith('/procurement/purchase-requisitions')) return { selected: 'purchase-requisitions', open: ['procurement'] };
+  if (pathname.startsWith('/procurement/vendor-rfq'))           return { selected: 'vendor-rfq',            open: ['procurement'] };
   if (pathname.startsWith('/procurement/bom-explosion'))       return { selected: 'bom-explosion',      open: ['procurement'] };
   if (pathname.startsWith('/procurement/supplier-scorecard'))  return { selected: 'supplier-scorecard', open: ['procurement'] };
   if (pathname.startsWith('/procurement/scar'))                return { selected: 'scar',               open: ['procurement'] };

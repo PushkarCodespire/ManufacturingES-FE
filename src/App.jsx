@@ -17,6 +17,8 @@ import EditSitePage       from './pages/Masters/Configuration/EditSite';
 import ShiftsPage         from './pages/Masters/Shifts';
 import WarehousesPage     from './pages/Masters/Warehouses';
 import MachinesPage       from './pages/Production/Machines';
+import WorkCentersPage    from './pages/Masters/WorkCenters';
+import RoutingsPage       from './pages/Masters/Routings';
 import ItemsPage          from './pages/Production/Items';
 import CycleTimeRulesPage from './pages/Production/CycleTimeRules';
 import DowntimePage       from './pages/Production/Downtime';
@@ -51,8 +53,15 @@ import IQCDetailPage         from './pages/Production/IQC/IQCDetail';
 import PQCPage               from './pages/Production/PQC';
 import OQCPage               from './pages/Production/OQC';
 import SchedulingPage        from './pages/Production/Scheduling';
+import CapacityPlanningPage  from './pages/Production/CapacityPlanning';
 import ScrapVoucherPage      from './pages/Production/ScrapVoucher';
-import PurchaseOrdersPage    from './pages/Procurement/PurchaseOrders';
+import ProcurementAnalyticsPage from './pages/Procurement/Analytics';
+import BudgetManagementPage     from './pages/Procurement/BudgetManagement';
+import VendorInvoicesPage       from './pages/Procurement/VendorInvoices';
+import PurchaseReturnsPage      from './pages/Procurement/PurchaseReturns';
+import PurchaseRequisitionsPage from './pages/Procurement/PurchaseRequisitions';
+import VendorRFQPage            from './pages/Procurement/VendorRFQ';
+import PurchaseOrdersPage       from './pages/Procurement/PurchaseOrders';
 import BOMExplosionPage      from './pages/Procurement/BOMExplosion';
 import SupplierScorecardPage from './pages/Procurement/SupplierScorecard';
 import SCARPage              from './pages/Procurement/SCAR';
@@ -291,6 +300,26 @@ function App() {
                 element={
                   <ProtectedRoute permission="production-machines-read">
                     <MachinesPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Production — Work Centers */}
+              <Route
+                path="/masters/production/work-centers"
+                element={
+                  <ProtectedRoute permission="production-work_centers-read">
+                    <WorkCentersPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Masters — Production — Routings */}
+              <Route
+                path="/masters/production/routings"
+                element={
+                  <ProtectedRoute permission="production-routings-read">
+                    <RoutingsPage />
                   </ProtectedRoute>
                 }
               />
@@ -546,10 +575,17 @@ function App() {
               <Route path="/production/pqc" element={<ProtectedRoute permission="prod-quality_level-pqc-read"><PQCPage /></ProtectedRoute>} />
               <Route path="/production/oqc" element={<ProtectedRoute permission="prod-quality_level-oqc-read"><OQCPage /></ProtectedRoute>} />
               <Route path="/production/scheduling" element={<ProtectedRoute permission="prod-mrp_expected_production-create_plan-read"><SchedulingPage /></ProtectedRoute>} />
+              <Route path="/production/capacity-planning" element={<ProtectedRoute permission="prod-dpr-daily_production_report-read"><CapacityPlanningPage /></ProtectedRoute>} />
               <Route path="/production/scrap" element={<ProtectedRoute permission="prod-dpr-rejection_entry-read"><ScrapVoucherPage /></ProtectedRoute>} />
 
               {/* ── Procurement Module ─────────────────────────────────────────── */}
-              <Route path="/procurement/purchase-orders"    element={<ProtectedRoute permission="plan-po-create_po-read"><PurchaseOrdersPage /></ProtectedRoute>} />
+              <Route path="/procurement/analytics"             element={<ProtectedRoute permission="plan-procurement-analytics-procurement_analytics-read"><ProcurementAnalyticsPage /></ProtectedRoute>} />
+              <Route path="/procurement/budget-management"     element={<ProtectedRoute permission="plan-budget-management-budget_management-read"><BudgetManagementPage /></ProtectedRoute>} />
+              <Route path="/procurement/vendor-invoices"       element={<ProtectedRoute permission="plan-vendor-invoices-vendor_invoices-read"><VendorInvoicesPage /></ProtectedRoute>} />
+              <Route path="/procurement/purchase-returns"      element={<ProtectedRoute permission="plan-purchase-returns-purchase_returns-read"><PurchaseReturnsPage /></ProtectedRoute>} />
+              <Route path="/procurement/purchase-requisitions" element={<ProtectedRoute permission="plan-pr-purchase_requisition-read"><PurchaseRequisitionsPage /></ProtectedRoute>} />
+              <Route path="/procurement/vendor-rfq"           element={<ProtectedRoute permission="plan-vendor-rfq-vendor_rfq-read"><VendorRFQPage /></ProtectedRoute>} />
+              <Route path="/procurement/purchase-orders"       element={<ProtectedRoute permission="plan-po-create_po-read"><PurchaseOrdersPage /></ProtectedRoute>} />
               <Route path="/procurement/bom-explosion"      element={<ProtectedRoute permission="plan-bom-explosion-bom_explosion-read"><BOMExplosionPage /></ProtectedRoute>} />
               <Route path="/procurement/supplier-scorecard" element={<ProtectedRoute permission="plan-supplier-scorecard-supplier_scorecard-read"><SupplierScorecardPage /></ProtectedRoute>} />
               <Route path="/procurement/scar"               element={<ProtectedRoute permission="plan-scar-scar-read"><SCARPage /></ProtectedRoute>} />

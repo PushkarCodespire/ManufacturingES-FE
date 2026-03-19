@@ -114,7 +114,9 @@ const mastersTreeData = [
       leaf('production', 'Tools',               stdPerms),
       leaf('production', 'Downtime',            stdPerms),
       leaf('production', 'Quality',             stdPerms),
-      leaf('production', 'Production Forms',    stdPerms)
+      leaf('production', 'Production Forms',    stdPerms),
+      leaf('production', 'Work Centers',        stdPerms),
+      leaf('production', 'Routings',            stdPerms),
     ],
   },
   {
@@ -367,6 +369,51 @@ const ordersTreeData = [
 
 // ── Procurement Access tree (matches sidebar "Procurement" top-level module) ─
 const procurementTreeData = [
+  {
+    title: 'Purchase Requisition',
+    key: 'plan-pr',
+    children: [
+      leaf('plan-pr', 'Purchase Requisition', stdPerms),
+      leaf('plan-pr', 'Approve PR',           ['Read', 'Approve/Reject']),
+    ],
+  },
+  {
+    title: 'Vendor Invoices',
+    key: 'plan-vendor-invoices',
+    children: [
+      leaf('plan-vendor-invoices', 'Vendor Invoices',  stdPerms),
+      leaf('plan-vendor-invoices', 'Approve Invoice',  ['Read', 'Approve/Reject']),
+    ],
+  },
+  {
+    title: 'Purchase Returns',
+    key: 'plan-purchase-returns',
+    children: [
+      leaf('plan-purchase-returns', 'Purchase Returns', stdPerms),
+    ],
+  },
+  {
+    title: 'Budget Management',
+    key: 'plan-budget-management',
+    children: [
+      leaf('plan-budget-management', 'Budget Management', stdPerms),
+    ],
+  },
+  {
+    title: 'Procurement Analytics',
+    key: 'plan-procurement-analytics',
+    children: [
+      leaf('plan-procurement-analytics', 'Procurement Analytics', ['Read']),
+    ],
+  },
+  {
+    title: 'Vendor RFQ',
+    key: 'plan-vendor-rfq',
+    children: [
+      leaf('plan-vendor-rfq', 'Vendor RFQ',    stdPerms),
+      leaf('plan-vendor-rfq', 'Award RFQ',     ['Read', 'Approve/Reject']),
+    ],
+  },
   {
     title: 'Purchase Order',
     key: 'plan-po',
