@@ -2,12 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Drawer,
   Form, Select, DatePicker, InputNumber, Divider, message, Tooltip,
-  Popconfirm, Badge, Row, Col, Dropdown, Alert,
+  Popconfirm, Badge, Row, Col, Dropdown, Alert, Modal,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
   DownOutlined, BulbOutlined, ThunderboltOutlined,
+  ApartmentOutlined, BranchesOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
@@ -89,10 +90,20 @@ export default function WorkOrdersPage() {
   const [loading,       setLoading]       = useState(false);
   const [search,        setSearch]        = useState('');
   const [statusFilter,  setStatusFilter]  = useState(null);
+  const [woTypeFilter,  setWoTypeFilter]  = useState(null);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing,    setEditing]    = useState(null);
   const [saving,     setSaving]     = useState(false);
+
+  // Sub-assembly state
+  const [subWoMap,   setSubWoMap]   = useState({});   // parentId -> sub-WOs array
+  const [subLoading, setSubLoading] = useState({});   // parentId -> bool
+  const [genLoading, setGenLoading] = useState({});   // parentId -> bool
+  const [subDrawer,  setSubDrawer]  = useState(false);
+  const [subParent,  setSubParent]  = useState(null);
+  const [subForm]                   = Form.useForm();
+  const [subSaving,  setSubSaving]  = useState(false);
 
   // ── AI delay risk ──────────────────────────────────────────────────────────
   const aiDelay    = useAiSuggestion(aiApi.getWoAiDelayRisk);
@@ -113,13 +124,14 @@ export default function WorkOrdersPage() {
     setLoading(true);
     try {
       const params = {};
-      if (search)       params.search = search;
-      if (statusFilter) params.status = statusFilter;
+      if (search)       params.search   = search;
+      if (statusFilter) params.status   = statusFilter;
+      if (woTypeFilter) params.wo_type  = woTypeFilter;
       const data = await workOrderApi.getAll(params);
       setWorkOrders(Array.isArray(data) ? data : (data?.data ?? []));
     } catch (err) { message.error(err?.message || 'Failed to load work orders'); }
     finally { setLoading(false); }
-  }, [search, statusFilter]);
+  }, [search, statusFilter, woTypeFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -232,17 +244,84 @@ export default function WorkOrdersPage() {
     }
   };
 
+  // ── Sub-assembly helpers ────────────────────────────────────────────────────
+  const loadSubAssemblies = async (parentId) => {
+    setSubLoading(p => ({ ...p, [parentId]: true }));
+    try {
+      const res = await api.get(`/work-orders/${parentId}/sub-assemblies`);
+      setSubWoMap(p => ({ ...p, [parentId]: res.data || [] }));
+    } catch { setSubWoMap(p => ({ ...p, [parentId]: [] })); }
+    finally { setSubLoading(p => ({ ...p, [parentId]: false })); }
+  };
+
+  const handleGenerateSubWos = async (record) => {
+    setGenLoading(p => ({ ...p, [record.id]: true }));
+    try {
+      const res = await api.post(`/work-orders/${record.id}/generate-sub-assemblies`);
+      if (res.success) {
+        message.success(res.message || 'Sub-assembly WOs generated');
+        loadSubAssemblies(record.id);
+      } else {
+        message.error(res.message || 'Failed to generate sub-assembly WOs');
+      }
+    } catch (err) {
+      message.error(err?.message || 'Failed to generate sub-assembly WOs');
+    } finally {
+      setGenLoading(p => ({ ...p, [record.id]: false }));
+    }
+  };
+
+  const openSubDrawer = (parentRecord) => {
+    setSubParent(parentRecord);
+    subForm.resetFields();
+    subForm.setFieldsValue({ priority: parentRecord.priority || 'normal', planned_start: parentRecord.planned_start ? dayjs(parentRecord.planned_start) : null, planned_end: parentRecord.planned_end ? dayjs(parentRecord.planned_end) : null });
+    setSubDrawer(true);
+  };
+
+  const handleSaveSubWo = async () => {
+    try {
+      const vals = await subForm.validateFields();
+      setSubSaving(true);
+      const payload = {
+        item_id:      vals.item_id,
+        planned_qty:  vals.planned_qty || 0,
+        machine_id:   vals.machine_id  || null,
+        priority:     vals.priority    || 'normal',
+        planned_start: vals.planned_start?.format('YYYY-MM-DD') || null,
+        planned_end:   vals.planned_end?.format('YYYY-MM-DD')   || null,
+        notes:         vals.notes || null,
+      };
+      await api.post(`/work-orders/${subParent.id}/sub-assemblies`, payload);
+      message.success('Sub-assembly work order created');
+      setSubDrawer(false);
+      loadSubAssemblies(subParent.id);
+    } catch (err) {
+      if (err?.errorFields) return;
+      message.error(err?.message || 'Failed to create sub-assembly WO');
+    } finally { setSubSaving(false); }
+  };
+
   // ── Table columns ──────────────────────────────────────────────────────────
   const columns = [
     {
-      title: 'WO No', dataIndex: 'wo_no', key: 'wo_no', width: 150,
+      title: 'WO No', dataIndex: 'wo_no', key: 'wo_no', width: 170,
       render: (no, r) => (
-        <Text
-          style={{ color: '#1d4ed8', fontWeight: 600, cursor: 'pointer' }}
-          onClick={() => openEdit(r)}
-        >
-          {no}
-        </Text>
+        <div>
+          <Text
+            style={{ color: '#1d4ed8', fontWeight: 600, cursor: 'pointer' }}
+            onClick={() => openEdit(r)}
+          >
+            {no}
+          </Text>
+          {r.wo_type === 'sub_assembly' && (
+            <Tag color="purple" style={{ marginLeft: 6, fontSize: 10 }}>Sub</Tag>
+          )}
+          {r.parent_wo_id && (
+            <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>
+              <ApartmentOutlined /> sub-assembly
+            </div>
+          )}
+        </div>
       ),
     },
     {
@@ -330,11 +409,12 @@ export default function WorkOrdersPage() {
       ),
     },
     ...(canWrite ? [{
-      title: 'Actions', key: 'actions', width: 160,
+      title: 'Actions', key: 'actions', width: 200,
       render: (_, r) => {
         const transitions = STATUS_TRANSITIONS[r.status] || [];
         const canEdit     = ['draft', 'open'].includes(r.status);
         const canDelete   = r.status === 'draft';
+        const isStandard  = r.wo_type !== 'sub_assembly';
 
         return (
           <Space size={4}>
@@ -352,6 +432,24 @@ export default function WorkOrdersPage() {
                   onClick={() => handleGenerateJC(r)}
                 />
               </Tooltip>
+            )}
+            {isStandard && canWrite && (
+              <Dropdown
+                menu={{
+                  items: [
+                    { key: 'gen-sub', label: 'Generate Sub-WOs from BOM', icon: <BranchesOutlined /> },
+                    { key: 'add-sub', label: 'Add Sub-Assembly WO', icon: <PlusOutlined /> },
+                  ],
+                  onClick: ({ key }) => {
+                    if (key === 'gen-sub') handleGenerateSubWos(r);
+                    if (key === 'add-sub') openSubDrawer(r);
+                  },
+                }}
+              >
+                <Tooltip title="Sub-Assembly">
+                  <Button size="small" icon={<ApartmentOutlined />} />
+                </Tooltip>
+              </Dropdown>
             )}
             {transitions.length > 0 && (
               <Dropdown
@@ -431,6 +529,14 @@ export default function WorkOrdersPage() {
             options={Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))}
             style={{ width: 160 }}
           />
+          <Select
+            placeholder="WO Type"
+            allowClear
+            value={woTypeFilter}
+            onChange={setWoTypeFilter}
+            options={[{ value: 'standard', label: 'Standard' }, { value: 'sub_assembly', label: 'Sub-Assembly' }]}
+            style={{ width: 150 }}
+          />
           <div style={{ flex: 1 }} />
           <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
@@ -446,8 +552,40 @@ export default function WorkOrdersPage() {
           columns={columns}
           dataSource={workOrders}
           size="small"
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1500 }}
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
+          expandable={{
+            expandedRowRender: (record) => {
+              const subs = subWoMap[record.id];
+              if (!subs) return <div style={{ padding: '8px 16px', color: '#9ca3af' }}>Loading sub-assemblies…</div>;
+              if (subs.length === 0) return (
+                <div style={{ padding: '8px 16px', color: '#9ca3af', fontSize: 12 }}>
+                  No sub-assembly work orders. Use the <ApartmentOutlined /> menu to generate or add one.
+                </div>
+              );
+              return (
+                <Table
+                  rowKey="id"
+                  dataSource={subs}
+                  size="small"
+                  pagination={false}
+                  style={{ margin: '0 16px' }}
+                  columns={[
+                    { title: 'WO No', dataIndex: 'wo_no', width: 160, render: v => <Text code style={{ color: '#7c3aed' }}>{v}</Text> },
+                    { title: 'Item', key: 'item', render: (_, r) => r.Item ? `${r.Item.name} (${r.Item.code})` : '—' },
+                    { title: 'Planned Qty', dataIndex: 'planned_qty', align: 'right', width: 110, render: v => parseFloat(v).toLocaleString() },
+                    { title: 'Status', dataIndex: 'status', width: 110, render: s => { const c = STATUS_CONFIG[s]; return <Tag color={c?.color}>{c?.label || s}</Tag>; } },
+                    { title: 'Planned Start', dataIndex: 'planned_start', width: 120, render: d => d ? dayjs(d).format('DD MMM YYYY') : '—' },
+                    { title: 'Created By', key: 'creator', width: 120, render: (_, r) => r.Creator?.name || '—' },
+                  ]}
+                />
+              );
+            },
+            onExpand: (expanded, record) => {
+              if (expanded && !subWoMap[record.id]) loadSubAssemblies(record.id);
+            },
+            rowExpandable: (record) => record.wo_type !== 'sub_assembly',
+          }}
         />
       </Card>
 
@@ -647,6 +785,68 @@ export default function WorkOrdersPage() {
 
           <Form.Item name="notes" label="Notes">
             <Input.TextArea rows={3} placeholder="Internal notes…" />
+          </Form.Item>
+        </Form>
+      </Drawer>
+
+      {/* ── Sub-Assembly WO Drawer ─────────────────────────────────────────── */}
+      <Drawer
+        title={<><ApartmentOutlined /> Add Sub-Assembly WO — {subParent?.wo_no}</>}
+        open={subDrawer}
+        onClose={() => setSubDrawer(false)}
+        width={520}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={() => setSubDrawer(false)}>Cancel</Button>
+            <Button type="primary" loading={subSaving} onClick={handleSaveSubWo}>Create</Button>
+          </div>
+        }
+      >
+        <Form form={subForm} layout="vertical">
+          <Form.Item name="item_id" label="Component Item" rules={[{ required: true, message: 'Select an item' }]}>
+            <Select
+              showSearch
+              placeholder="Search component item"
+              optionFilterProp="label"
+              options={items.map(i => ({ value: i.id, label: `${i.name}${i.code ? ` (${i.code})` : ''}` }))}
+              allowClear
+            />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="planned_qty" label="Planned Quantity" rules={[{ required: true, message: 'Enter quantity' }]}>
+                <InputNumber min={0} precision={3} style={{ width: '100%' }} placeholder="0" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="priority" label="Priority">
+                <Select options={PRIORITY_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="machine_id" label="Machine (optional)">
+            <Select
+              showSearch
+              placeholder="Select machine"
+              optionFilterProp="label"
+              options={machines.map(m => ({ value: m.id, label: m.name }))}
+              allowClear
+            />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="planned_start" label="Planned Start">
+                <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="planned_end" label="Planned End">
+                <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="notes" label="Notes">
+            <Input.TextArea rows={2} placeholder="Optional notes" />
           </Form.Item>
         </Form>
       </Drawer>

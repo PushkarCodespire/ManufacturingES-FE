@@ -46,6 +46,37 @@ export const complaintApi = {
   delete:      (id)          => api.delete(`/quality/complaints/${id}`).then((r) => r.data),
 };
 
+// ── PPAP ─────────────────────────────────────────────────────────────────────
+export const ppapApi = {
+  getAll:         (params = {}) => api.get('/quality/ppap',                      { params }).then((r) => r.data),
+  getById:        (id)          => api.get(`/quality/ppap/${id}`).then((r) => r.data),
+  create:         (data)        => api.post('/quality/ppap',                     data).then((r) => r.data),
+  updateElement:  (id, elId, data) => api.patch(`/quality/ppap/${id}/element/${elId}`, data).then((r) => r.data),
+  signPsw:        (id)          => api.patch(`/quality/ppap/${id}/sign-psw`,     {}).then((r) => r.data),
+  approve:        (id)          => api.patch(`/quality/ppap/${id}/approve`,      {}).then((r) => r.data),
+  reject:         (id, data)    => api.patch(`/quality/ppap/${id}/reject`,       data).then((r) => r.data),
+  delete:         (id)          => api.delete(`/quality/ppap/${id}`).then((r) => r.data),
+};
+
+// ── Audit Plans ───────────────────────────────────────────────────────────────
+export const auditPlanApi = {
+  getAll:       (params = {}) => api.get('/quality/audit-plans',                    { params }).then((r) => r.data),
+  getById:      (id)          => api.get(`/quality/audit-plans/${id}`).then((r) => r.data),
+  create:       (data)        => api.post('/quality/audit-plans',                   data).then((r) => r.data),
+  approve:      (id)          => api.patch(`/quality/audit-plans/${id}/approve`,    {}).then((r) => r.data),
+  delete:       (id)          => api.delete(`/quality/audit-plans/${id}`).then((r) => r.data),
+  addItem:      (id, data)    => api.post(`/quality/audit-plans/${id}/items`,       data).then((r) => r.data),
+  executeItem:  (itemId, data) => api.patch(`/quality/audit-plans/items/${itemId}/execute`, data).then((r) => r.data),
+  addFinding:   (itemId, data) => api.post(`/quality/audit-plans/items/${itemId}/findings`, data).then((r) => r.data),
+};
+
+// ── Calibration Failures ──────────────────────────────────────────────────────
+export const calibrationFailureApi = {
+  getByInstrument: (instrId)    => api.get(`/quality/instruments/${instrId}/failures`).then((r) => r.data),
+  log:             (instrId, data) => api.post(`/quality/instruments/${instrId}/failures`, data).then((r) => r.data),
+  close:           (failureId, data) => api.patch(`/quality/instruments/failures/${failureId}/close`, data).then((r) => r.data),
+};
+
 // ── Engineering Drawings ──────────────────────────────────────────────────────
 export const drawingApi = {
   getAll:     (params = {}) => api.get('/npd/drawings',               { params }).then((r) => r.data),

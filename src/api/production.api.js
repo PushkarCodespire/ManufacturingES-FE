@@ -1,12 +1,15 @@
 import api from './axios';
 
 export const workOrderApi = {
-  getAll:       (params) => api.get('/work-orders', { params }),
-  getById:      (id)     => api.get(`/work-orders/${id}`),
-  create:       (data)   => api.post('/work-orders', data),
-  update:       (id, d)  => api.patch(`/work-orders/${id}`, d),
-  updateStatus: (id, status) => api.patch(`/work-orders/${id}/status`, { status }),
-  delete:       (id)     => api.delete(`/work-orders/${id}`),
+  getAll:              (params)      => api.get('/work-orders', { params }),
+  getById:             (id)          => api.get(`/work-orders/${id}`),
+  create:              (data)        => api.post('/work-orders', data),
+  update:              (id, d)       => api.patch(`/work-orders/${id}`, d),
+  updateStatus:        (id, status)  => api.patch(`/work-orders/${id}/status`, { status }),
+  delete:              (id)          => api.delete(`/work-orders/${id}`),
+  getSubAssemblies:    (parentId)    => api.get(`/work-orders/${parentId}/sub-assemblies`),
+  createSubAssembly:   (parentId, d) => api.post(`/work-orders/${parentId}/sub-assemblies`, d),
+  generateSubFromBom:  (parentId)    => api.post(`/work-orders/${parentId}/generate-sub-assemblies`),
 };
 
 export const jobCardApi = {
@@ -98,4 +101,64 @@ export const shiftPlanningApi = {
   getCrew:          (params) => api.get('/shift-assignments/crew',     { params }),
   addCrewMember:    (data)   => api.post('/shift-assignments/crew',     data),
   removeCrewMember: (id)     => api.delete(`/shift-assignments/crew/${id}`),
+};
+
+// ── Batch 2A — Labor Tracking ─────────────────────────────────────────────────
+export const laborApi = {
+  getAll:     (params)   => api.get('/labor-logs',         { params }),
+  getSummary: (params)   => api.get('/labor-logs/summary', { params }),
+  getById:    (id)       => api.get(`/labor-logs/${id}`),
+  create:     (data)     => api.post('/labor-logs',         data),
+  update:     (id, data) => api.put(`/labor-logs/${id}`,   data),
+  remove:     (id)       => api.delete(`/labor-logs/${id}`),
+};
+
+// ── Batch 6A — OEE ───────────────────────────────────────────────────────────
+export const oeeApi = {
+  getDashboard:    (params) => api.get('/oee/dashboard',           { params }),
+  getMachineDetail: (id, p) => api.get(`/oee/machine/${id}`,       { params: p }),
+};
+
+// ── Batch 6B — Rework Vouchers ────────────────────────────────────────────────
+export const reworkApi = {
+  getAll:     (params)   => api.get('/rework-vouchers',             { params }),
+  getById:    (id)       => api.get(`/rework-vouchers/${id}`),
+  create:     (data)     => api.post('/rework-vouchers',             data),
+  authorize:  (id)       => api.patch(`/rework-vouchers/${id}/authorize`),
+  start:      (id)       => api.patch(`/rework-vouchers/${id}/start`),
+  complete:   (id, data) => api.patch(`/rework-vouchers/${id}/complete`, data),
+  addStep:    (id, data) => api.post(`/rework-vouchers/${id}/steps`, data),
+  updateStep: (id, sid, data) => api.patch(`/rework-vouchers/${id}/steps/${sid}`, data),
+  delete:     (id)       => api.delete(`/rework-vouchers/${id}`),
+};
+
+// ── Batch 6C — Tool Management ────────────────────────────────────────────────
+export const toolLogApi = {
+  getAll:     (params)  => api.get('/tool-logs',              { params }),
+  getSummary: ()        => api.get('/tool-logs/summary'),
+  getByTool:  (toolId)  => api.get(`/tool-logs/tool/${toolId}`),
+  logUsage:   (data)    => api.post('/tool-logs',              data),
+  delete:     (id)      => api.delete(`/tool-logs/${id}`),
+};
+
+// ── Batch 6D — Demand Forecast ────────────────────────────────────────────────
+export const demandForecastApi = {
+  getForecast:    (params) => api.get('/demand-forecast',            { params }),
+  getMonthlySummary: (p)  => api.get('/demand-forecast/summary',    { params: p }),
+  getOpenOrders:  ()       => api.get('/demand-forecast/open-orders'),
+};
+
+// ── Batch 2B — Operator Skill Matrix ─────────────────────────────────────────
+export const skillMatrixApi = {
+  // Skill definitions
+  getAllSkills:   (params)   => api.get('/operator-skills',         { params }),
+  createSkill:   (data)     => api.post('/operator-skills',         data),
+  updateSkill:   (id, data) => api.put(`/operator-skills/${id}`,   data),
+  deleteSkill:   (id)       => api.delete(`/operator-skills/${id}`),
+  // Matrix (operator ↔ skill)
+  getMatrix:       (params)   => api.get('/operator-skills/matrix',            { params }),
+  assignSkill:     (data)     => api.post('/operator-skills/matrix',            data),
+  updateMatrix:    (id, data) => api.put(`/operator-skills/matrix/${id}`,      data),
+  removeMatrix:    (id)       => api.delete(`/operator-skills/matrix/${id}`),
+  getByOperator:   (userId)   => api.get(`/operator-skills/matrix/by-operator/${userId}`),
 };

@@ -48,7 +48,14 @@ import StockAdjustmentPage  from './pages/Store/StockAdjustment';
 import WorkOrdersPage        from './pages/Production/WorkOrders';
 import JobCardsPage          from './pages/Production/JobCards';
 import TimeStandardsPage    from './pages/Production/TimeStandards';
-import ShiftPlanningPage    from './pages/Production/ShiftPlanning';
+import ShiftPlanningPage      from './pages/Production/ShiftPlanning';
+import LaborTrackingPage      from './pages/Production/LaborTracking';
+import OperatorSkillMatrixPage from './pages/Production/OperatorSkillMatrix';
+import MrpPlanningPage        from './pages/Production/MrpPlanning';
+import OeeDashboardPage       from './pages/Production/OeeDashboard';
+import ReworkTrackingPage     from './pages/Production/ReworkTracking';
+import ToolManagementPage     from './pages/Production/ToolManagement';
+import DemandForecastPage     from './pages/Production/DemandForecast';
 import LQCPage               from './pages/Production/LQC';
 import IQCPage               from './pages/Production/IQC';
 import IQCDetailPage         from './pages/Production/IQC/IQCDetail';
@@ -86,6 +93,9 @@ import CheckSheetsPage      from './pages/NPD/CheckSheets';
 import CheckSheetDetailPage from './pages/NPD/CheckSheets/CheckSheetDetail';
 import PFMEAPage            from './pages/NPD/PFMEA';
 import PFMEADetailPage      from './pages/NPD/PFMEA/PFMEADetail';
+import PPAPPage             from './pages/NPD/PPAP';
+import AuditPlanPage        from './pages/Quality/AuditPlan';
+import MRMDashboard         from './pages/MRM/Dashboard';
 import TransportersPage     from './pages/Dispatch/Transporters';
 import DispatchOrdersPage   from './pages/Dispatch/DispatchOrders';
 import DeliveryChallansPage from './pages/Dispatch/DeliveryChallans';
@@ -126,6 +136,7 @@ import MntPMSchedulePage    from './pages/Maintenance/PMSchedule';
 import MntSparePartsPage    from './pages/Maintenance/SpareParts';
 import MntLOTOPage          from './pages/Maintenance/LOTO';
 import MntKpiDashboardPage  from './pages/Maintenance/KpiDashboard';
+import MntAiInsightsPage    from './pages/Maintenance/AiInsights';
 import MadadPage            from './pages/Madad';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
@@ -572,7 +583,14 @@ function App() {
               <Route path="/production/work-orders" element={<ProtectedRoute permission="prod-work_centre-manage_work_centre-read"><WorkOrdersPage /></ProtectedRoute>} />
               <Route path="/production/job-cards" element={<ProtectedRoute permission="prod-dpr-daily_production_report-read"><JobCardsPage /></ProtectedRoute>} />
               <Route path="/production/time-standards" element={<ProtectedRoute permission="prod-time_standards-operations-read"><TimeStandardsPage /></ProtectedRoute>} />
-              <Route path="/production/shift-planning" element={<ProtectedRoute permission="prod-shift_planning-manage_shifts-read"><ShiftPlanningPage /></ProtectedRoute>} />
+              <Route path="/production/shift-planning"     element={<ProtectedRoute permission="prod-shift_planning-manage_shifts-read"><ShiftPlanningPage /></ProtectedRoute>} />
+              <Route path="/production/labor-tracking"    element={<ProtectedRoute permission="prod-labor_tracking-manage_labor-read"><LaborTrackingPage /></ProtectedRoute>} />
+              <Route path="/production/skill-matrix"      element={<ProtectedRoute permission="prod-skill_matrix-manage_skills-read"><OperatorSkillMatrixPage /></ProtectedRoute>} />
+              <Route path="/production/mrp"               element={<ProtectedRoute permission="prod-mrp_expected_production-view_plan-read"><MrpPlanningPage /></ProtectedRoute>} />
+              <Route path="/production/oee"              element={<ProtectedRoute permission="prod-oee-oee_dashboard-read"><OeeDashboardPage /></ProtectedRoute>} />
+              <Route path="/production/rework"           element={<ProtectedRoute permission="prod-rework_tracking-rework_vouchers-read"><ReworkTrackingPage /></ProtectedRoute>} />
+              <Route path="/production/tool-management"  element={<ProtectedRoute permission="prod-tool_management-tool_logs-read"><ToolManagementPage /></ProtectedRoute>} />
+              <Route path="/production/demand-forecast"  element={<ProtectedRoute permission="prod-demand_forecast-forecast-read"><DemandForecastPage /></ProtectedRoute>} />
               <Route path="/production/iqc" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><IQCPage /></ProtectedRoute>} />
               <Route path="/production/iqc/:id" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><IQCDetailPage /></ProtectedRoute>} />
               <Route path="/production/lqc" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><LQCPage /></ProtectedRoute>} />
@@ -617,6 +635,9 @@ function App() {
               <Route path="/quality/check-sheets/:id" element={<ProtectedRoute permission="npd-check_sheets-read">   <CheckSheetDetailPage /></ProtectedRoute>} />
               <Route path="/quality/pfmea"          element={<ProtectedRoute permission="npd-pfmea-read">            <PFMEAPage />          </ProtectedRoute>} />
               <Route path="/quality/pfmea/:id"       element={<ProtectedRoute permission="npd-pfmea-read">            <PFMEADetailPage />     </ProtectedRoute>} />
+              <Route path="/quality/ppap"            element={<ProtectedRoute permission="npd-ppap-read">             <PPAPPage />            </ProtectedRoute>} />
+              <Route path="/quality/audit-plan"      element={<ProtectedRoute permission="quality-audit_plan-read">   <AuditPlanPage />       </ProtectedRoute>} />
+              <Route path="/management/mrm"          element={<ProtectedRoute permission="management-mrm-read">         <MRMDashboard />         </ProtectedRoute>} />
 
               {/* HR & Training — hr_admin, it_admin, plant_head only */}
               <Route
@@ -779,6 +800,7 @@ function App() {
               <Route path="/maintenance/spare-parts"  element={<ProtectedRoute permission="mnt-spare_parts-read"><MntSparePartsPage /></ProtectedRoute>} />
               <Route path="/maintenance/loto"         element={<ProtectedRoute permission="mnt-loto-read"><MntLOTOPage /></ProtectedRoute>} />
               <Route path="/maintenance/kpi"          element={<ProtectedRoute permission="mnt-kpi-read"><MntKpiDashboardPage /></ProtectedRoute>} />
+              <Route path="/maintenance/ai-insights"  element={<ProtectedRoute permission="mnt-ai-read"><MntAiInsightsPage /></ProtectedRoute>} />
 
               {/* Madad full-page chat */}
               <Route path="/madad" element={<ProtectedRoute><MadadPage /></ProtectedRoute>} />

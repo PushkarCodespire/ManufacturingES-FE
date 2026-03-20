@@ -358,6 +358,20 @@ const productionTreeData = [
       leaf('prod-shift_planning', 'Manage Shifts', stdPerms),
     ],
   },
+  {
+    title: 'Labor Tracking',
+    key: 'prod-labor_tracking',
+    children: [
+      leaf('prod-labor_tracking', 'Manage Labor', stdPerms),
+    ],
+  },
+  {
+    title: 'Skill Matrix',
+    key: 'prod-skill_matrix',
+    children: [
+      leaf('prod-skill_matrix', 'Manage Skills', stdPerms),
+    ],
+  },
 ];
 
 // ── Orders Access tree (matches sidebar "Orders" top-level module) ──────────

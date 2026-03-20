@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Drawer,
   Form, Select, DatePicker, InputNumber, Divider, message, Tooltip,
-  Popconfirm, Row, Col, Statistic, Tabs, Progress, Alert,
+  Popconfirm, Row, Col, Statistic, Tabs, Progress, Alert, Modal, List,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
@@ -15,7 +15,7 @@ import AppLayout           from '../../../components/AppLayout';
 import usePermissions      from '../../../hooks/usePermissions';
 import useAiSuggestion     from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard    from '../../../components/AiSuggestion/AiSuggestionCard';
-import { instrumentApi }   from '../../../api/quality.api';
+import { instrumentApi, calibrationFailureApi } from '../../../api/quality.api';
 import aiApi               from '../../../api/ai.api';
 
 const { Title, Text } = Typography;
@@ -85,6 +85,56 @@ export default function InstrumentsPage() {
   // Verification status
   const [verStatus, setVerStatus] = useState({ data: [], summary: {} });
   const [verLoading, setVerLoading] = useState(false);
+
+  // ── Calibration Failure state ──────────────────────────────────────────────
+  const [failureInstr,    setFailureInstr]    = useState(null);  // instrument selected for failure view
+  const [failures,        setFailures]        = useState([]);
+  const [failureLoading,  setFailureLoading]  = useState(false);
+  const [logFailureOpen,  setLogFailureOpen]  = useState(false);
+  const [failureSaving,   setFailureSaving]   = useState(false);
+  const [failureForm]                         = Form.useForm();
+
+  const loadFailures = useCallback(async (instr) => {
+    if (!instr) return;
+    setFailureLoading(true);
+    try {
+      const data = await calibrationFailureApi.getByInstrument(instr.id);
+      setFailures(Array.isArray(data) ? data : []);
+    } catch (err) { message.error('Failed to load calibration failures'); }
+    finally       { setFailureLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'failures' && failureInstr) loadFailures(failureInstr);
+  }, [activeTab, failureInstr, loadFailures]);
+
+  const onLogFailure = async () => {
+    try {
+      const vals = await failureForm.validateFields();
+      setFailureSaving(true);
+      await calibrationFailureApi.log(failureInstr.id, {
+        ...vals,
+        failed_date: vals.failed_date?.format('YYYY-MM-DD'),
+        last_passed_date: vals.last_passed_date?.format('YYYY-MM-DD'),
+      });
+      message.success('Calibration failure logged and CAPA auto-created');
+      setLogFailureOpen(false);
+      failureForm.resetFields();
+      loadFailures(failureInstr);
+      load();
+    } catch (err) {
+      if (err?.errorFields) return;
+      message.error(err?.message || 'Log failed');
+    } finally { setFailureSaving(false); }
+  };
+
+  const onCloseFailure = async (failureId) => {
+    try {
+      await calibrationFailureApi.close(failureId, { disposition: 'closed' });
+      message.success('Failure record closed');
+      loadFailures(failureInstr);
+    } catch (err) { message.error(err?.message || 'Close failed'); }
+  };
 
   // ── AI Calibration Forecast ────────────────────────────────────────────────
   const aiCalib    = useAiSuggestion(aiApi.getCalibrationForecast);
@@ -510,6 +560,75 @@ export default function InstrumentsPage() {
         items={[
           { key: 'list', label: 'Instruments', children: <div style={{ paddingTop: 8 }}>{tabList}</div> },
           { key: 'verification', label: 'Daily Verification', children: <div style={{ paddingTop: 8 }}>{tabVerification}</div> },
+          {
+            key: 'failures',
+            label: 'Calibration Failures',
+            children: (
+              <div style={{ paddingTop: 8 }}>
+                <Card bodyStyle={{ padding: '12px 16px' }} style={{ border: '1px solid #e8eaed', borderRadius: 10, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <Select
+                      showSearch allowClear
+                      placeholder="Select instrument to view failures..."
+                      style={{ width: 360 }}
+                      filterOption={(input, opt) => opt?.label?.toLowerCase().includes(input.toLowerCase())}
+                      options={instruments.map((i) => ({ value: i.id, label: `${i.instrument_code} — ${i.name}`, record: i }))}
+                      onChange={(v, opt) => {
+                        const instr = instruments.find((i) => i.id === v);
+                        setFailureInstr(instr || null);
+                        if (instr) loadFailures(instr);
+                        else setFailures([]);
+                      }}
+                    />
+                    {failureInstr && canWrite && (
+                      <Button type="primary" danger icon={<ExclamationCircleOutlined />}
+                        onClick={() => { failureForm.resetFields(); setLogFailureOpen(true); }}>
+                        Log Failure
+                      </Button>
+                    )}
+                    {failureInstr && (
+                      <Button icon={<ReloadOutlined />} onClick={() => loadFailures(failureInstr)}>Refresh</Button>
+                    )}
+                  </div>
+                </Card>
+
+                {!failureInstr && (
+                  <Alert type="info" showIcon message="Select an instrument above to view its calibration failure history." />
+                )}
+
+                {failureInstr && (
+                  <Card style={{ border: '1px solid #e8eaed', borderRadius: 12 }} bodyStyle={{ padding: '16px 20px' }}>
+                    <Table
+                      rowKey="id"
+                      loading={failureLoading}
+                      size="small"
+                      dataSource={failures}
+                      pagination={{ pageSize: 15 }}
+                      columns={[
+                        { title: 'Failed Date', dataIndex: 'failed_date', key: 'fd', width: 110 },
+                        { title: 'Last Passed', dataIndex: 'last_passed_date', key: 'lp', width: 110, render: (v) => v || '—' },
+                        { title: 'Deviation Found', dataIndex: 'deviation_found', key: 'dev', ellipsis: true },
+                        { title: 'Impact', dataIndex: 'impact_level', key: 'impact', width: 80,
+                          render: (v) => <Tag color={v === 'high' ? 'red' : v === 'medium' ? 'orange' : 'default'}>{v}</Tag> },
+                        { title: 'Disposition', dataIndex: 'disposition', key: 'disp', width: 110,
+                          render: (v) => <Tag color={v === 'closed' ? 'green' : v === 'under_review' ? 'orange' : 'default'}>{v?.replace(/_/g, ' ')}</Tag> },
+                        { title: 'CAPA', key: 'capa', width: 80, render: (_, r) => r.capa_id ? <Tag color="purple">Linked</Tag> : '—' },
+                        { title: 'Logged By', key: 'creator', width: 120, render: (_, r) => r.Creator?.name ?? '—' },
+                        ...(canWrite ? [{
+                          title: '', key: 'close', width: 80,
+                          render: (_, r) => r.disposition !== 'closed' ? (
+                            <Popconfirm title="Close this failure record?" onConfirm={() => onCloseFailure(r.id)} okText="Close">
+                              <Button size="small">Close</Button>
+                            </Popconfirm>
+                          ) : null,
+                        }] : []),
+                      ]}
+                    />
+                  </Card>
+                )}
+              </div>
+            ),
+          },
         ]}
       />
 
@@ -642,6 +761,50 @@ export default function InstrumentsPage() {
           </Form.Item>
         </Form>
       </Drawer>
+      {/* ── Log Calibration Failure Modal ─────────────────────────────────────── */}
+      <Modal
+        title={`Log Calibration Failure — ${failureInstr?.instrument_code}`}
+        open={logFailureOpen}
+        onCancel={() => setLogFailureOpen(false)}
+        onOk={onLogFailure}
+        confirmLoading={failureSaving}
+        okText="Log Failure"
+        okButtonProps={{ danger: true }}
+      >
+        <Alert type="warning" showIcon
+          message="Logging a failure will flag the instrument inactive and auto-create a CAPA."
+          style={{ marginBottom: 16 }} />
+        <Form form={failureForm} layout="vertical" requiredMark={false}>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="failed_date" label="Failed Date" rules={[{ required: true }]}
+                initialValue={dayjs()}>
+                <DatePicker style={{ width: '100%' }} format="DD-MMM-YYYY" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="last_passed_date" label="Last Passed Date">
+                <DatePicker style={{ width: '100%' }} format="DD-MMM-YYYY" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="deviation_found" label="Deviation Found">
+            <Input.TextArea rows={2} placeholder="Describe the deviation / out-of-tolerance finding..." />
+          </Form.Item>
+          <Form.Item name="impact_level" label="Impact Level" initialValue="unknown">
+            <Select options={[
+              { value: 'unknown',  label: 'Unknown'  },
+              { value: 'low',      label: 'Low'      },
+              { value: 'medium',   label: 'Medium'   },
+              { value: 'high',     label: 'High'     },
+              { value: 'critical', label: 'Critical' },
+            ]} />
+          </Form.Item>
+          <Form.Item name="containment_action" label="Containment Action">
+            <Input.TextArea rows={2} placeholder="Immediate containment steps taken..." />
+          </Form.Item>
+        </Form>
+      </Modal>
     </AppLayout>
   );
 }

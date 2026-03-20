@@ -144,6 +144,7 @@ const NAV_ITEMS_DEF = [
           { key: 'q-ncr',        label: 'Internal NCR',       permission: 'quality-ncr-read'        },
           { key: 'q-complaints', label: 'Customer Complaints',permission: 'quality-complaints-read' },
           { key: 'q-instruments',label: 'Instruments',         permission: 'quality-instruments-read'},
+          { key: 'q-audit-plan', label: 'Audit Plans',         permission: 'quality-audit_plan-read' },
         ],
       },
       // ── NPD / Documents ────────────────────────────────────
@@ -154,6 +155,15 @@ const NAV_ITEMS_DEF = [
           { key: 'q-drawings',     label: 'Drawings',      permission: 'npd-drawings-read'     },
           { key: 'q-check-sheets', label: 'Check Sheets',  permission: 'npd-check_sheets-read' },
           { key: 'q-pfmea',        label: 'PFMEA',         permission: 'npd-pfmea-read'        },
+          { key: 'q-ppap',         label: 'PPAP Tracker',  permission: 'npd-ppap-read'         },
+        ],
+      },
+      // ── Management ────────────────────────────────────────────────────────────
+      {
+        key:   'grp-management',
+        label: 'Management',
+        children: [
+          { key: 'mrm-dashboard', label: 'MRM', permission: 'management-mrm-read' },
         ],
       },
     ],
@@ -229,11 +239,18 @@ const NAV_ITEMS_DEF = [
       { key: 'job-cards',            label: 'Job Cards',         permission: 'prod-dpr-daily_production_report-read'             },
       { key: 'time-standards',       label: 'Time Standards',    permission: 'prod-time_standards-operations-read'               },
       { key: 'shift-planning',       label: 'Shift Planning',    permission: 'prod-shift_planning-manage_shifts-read'            },
+      { key: 'labor-tracking',       label: 'Labor Tracking',    permission: 'prod-labor_tracking-manage_labor-read'             },
+      { key: 'skill-matrix',         label: 'Skill Matrix',      permission: 'prod-skill_matrix-manage_skills-read'              },
       { key: 'iqc',                  label: 'IQC Inspection',    permission: 'prod-quality_level-iqc-read'                       },
       { key: 'lqc',                  label: 'LQC Inspection',    permission: 'prod-quality_level-iqc-read'                       },
       { key: 'pqc',                  label: 'PQC Inspection',    permission: 'prod-quality_level-pqc-read'                       },
       { key: 'oqc',                  label: 'OQC Inspection',    permission: 'prod-quality_level-oqc-read'                       },
       { key: 'production-scheduling',label: 'Scheduling',        permission: 'prod-mrp_expected_production-create_plan-read'     },
+      { key: 'mrp-planning',         label: 'MRP / Net Req.',    permission: 'prod-mrp_expected_production-view_plan-read'        },
+      { key: 'oee-dashboard',        label: 'OEE Dashboard',     permission: 'prod-oee-oee_dashboard-read'                       },
+      { key: 'rework-tracking',      label: 'Rework Tracking',   permission: 'prod-rework_tracking-rework_vouchers-read'          },
+      { key: 'tool-management',      label: 'Tool Management',   permission: 'prod-tool_management-tool_logs-read'                },
+      { key: 'demand-forecast',      label: 'Demand Forecast',   permission: 'prod-demand_forecast-forecast-read'                 },
       { key: 'capacity-planning',    label: 'Capacity Planning', permission: 'prod-dpr-daily_production_report-read'             },
       { key: 'scrap-vouchers',       label: 'Scrap Authorization',permission: 'prod-dpr-rejection_entry-read'                   },
     ],
@@ -253,6 +270,7 @@ const NAV_ITEMS_DEF = [
       { key: 'mnt-spare-parts', label: 'Spare Parts',            permission: 'mnt-spare_parts-read' },
       { key: 'mnt-loto',        label: 'LOTO & Safety',          permission: 'mnt-loto-read'        },
       { key: 'mnt-kpi',         label: 'KPI Dashboard',          permission: 'mnt-kpi-read'         },
+      { key: 'mnt-ai',          label: 'AI Insights',            permission: 'mnt-ai-read'           },
     ],
   },
   // ── Mold Management ────────────────────────────────────────────────────────
@@ -375,11 +393,18 @@ const KEY_TO_PATH = {
   'job-cards':             '/production/job-cards',
   'time-standards':        '/production/time-standards',
   'shift-planning':        '/production/shift-planning',
+  'labor-tracking':        '/production/labor-tracking',
+  'skill-matrix':          '/production/skill-matrix',
   'iqc':                   '/production/iqc',
   'lqc':                   '/production/lqc',
   'pqc':                   '/production/pqc',
   'oqc':                   '/production/oqc',
   'production-scheduling': '/production/scheduling',
+  'mrp-planning':          '/production/mrp',
+  'oee-dashboard':         '/production/oee',
+  'rework-tracking':       '/production/rework',
+  'tool-management':       '/production/tool-management',
+  'demand-forecast':       '/production/demand-forecast',
   'capacity-planning':     '/production/capacity-planning',
   'scrap-vouchers':        '/production/scrap',
   // Quality & NPD module
@@ -390,6 +415,8 @@ const KEY_TO_PATH = {
   'q-drawings':     '/quality/drawings',
   'q-check-sheets': '/quality/check-sheets',
   'q-pfmea':        '/quality/pfmea',
+  'q-ppap':         '/quality/ppap',
+  'q-audit-plan':   '/quality/audit-plan',
   // Procurement module
   'procurement-analytics':  '/procurement/analytics',
   'budget-management':      '/procurement/budget-management',
@@ -432,6 +459,7 @@ const KEY_TO_PATH = {
   'mnt-spare-parts': '/maintenance/spare-parts',
   'mnt-loto':        '/maintenance/loto',
   'mnt-kpi':         '/maintenance/kpi',
+  'mnt-ai':          '/maintenance/ai-insights',
   // Mold Management
   'mol-master':       '/mold/master',
   'mol-cavities':     '/mold/cavities',
@@ -446,6 +474,8 @@ const KEY_TO_PATH = {
   'mol-documents':    '/mold/documents',
   'mol-ai-insights':  '/mold/ai-insights',
   'mol-selection':    '/mold/selection',
+  // MRM
+  'mrm-dashboard': '/management/mrm',
 };
 
 // ── Derive selected key + open keys from current pathname ────────────────────
@@ -487,6 +517,9 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/quality/drawings'))     return { selected: 'q-drawings',     open: ['quality', 'grp-npd'] };
   if (pathname.startsWith('/quality/check-sheets')) return { selected: 'q-check-sheets', open: ['quality', 'grp-npd'] };
   if (pathname.startsWith('/quality/pfmea'))        return { selected: 'q-pfmea',        open: ['quality', 'grp-npd'] };
+  if (pathname.startsWith('/quality/ppap'))         return { selected: 'q-ppap',         open: ['quality', 'grp-npd'] };
+  if (pathname.startsWith('/quality/audit-plan'))   return { selected: 'q-audit-plan',   open: ['quality', 'grp-qms'] };
+  if (pathname.startsWith('/management/mrm')) return { selected: 'mrm-dashboard', open: ['quality', 'grp-management'] };
   // Orders module
   if (pathname.startsWith('/orders/rfq'))       return { selected: 'o-rfq',            open: ['orders'] };
   if (pathname.startsWith('/orders/quotation')) return { selected: 'o-quotation',      open: ['orders'] };
@@ -503,12 +536,19 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/production/work-orders'))    return { selected: 'work-orders',           open: ['production'] };
   if (pathname.startsWith('/production/job-cards'))      return { selected: 'job-cards',             open: ['production'] };
   if (pathname.startsWith('/production/time-standards')) return { selected: 'time-standards',        open: ['production'] };
-  if (pathname.startsWith('/production/shift-planning')) return { selected: 'shift-planning',        open: ['production'] };
-  if (pathname.startsWith('/production/iqc'))          return { selected: 'iqc',                   open: ['production'] };
+  if (pathname.startsWith('/production/shift-planning'))  return { selected: 'shift-planning',  open: ['production'] };
+  if (pathname.startsWith('/production/labor-tracking'))  return { selected: 'labor-tracking',  open: ['production'] };
+  if (pathname.startsWith('/production/skill-matrix'))    return { selected: 'skill-matrix',    open: ['production'] };
+  if (pathname.startsWith('/production/iqc'))             return { selected: 'iqc',             open: ['production'] };
   if (pathname.startsWith('/production/lqc'))          return { selected: 'lqc',                   open: ['production'] };
   if (pathname.startsWith('/production/pqc'))          return { selected: 'pqc',                   open: ['production'] };
   if (pathname.startsWith('/production/oqc'))          return { selected: 'oqc',                   open: ['production'] };
   if (pathname.startsWith('/production/scheduling'))         return { selected: 'production-scheduling', open: ['production'] };
+  if (pathname.startsWith('/production/mrp'))               return { selected: 'mrp-planning',           open: ['production'] };
+  if (pathname.startsWith('/production/oee'))              return { selected: 'oee-dashboard',          open: ['production'] };
+  if (pathname.startsWith('/production/rework'))           return { selected: 'rework-tracking',        open: ['production'] };
+  if (pathname.startsWith('/production/tool-management'))  return { selected: 'tool-management',        open: ['production'] };
+  if (pathname.startsWith('/production/demand-forecast'))  return { selected: 'demand-forecast',        open: ['production'] };
   if (pathname.startsWith('/production/capacity-planning')) return { selected: 'capacity-planning',      open: ['production'] };
   if (pathname.startsWith('/production/scrap'))             return { selected: 'scrap-vouchers',         open: ['production'] };
   // Procurement module
@@ -541,6 +581,7 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/maintenance/spare-parts')) return { selected: 'mnt-spare-parts', open: ['maintenance'] };
   if (pathname.startsWith('/maintenance/loto'))        return { selected: 'mnt-loto',        open: ['maintenance'] };
   if (pathname.startsWith('/maintenance/kpi'))         return { selected: 'mnt-kpi',         open: ['maintenance'] };
+  if (pathname.startsWith('/maintenance/ai-insights')) return { selected: 'mnt-ai',           open: ['maintenance'] };
   // Mold Management
   if (pathname.startsWith('/mold/master'))       return { selected: 'mol-master',       open: ['mold'] };
   if (pathname.startsWith('/mold/cavities'))     return { selected: 'mol-cavities',     open: ['mold'] };
