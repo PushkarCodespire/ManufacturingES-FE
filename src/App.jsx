@@ -47,6 +47,8 @@ import StockLedgerPage      from './pages/Store/StockLedger';
 import StockAdjustmentPage  from './pages/Store/StockAdjustment';
 import WorkOrdersPage        from './pages/Production/WorkOrders';
 import JobCardsPage          from './pages/Production/JobCards';
+import TimeStandardsPage    from './pages/Production/TimeStandards';
+import ShiftPlanningPage    from './pages/Production/ShiftPlanning';
 import LQCPage               from './pages/Production/LQC';
 import IQCPage               from './pages/Production/IQC';
 import IQCDetailPage         from './pages/Production/IQC/IQCDetail';
@@ -569,6 +571,8 @@ function App() {
               {/* ── Production Module ─────────────────────────────────────────── */}
               <Route path="/production/work-orders" element={<ProtectedRoute permission="prod-work_centre-manage_work_centre-read"><WorkOrdersPage /></ProtectedRoute>} />
               <Route path="/production/job-cards" element={<ProtectedRoute permission="prod-dpr-daily_production_report-read"><JobCardsPage /></ProtectedRoute>} />
+              <Route path="/production/time-standards" element={<ProtectedRoute permission="prod-time_standards-operations-read"><TimeStandardsPage /></ProtectedRoute>} />
+              <Route path="/production/shift-planning" element={<ProtectedRoute permission="prod-shift_planning-manage_shifts-read"><ShiftPlanningPage /></ProtectedRoute>} />
               <Route path="/production/iqc" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><IQCPage /></ProtectedRoute>} />
               <Route path="/production/iqc/:id" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><IQCDetailPage /></ProtectedRoute>} />
               <Route path="/production/lqc" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><LQCPage /></ProtectedRoute>} />

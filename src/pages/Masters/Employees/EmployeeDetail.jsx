@@ -117,6 +117,7 @@ const mastersTreeData = [
       leaf('production', 'Production Forms',    stdPerms),
       leaf('production', 'Work Centers',        stdPerms),
       leaf('production', 'Routings',            stdPerms),
+      leaf('production', 'Time Standards',      stdPerms),
     ],
   },
   {
@@ -341,6 +342,20 @@ const productionTreeData = [
       leaf('prod-machines', 'Manage Machines',    stdPerms),
       leaf('prod-machines', 'Machine Schedule',   stdPerms),
       leaf('prod-machines', 'Downtime History',   ['Read', 'Download']),
+    ],
+  },
+  {
+    title: 'Time Standards',
+    key: 'prod-time_standards',
+    children: [
+      leaf('prod-time_standards', 'Operations',  stdPerms),
+    ],
+  },
+  {
+    title: 'Shift Planning',
+    key: 'prod-shift_planning',
+    children: [
+      leaf('prod-shift_planning', 'Manage Shifts', stdPerms),
     ],
   },
 ];

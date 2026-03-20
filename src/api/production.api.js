@@ -75,3 +75,27 @@ export const scrapApi = {
   reject:     (id)     => api.patch(`/scrap-vouchers/${id}/reject`),
   delete:     (id)     => api.delete(`/scrap-vouchers/${id}`),
 };
+
+// ── Batch 1A — Time Standards ────────────────────────────────────────────────
+export const routingApi = {
+  getAll:              (params)           => api.get('/routings', { params }),
+  getById:             (id)              => api.get(`/routings/${id}`),
+  create:              (data)            => api.post('/routings', data),
+  update:              (id, d)           => api.patch(`/routings/${id}`, d),
+  updateStatus:        (id, status)      => api.patch(`/routings/${id}/status`, { status }),
+  delete:              (id)              => api.delete(`/routings/${id}`),
+  getTimeAnalysis:     (params)          => api.get('/routings/steps/time-analysis', { params }),
+  getStepJobHistory:   (stepId, params)  => api.get(`/routings/steps/${stepId}/job-card-history`, { params }),
+};
+
+// ── Batch 1B — Shift Planning ────────────────────────────────────────────────
+export const shiftPlanningApi = {
+  getAssignments:   (params) => api.get('/shift-assignments',          { params }),
+  getCalendar:      (params) => api.get('/shift-assignments/calendar', { params }),
+  createAssignment: (data)   => api.post('/shift-assignments',          data),
+  updateAssignment: (id, d)  => api.put(`/shift-assignments/${id}`,    d),
+  deleteAssignment: (id)     => api.delete(`/shift-assignments/${id}`),
+  getCrew:          (params) => api.get('/shift-assignments/crew',     { params }),
+  addCrewMember:    (data)   => api.post('/shift-assignments/crew',     data),
+  removeCrewMember: (id)     => api.delete(`/shift-assignments/crew/${id}`),
+};

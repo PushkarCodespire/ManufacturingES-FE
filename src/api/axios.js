@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken, setToken, clearToken } from './tokenStore';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -6,9 +7,11 @@ const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 // which is required for the /auth/refresh and /auth/logout endpoints to work.
 const api = axios.create({ baseURL: BASE_URL, timeout: 15000, withCredentials: true });
 
-// ─── Request: attach access token ────────────────────────────────────────────
+// ─── Request: attach access token from memory (NOT localStorage) ─────────────
+// Security fix #2: token is read from in-memory tokenStore, not localStorage.
+// This prevents XSS scripts from stealing the token via localStorage.getItem().
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('dt_token');
+  const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -57,10 +60,10 @@ api.interceptors.response.use(
           { withCredentials: true },
         );
 
-        const newToken = data.data.token;
-        // H-06: new refresh token arrives as an httpOnly cookie — not in the body.
+        const newToken = data?.data?.token;
 
-        localStorage.setItem('dt_token', newToken);
+        // Security fix #2: store new token in memory only — never in localStorage.
+        setToken(newToken);
         api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
 
         processQueue(null, newToken);
@@ -69,7 +72,10 @@ api.interceptors.response.use(
         return api(original);
       } catch (refreshErr) {
         processQueue(refreshErr, null);
-        localStorage.clear();
+        // Clear in-memory token and auth-related localStorage entries only
+        clearToken();
+        localStorage.removeItem('dt_user');
+        localStorage.removeItem('dt_login_time');
         window.location.href = '/login';
         return Promise.reject(refreshErr);
       } finally {
@@ -79,7 +85,9 @@ api.interceptors.response.use(
 
     // Unrecoverable 401 (retry already failed) — hard logout
     if (is401) {
-      localStorage.clear();
+      clearToken();
+      localStorage.removeItem('dt_user');
+      localStorage.removeItem('dt_login_time');
       window.location.href = '/login';
     }
 

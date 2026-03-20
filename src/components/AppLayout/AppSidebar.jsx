@@ -227,6 +227,8 @@ const NAV_ITEMS_DEF = [
     children: [
       { key: 'work-orders',          label: 'Work Orders',       permission: 'prod-work_centre-manage_work_centre-read'          },
       { key: 'job-cards',            label: 'Job Cards',         permission: 'prod-dpr-daily_production_report-read'             },
+      { key: 'time-standards',       label: 'Time Standards',    permission: 'prod-time_standards-operations-read'               },
+      { key: 'shift-planning',       label: 'Shift Planning',    permission: 'prod-shift_planning-manage_shifts-read'            },
       { key: 'iqc',                  label: 'IQC Inspection',    permission: 'prod-quality_level-iqc-read'                       },
       { key: 'lqc',                  label: 'LQC Inspection',    permission: 'prod-quality_level-iqc-read'                       },
       { key: 'pqc',                  label: 'PQC Inspection',    permission: 'prod-quality_level-pqc-read'                       },
@@ -371,6 +373,8 @@ const KEY_TO_PATH = {
   // Production module
   'work-orders':           '/production/work-orders',
   'job-cards':             '/production/job-cards',
+  'time-standards':        '/production/time-standards',
+  'shift-planning':        '/production/shift-planning',
   'iqc':                   '/production/iqc',
   'lqc':                   '/production/lqc',
   'pqc':                   '/production/pqc',
@@ -496,8 +500,10 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/store/stock-ledger'))       return { selected: 's-stock-ledger',      open: ['store', 'grp-store-inventory']    };
   if (pathname.startsWith('/store/stock-adjustment'))   return { selected: 's-stock-adjustment',  open: ['store', 'grp-store-inventory']    };
   // Production module
-  if (pathname.startsWith('/production/work-orders'))  return { selected: 'work-orders',           open: ['production'] };
-  if (pathname.startsWith('/production/job-cards'))    return { selected: 'job-cards',             open: ['production'] };
+  if (pathname.startsWith('/production/work-orders'))    return { selected: 'work-orders',           open: ['production'] };
+  if (pathname.startsWith('/production/job-cards'))      return { selected: 'job-cards',             open: ['production'] };
+  if (pathname.startsWith('/production/time-standards')) return { selected: 'time-standards',        open: ['production'] };
+  if (pathname.startsWith('/production/shift-planning')) return { selected: 'shift-planning',        open: ['production'] };
   if (pathname.startsWith('/production/iqc'))          return { selected: 'iqc',                   open: ['production'] };
   if (pathname.startsWith('/production/lqc'))          return { selected: 'lqc',                   open: ['production'] };
   if (pathname.startsWith('/production/pqc'))          return { selected: 'pqc',                   open: ['production'] };

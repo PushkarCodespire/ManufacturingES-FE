@@ -1,76 +1,113 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authApi } from '../api/auth.api';
+import axios from 'axios';
+import { authApi }              from '../api/auth.api';
+import { setToken, clearToken } from '../api/tokenStore';
 
 const AuthContext = createContext(null);
 
-const STORAGE_TOKEN = 'dt_token';
-// H-06: refresh token is now stored in an httpOnly cookie by the server.
-// It is never written to or read from localStorage — removing it from JS scope
-// prevents exfiltration via XSS.
-const STORAGE_USER  = 'dt_user';
-const STORAGE_TIME  = 'dt_login_time';
-const SESSION_MS      = 8 * 60 * 60 * 1000; // 8 hours — SYS-004
+const BASE_URL   = import.meta.env.VITE_API_URL || '/api';
+
+// dt_token is NO LONGER stored in localStorage (security audit finding #2 fix).
+// Only non-sensitive session metadata is persisted across page refreshes.
+const STORAGE_USER = 'dt_user';
+const STORAGE_TIME = 'dt_login_time';
+const SESSION_MS   = 8 * 60 * 60 * 1000; // 8 hours — SYS-004
 
 export const AuthProvider = ({ children }) => {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ─── Logout ──────────────────────────────────────────────────────────────
+  // ─── Logout ──────────────────────────────────────────────────────────────────
   const logout = useCallback(async (callApi = true) => {
-    // H-06: The refresh token lives in an httpOnly cookie — we don't read it
-    // from localStorage. The backend revokes the session by reading the cookie
-    // directly (sent automatically by the browser) and then clears it.
+    // H-06: The refresh token lives in an httpOnly cookie — the backend revokes
+    // the session by reading the cookie directly and then clearing it.
     if (callApi) {
-      try {
-        await authApi.logout();
-      } catch (_) { /* silent — we still clear locally */ }
+      try { await authApi.logout(); } catch (_) { /* silent — still clear locally */ }
     }
 
-    localStorage.removeItem(STORAGE_TOKEN);
+    // Clear in-memory access token
+    clearToken();
+
+    // Clear persisted session metadata (NOT dt_token — it no longer exists there)
     localStorage.removeItem(STORAGE_USER);
     localStorage.removeItem(STORAGE_TIME);
+
     setUser(null);
   }, []);
 
-  // ─── Bootstrap from localStorage ─────────────────────────────────────────
+  // ─── Bootstrap on page refresh ────────────────────────────────────────────────
+  // Since the access token is no longer in localStorage, we use the httpOnly
+  // refresh cookie (sent automatically) to silently obtain a new access token.
   useEffect(() => {
-    const token     = localStorage.getItem(STORAGE_TOKEN);
-    const stored    = localStorage.getItem(STORAGE_USER);
-    const loginAt   = localStorage.getItem(STORAGE_TIME);
+    let timer;
 
-    if (token && stored && loginAt) {
-      const elapsed    = Date.now() - parseInt(loginAt, 10);
-      const parsedUser = JSON.parse(stored);
+    const bootstrap = async () => {
+      const stored  = localStorage.getItem(STORAGE_USER);
+      const loginAt = localStorage.getItem(STORAGE_TIME);
 
-      if (elapsed >= SESSION_MS) {
-        // Local 8-hour wall-clock expired — do a silent logout (no API call)
-        logout(false);
-      } else if (!Array.isArray(parsedUser.permissions)) {
-        // Stale session — stored user pre-dates the permissions field; force re-login
-        logout(false);
-      } else {
-        setUser(parsedUser);
-        // Schedule auto-logout for remaining time
-        const remaining = SESSION_MS - elapsed;
-        const timer = setTimeout(() => logout(true), remaining);
+      // No session metadata → not logged in
+      if (!stored || !loginAt) {
         setLoading(false);
-        return () => clearTimeout(timer);
+        return;
       }
-    }
-    setLoading(false);
+
+      // Parse stored user safely
+      let parsedUser;
+      try { parsedUser = JSON.parse(stored); } catch { parsedUser = null; }
+
+      const elapsed = Date.now() - parseInt(loginAt, 10);
+
+      // Wall-clock 8h expired, stale session, or missing permissions array → force re-login
+      if (!parsedUser || elapsed >= SESSION_MS || !Array.isArray(parsedUser.permissions)) {
+        logout(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Silent refresh — httpOnly cookie is sent automatically by the browser.
+        // Using raw axios (not the api instance) to avoid the response interceptor loop.
+        const { data } = await axios.post(
+          `${BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true },
+        );
+
+        const newToken = data?.data?.token;
+        if (!newToken) throw new Error('No token in refresh response');
+
+        // Store new token in memory only — never in localStorage
+        setToken(newToken);
+        setUser(parsedUser);
+
+        // Schedule auto-logout for remaining session time
+        const remaining = SESSION_MS - elapsed;
+        timer = setTimeout(() => logout(true), remaining);
+      } catch {
+        // Refresh cookie expired or revoked — force re-login
+        logout(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    bootstrap();
+    return () => clearTimeout(timer);
   }, [logout]);
 
-  // ─── Login ───────────────────────────────────────────────────────────────
+  // ─── Login ────────────────────────────────────────────────────────────────────
   const login = async (employee_id, password) => {
     const res = await authApi.login({ employee_id, password });
     // H-06: refresh_token is delivered via httpOnly cookie — not in the response body
     const { token, user: userData } = res.data;
 
-    // H-06: Only the access token is stored in localStorage.
-    // The refresh token is in an httpOnly cookie set by the server.
-    localStorage.setItem(STORAGE_TOKEN, token);
-    localStorage.setItem(STORAGE_USER,  JSON.stringify(userData));
-    localStorage.setItem(STORAGE_TIME,  Date.now().toString());
+    // Security fix #2: access token stored in memory only — NOT in localStorage.
+    // This prevents any XSS script from stealing it via localStorage.getItem().
+    setToken(token);
+
+    // Only non-sensitive metadata is persisted (user profile + login timestamp)
+    localStorage.setItem(STORAGE_USER, JSON.stringify(userData));
+    localStorage.setItem(STORAGE_TIME, Date.now().toString());
 
     setUser(userData);
 
@@ -80,7 +117,8 @@ export const AuthProvider = ({ children }) => {
     return { is_first_login: userData.is_first_login };
   };
 
-  // ─── Update local user state (e.g. after password change) ────────────────
+  // ─── Update local user state (e.g. after password change) ────────────────────
+  // Only updates user profile data — never touches the access token.
   const updateUser = (updatedUser) => {
     setUser(updatedUser);
     localStorage.setItem(STORAGE_USER, JSON.stringify(updatedUser));
