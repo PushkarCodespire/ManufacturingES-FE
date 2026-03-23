@@ -1,0 +1,45 @@
+# Development environment values for Expo AI Web
+# This file overrides the base react chart values for development
+ 
+replicaCount: 1
+ 
+fullnameOverride: "manufacturing-execution-system-web"
+ 
+# =============================================================================
+# ENVIRONMENT VARIABLES
+# =============================================================================
+env:
+  API_BACKEND_URL: "manufacturing-execution-system-api.manufacturing-execution-system-dev.svc.cluster.local:5000"
+  VITE_API_URL: "/api"
+ 
+envSecret: {}
+ 
+envFrom: []
+ 
+# =============================================================================
+# HTTPROUTE (Gateway API)
+# =============================================================================
+httpRoute:
+  enabled: true
+  annotations: {}
+  labels: {}
+  parentRefs:
+    - name: https-gateway
+      namespace: gateway-system
+      sectionName: https-dev
+  hostnames:
+    - mes.dev.gcp.codespiresolutions.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: manufacturing-execution-system-web
+          port: 80
+      filters: []
+  tls: {}
+ 
+podLabels:
+  app.kubernetes.io/environment: development
+ 

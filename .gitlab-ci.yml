@@ -1,0 +1,3 @@
+include:
+  - project: 'codespire-core/ci-templates'
+    file: 'complete/react.yml'
