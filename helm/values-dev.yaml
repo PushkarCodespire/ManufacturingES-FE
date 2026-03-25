@@ -10,7 +10,7 @@ fullnameOverride: "manufacturing-execution-system-web"
 # =============================================================================
 env:
   # Internal K8s service URL for nginx reverse proxy (service port is 80, not container port 5000)
-  API_BACKEND_URL: "http://manufacturing-execution-system-api.manufacturing-execution-system-dev.svc.cluster.local:80"
+  API_BACKEND_URL: "manufacturing-execution-system-api.manufacturing-execution-system-dev.svc.cluster.local:80"
   VITE_API_URL: "/api"
  
 envSecret: {}
