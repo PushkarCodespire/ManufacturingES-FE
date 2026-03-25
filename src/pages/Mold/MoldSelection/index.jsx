@@ -492,45 +492,43 @@ export default function MoldSelectionPage() {
         style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 20 }}
         bodyStyle={{ padding: '16px 20px' }}
       >
-        <Row gutter={12} align="middle">
-          <Col flex="auto">
-            <div style={{ marginBottom: 4 }}>
-              <Text strong style={{ fontSize: 13 }}>Part / Item</Text>
+        <div>
+          <div style={{ marginBottom: 4 }}>
+            <Text strong style={{ fontSize: 13 }}>Part / Item</Text>
+          </div>
+          <Select
+            showSearch
+            placeholder={
+              <span>
+                <SearchOutlined style={{ marginRight: 6, color: '#9ca3af' }} />
+                Search and select a Part / Item...
+              </span>
+            }
+            value={partId}
+            onSearch={(v) => fetchItems(v)}
+            onChange={(val, opt) => { setPartId(val); setPartLabel(opt?.label || ''); }}
+            loading={itemsLoading}
+            filterOption={false}
+            style={{ width: '100%', borderRadius: 8, marginBottom: 12 }}
+            options={items.map(i => ({ value: i.id, label: `${i.code} — ${i.name}` }))}
+            allowClear
+            onClear={() => { setPartId(null); setPartLabel(''); setOptions(null); setAiRec(null); }}
+          />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ marginBottom: 4 }}>
+                <Text strong style={{ fontSize: 13 }}>WO Quantity</Text>
+              </div>
+              <InputNumber
+                min={1}
+                value={woQty}
+                onChange={v => setWoQty(v)}
+                placeholder="WO Qty"
+                style={{ width: 130, borderRadius: 8 }}
+                formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={v => v.replace(/,/g, '')}
+              />
             </div>
-            <Select
-              showSearch
-              placeholder={
-                <span>
-                  <SearchOutlined style={{ marginRight: 6, color: '#9ca3af' }} />
-                  Search and select a Part / Item...
-                </span>
-              }
-              value={partId}
-              onSearch={(v) => fetchItems(v)}
-              onChange={(val, opt) => { setPartId(val); setPartLabel(opt?.label || ''); }}
-              loading={itemsLoading}
-              filterOption={false}
-              style={{ width: '100%', borderRadius: 8 }}
-              options={items.map(i => ({ value: i.id, label: `${i.code} — ${i.name}` }))}
-              allowClear
-              onClear={() => { setPartId(null); setPartLabel(''); setOptions(null); setAiRec(null); }}
-            />
-          </Col>
-          <Col>
-            <div style={{ marginBottom: 4 }}>
-              <Text strong style={{ fontSize: 13 }}>WO Quantity</Text>
-            </div>
-            <InputNumber
-              min={1}
-              value={woQty}
-              onChange={v => setWoQty(v)}
-              placeholder="WO Qty"
-              style={{ width: 130, borderRadius: 8 }}
-              formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              parser={v => v.replace(/,/g, '')}
-            />
-          </Col>
-          <Col style={{ paddingTop: 20 }}>
             <Button
               type="primary"
               icon={<RobotOutlined />}
@@ -540,8 +538,8 @@ export default function MoldSelectionPage() {
             >
               Find Best Mold
             </Button>
-          </Col>
-        </Row>
+          </div>
+        </div>
 
         {/* ── AI recommendation banner ─────────────────────────────────── */}
         {aiRec && (

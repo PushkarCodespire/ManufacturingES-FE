@@ -205,25 +205,24 @@ export default function PMSchedulePage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ToolOutlined /> PM Schedule</Title>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={loadSchedules}>Refresh</Button>
           <Button icon={<PlusOutlined />} onClick={() => setTmplDrawer(true)}>New Template</Button>
           <Button type="primary" icon={<CalendarOutlined />} onClick={openScheduleModal}>Schedule PM</Button>
         </Space>
       </div>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={8}>
-          <Card><Statistic title="Overdue" value={overdueCount} valueStyle={{ color: '#dc2626' }} prefix={<ExclamationCircleOutlined />} /></Card>
+      <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={8}>
+          <Card size="small"><Statistic title="Overdue" value={overdueCount} valueStyle={{ color: '#dc2626', fontSize: 20 }} prefix={<ExclamationCircleOutlined />} /></Card>
         </Col>
-        <Col xs={8}>
-          <Card><Statistic title="Pending" value={pendingCount} valueStyle={{ color: '#d97706' }} prefix={<ClockCircleOutlined />} /></Card>
+        <Col xs={12} sm={8}>
+          <Card size="small"><Statistic title="Pending" value={pendingCount} valueStyle={{ color: '#d97706', fontSize: 20 }} prefix={<ClockCircleOutlined />} /></Card>
         </Col>
-        <Col xs={8}>
-          <Card><Statistic title="In Progress" value={inProgressCount} valueStyle={{ color: '#2563eb' }} prefix={<ToolOutlined />} /></Card>
+        <Col xs={24} sm={8}>
+          <Card size="small"><Statistic title="In Progress" value={inProgressCount} valueStyle={{ color: '#2563eb', fontSize: 20 }} prefix={<ToolOutlined />} /></Card>
         </Col>
       </Row>
 
@@ -447,7 +446,6 @@ export default function PMSchedulePage() {
           </>
         )}
       </Drawer>
-    </div>
     </AppLayout>
   );
 }

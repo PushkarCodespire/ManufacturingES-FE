@@ -7,6 +7,7 @@ import {
   SearchOutlined, ReloadOutlined, RightOutlined,
 } from '@ant-design/icons';
 import AppLayout         from '../../../components/AppLayout';
+import ResponsiveTable   from '../../../components/ResponsiveTable';
 import api               from '../../../api/axios';
 import usePermissions    from '../../../hooks/usePermissions';
 
@@ -149,7 +150,6 @@ export default function TimeStandardsPage() {
 
   return (
     <AppLayout>
-      <div style={{ padding: '24px 28px' }}>
         {/* Breadcrumb */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
           <Text style={{ color: '#9ca3af', fontSize: 12 }}>Production</Text>
@@ -214,7 +214,7 @@ export default function TimeStandardsPage() {
           style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
           bodyStyle={{ padding: '16px 20px' }}
         >
-          <Table
+          <ResponsiveTable
             columns={columns}
             dataSource={displayed}
             rowKey="id"
@@ -274,7 +274,6 @@ export default function TimeStandardsPage() {
             </>
           )}
         </Drawer>
-      </div>
     </AppLayout>
   );
 }

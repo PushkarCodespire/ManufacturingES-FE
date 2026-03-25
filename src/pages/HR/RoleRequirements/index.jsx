@@ -110,7 +110,7 @@ const RoleRequirementsPage = () => {
         Define which training topics are required for each role.
       </Text>
 
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+      <div className="res-two-panel" style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
         {/* ── Left: Roles Panel ─────────────────────────────── */}
         <Card
           style={{ width: 280, flexShrink: 0, border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}

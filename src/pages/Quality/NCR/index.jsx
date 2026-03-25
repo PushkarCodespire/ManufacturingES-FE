@@ -9,6 +9,7 @@ import {
   EditOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 import AppLayout      from '../../../components/AppLayout';
+import ResponsiveTable from '../../../components/ResponsiveTable';
 import usePermissions from '../../../hooks/usePermissions';
 import { ncrApi }     from '../../../api/quality.api';
 import { itemApi }    from '../../../api/item.api';
@@ -199,13 +200,14 @@ export default function NCRPage() {
           )}
         </div>
 
-        <Table
+        <ResponsiveTable
           rowKey="id"
           dataSource={filtered}
           columns={columns}
           loading={loading}
           size="small"
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
+          scroll={{ x: 800 }}
         />
       </Card>
 

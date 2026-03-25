@@ -372,6 +372,27 @@ const productionTreeData = [
       leaf('prod-skill_matrix', 'Manage Skills', stdPerms),
     ],
   },
+  {
+    title: 'OEE',
+    key: 'prod-oee',
+    children: [
+      leaf('prod-oee', 'OEE Dashboard', ['Read']),
+    ],
+  },
+  {
+    title: 'WIP',
+    key: 'prod-wip',
+    children: [
+      leaf('prod-wip', 'WIP Tracking', ['Read']),
+    ],
+  },
+  {
+    title: 'Cost Intelligence',
+    key: 'prod-cost_intelligence',
+    children: [
+      leaf('prod-cost_intelligence', 'Job Cost Sheet', stdPerms),
+    ],
+  },
 ];
 
 // ── Orders Access tree (matches sidebar "Orders" top-level module) ──────────

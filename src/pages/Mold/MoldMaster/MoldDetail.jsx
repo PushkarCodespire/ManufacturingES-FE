@@ -271,7 +271,7 @@ const MoldDetailPage = () => {
     { key: 'parts', label: 'Parts', children: (
       <>
         {canWrite && <Button type="primary" icon={<PlusOutlined />} size="small" style={{ marginBottom: 12, borderRadius: 8 }} onClick={() => setPartModalOpen(true)}>Add Part Mapping</Button>}
-        <Table rowKey="id" size="small" dataSource={mold.PartMappings ?? mold.part_mappings ?? []} pagination={false}
+        <Table rowKey="id" size="small" dataSource={mold.PartMappings ?? mold.part_mappings ?? []} pagination={false} scroll={{ x: 800 }}
           columns={[
             { title: 'Item Code', key: 'item_code', render: (_, r) => { const itm = r.Item ?? r.item; return <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{itm?.item_code ?? itm?.code ?? r.item_code ?? '\u2014'}</Text>; } },
             { title: 'Item Name', key: 'item_name', render: (_, r) => (r.Item ?? r.item)?.name ?? '\u2014' },
@@ -285,7 +285,7 @@ const MoldDetailPage = () => {
     { key: 'machines', label: 'Machines', children: (
       <>
         {canWrite && <Button type="primary" icon={<PlusOutlined />} size="small" style={{ marginBottom: 12, borderRadius: 8 }} onClick={() => setMachineModalOpen(true)}>Add Machine Compat</Button>}
-        <Table rowKey="id" size="small" dataSource={mold.MachineCompats ?? mold.machine_compatibilities ?? []} pagination={false}
+        <Table rowKey="id" size="small" dataSource={mold.MachineCompats ?? mold.machine_compatibilities ?? []} pagination={false} scroll={{ x: 800 }}
           columns={[
             { title: 'Machine', key: 'machine', render: (_, r) => (r.Machine ?? r.machine)?.name ?? '\u2014' },
             { title: 'Status', dataIndex: 'compatibility_status', key: 'status', render: (v) => <Tag color={v === 'verified' ? 'green' : v === 'incompatible' ? 'red' : 'orange'}>{fmtLabel(v)}</Tag> },
@@ -300,7 +300,7 @@ const MoldDetailPage = () => {
       <>
         {canWriteCavity && <Button type="primary" icon={<PlusOutlined />} size="small" style={{ marginBottom: 12, borderRadius: 8 }}
           onClick={() => { Modal.confirm({ title: 'Add Cavity', content: (<Form id="addCavForm"><Form.Item label="Cavity Number" name="cavity_number"><InputNumber min={1} /></Form.Item><Form.Item label="Position" name="position"><Input /></Form.Item></Form>), onOk: async () => { try { await moldCavityApi.createCavity(id, { cavity_number: 1, position: 'A1' }); message.success('Cavity added'); fetchCavities(); fetchMold(); } catch (err) { message.error(err?.message || 'Failed'); } } }); }}>Add Cavity</Button>}
-        <Table rowKey="id" size="small" dataSource={cavities} loading={cavityLoading} pagination={false}
+        <Table rowKey="id" size="small" dataSource={cavities} loading={cavityLoading} pagination={false} scroll={{ x: 800 }}
           columns={[
             { title: '#', dataIndex: 'cavity_number', key: 'cavity_number', width: 60 },
             { title: 'Position', dataIndex: 'position', key: 'position', width: 100 },
@@ -351,7 +351,7 @@ const MoldDetailPage = () => {
             </Upload>
           </div>
         )}
-        <Table rowKey="id" size="small" dataSource={mold.Documents ?? mold.documents ?? []} pagination={false}
+        <Table rowKey="id" size="small" dataSource={mold.Documents ?? mold.documents ?? []} pagination={false} scroll={{ x: 800 }}
           columns={[
             { title: 'Type',      dataIndex: 'document_type', key: 'type',      width: 150, render: (v) => fmtLabel(v ?? 'general') },
             { title: 'File Name', dataIndex: 'file_name',     key: 'file_name', ellipsis: true },
@@ -366,7 +366,7 @@ const MoldDetailPage = () => {
       </>
     )},
     { key: 'shots', label: 'Shot History', children: (
-      <Table rowKey="id" size="small" dataSource={shotHistory} loading={shotLoading}
+      <Table rowKey="id" size="small" dataSource={shotHistory} loading={shotLoading} scroll={{ x: 800 }}
         pagination={{ current: shotPage, pageSize: 20, total: shotTotal, onChange: (p) => setShotPage(p), showTotal: (t) => `${t} records`, style: { marginBottom: 0 } }}
         columns={[
           { title: 'Date', dataIndex: 'logged_at', key: 'logged_at', render: (v) => fmtDateTime(v) },

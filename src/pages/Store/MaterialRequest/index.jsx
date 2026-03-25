@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout             from '../../../components/AppLayout';
+import ResponsiveTable       from '../../../components/ResponsiveTable';
 import usePermissions        from '../../../hooks/usePermissions';
 import { materialRequestApi } from '../../../api/store.api';
 import { itemApi }           from '../../../api/item.api';
@@ -305,7 +306,7 @@ export default function MaterialRequestPage() {
           )}
         </div>
 
-        <Table
+        <ResponsiveTable
           rowKey="id"
           loading={loading}
           columns={columns}
@@ -335,7 +336,7 @@ export default function MaterialRequestPage() {
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={14}>
+            <Col xs={24} sm={14}>
               <Form.Item name="warehouse_id" label="Warehouse" rules={[{ required: true, message: 'Select a warehouse' }]}>
                 <Select
                   showSearch
@@ -345,7 +346,7 @@ export default function MaterialRequestPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={10}>
+            <Col xs={24} sm={10}>
               <Form.Item name="required_date" label="Required Date" rules={[{ required: true, message: 'Select a date' }]}>
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>
@@ -370,6 +371,7 @@ export default function MaterialRequestPage() {
             Line Items
           </Divider>
 
+          <div className="res-line-items">
           {/* Header — drawer 720px - 48px padding = 672px content */}
           {/* Grid: 160px 1fr 65px 50px 28px */}
           <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 65px 50px 28px', gap: 6, marginBottom: 6 }}>
@@ -438,6 +440,7 @@ export default function MaterialRequestPage() {
           >
             Add Item
           </Button>
+          </div>
         </Form>
       </Drawer>
     </AppLayout>

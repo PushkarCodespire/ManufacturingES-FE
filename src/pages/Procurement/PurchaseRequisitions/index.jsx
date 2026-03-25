@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout        from '../../../components/AppLayout';
+import ResponsiveTable  from '../../../components/ResponsiveTable';
 import usePermissions   from '../../../hooks/usePermissions';
 import { prApi }        from '../../../api/procurement.api';
 import { itemApi }      from '../../../api/item.api';
@@ -432,7 +433,7 @@ export default function PurchaseRequisitionsPage() {
           { label: 'Approved (Open)',     value: countApproved, color: '#059669', bg: '#f0fdf4' },
           { label: 'Urgent',             value: countUrgent,   color: '#dc2626', bg: '#fef2f2' },
         ].map((t) => (
-          <Col key={t.label} span={4}>
+          <Col key={t.label} xs={12} sm={4}>
             <Card
               size="small"
               style={{ background: t.bg, border: `1px solid ${t.color}20`, borderRadius: 10 }}
@@ -476,7 +477,7 @@ export default function PurchaseRequisitionsPage() {
           <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Requisition</Button>
         </div>
 
-        <Table
+        <ResponsiveTable
           rowKey="id"
           loading={loading}
           columns={columns}
@@ -582,12 +583,12 @@ export default function PurchaseRequisitionsPage() {
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="required_date" label="Required By Date">
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="priority" label="Priority" rules={[{ required: true }]}>
                 <Select
                   options={Object.entries(PRIORITY_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))}
@@ -601,6 +602,7 @@ export default function PurchaseRequisitionsPage() {
 
           <Divider orientation="left" style={{ fontSize: 13, fontWeight: 600 }}>Items Required</Divider>
 
+          <div className="res-line-items">
           {/* Header */}
           <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 80px 80px 90px 80px 28px', gap: 6, marginBottom: 6 }}>
             {['Item', 'Qty', 'Unit', 'Est. Price', 'Justification', ''].map((h) => (
@@ -644,6 +646,7 @@ export default function PurchaseRequisitionsPage() {
               </Text>
             </div>
           )}
+          </div>
         </Form>
       </Drawer>
 
@@ -678,7 +681,7 @@ export default function PurchaseRequisitionsPage() {
       >
         <Form form={convertForm} layout="vertical">
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="vendor_id" label="Vendor" rules={[{ required: true, message: 'Select a vendor' }]}>
                 <Select
                   showSearch placeholder="Select vendor" optionFilterProp="label"
@@ -686,12 +689,12 @@ export default function PurchaseRequisitionsPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={6}>
               <Form.Item name="order_date" label="PO Date" rules={[{ required: true }]}>
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={6}>
               <Form.Item name="expected_date" label="Expected Delivery">
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>

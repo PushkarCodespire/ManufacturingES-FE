@@ -162,3 +162,43 @@ export const skillMatrixApi = {
   removeMatrix:    (id)       => api.delete(`/operator-skills/matrix/${id}`),
   getByOperator:   (userId)   => api.get(`/operator-skills/matrix/by-operator/${userId}`),
 };
+
+// ── Sprint 1: Visibility — Scoreboard ────────────────────────────────────────
+export const scoreboardApi = {
+  get: () => api.get('/production/scoreboard'),
+};
+
+// ── Sprint 1: Visibility — Andon Board ───────────────────────────────────────
+export const andonApi = {
+  getBoard:         ()          => api.get('/production/andon/board'),
+  getAlerts:        (params)    => api.get('/production/andon/alerts', { params }),
+  raiseAlert:       (data)      => api.post('/production/andon/alerts', data),
+  acknowledgeAlert: (id)        => api.patch(`/production/andon/alerts/${id}/acknowledge`),
+  resolveAlert:     (id, data)  => api.patch(`/production/andon/alerts/${id}/resolve`, data),
+};
+
+// ── Sprint 1: Visibility — Shift Handover ────────────────────────────────────
+export const shiftHandoverApi = {
+  getAll:      (params)       => api.get('/production/shift-handovers', { params }),
+  getById:     (id)           => api.get(`/production/shift-handovers/${id}`),
+  create:      (data)         => api.post('/production/shift-handovers', data),
+  update:      (id, data)     => api.patch(`/production/shift-handovers/${id}`, data),
+  submit:      (id)           => api.patch(`/production/shift-handovers/${id}/submit`),
+  acknowledge: (id)           => api.patch(`/production/shift-handovers/${id}/acknowledge`),
+  addItem:     (id, data)     => api.post(`/production/shift-handovers/${id}/items`, data),
+  updateItem:  (id, itemId, data) => api.patch(`/production/shift-handovers/${id}/items/${itemId}`, data),
+};
+
+// ── Job Cost Sheet ────────────────────────────────────────────────────────────
+export const jobCostApi = {
+  getAll:             (params) => api.get('/job-cost-sheets', { params }),
+  calculate:          (data)   => api.post('/job-cost-sheets/calculate', data),
+  getProfitability:   (params) => api.get('/job-cost-sheets/profitability', { params }),
+  getRateCards:       ()       => api.get('/job-cost-sheets/rate-cards'),
+  upsertLaborRate:    (data)   => api.post('/job-cost-sheets/rate-cards/labor', data),
+  deleteLaborRate:    (id)     => api.delete(`/job-cost-sheets/rate-cards/labor/${id}`),
+  upsertMachineRate:  (data)   => api.post('/job-cost-sheets/rate-cards/machine', data),
+  deleteMachineRate:  (id)     => api.delete(`/job-cost-sheets/rate-cards/machine/${id}`),
+  upsertOverheadRate: (data)   => api.post('/job-cost-sheets/rate-cards/overhead', data),
+  deleteOverheadRate: (id)     => api.delete(`/job-cost-sheets/rate-cards/overhead/${id}`),
+};

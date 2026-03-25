@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import { sparePartsApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
+import ResponsiveTable from '../../../components/ResponsiveTable';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -204,10 +205,9 @@ export default function SparePartsPage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ToolOutlined /> Spare Parts & BOM</Title>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={loadParts}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModal(true)}>Register Part</Button>
         </Space>
@@ -256,7 +256,7 @@ export default function SparePartsPage() {
           {
             key: 'parts',
             label: `Parts Catalog (${parts.length})`,
-            children: <Table columns={partColumns} dataSource={parts} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />,
+            children: <ResponsiveTable columns={partColumns} dataSource={parts} rowKey="id" loading={loading} scroll={{ x: 800 }} pagination={{ pageSize: 15 }} />,
           },
           {
             key: 'bom',
@@ -305,6 +305,7 @@ export default function SparePartsPage() {
                     </div>
                     <Table
                       size="small"
+                      scroll={{ x: 800 }}
                       rowKey="spare_part_id"
                       dataSource={forecast?.data ?? []}
                       pagination={false}
@@ -348,7 +349,7 @@ export default function SparePartsPage() {
                 )}
 
                 {selectedEquip
-                  ? <Table columns={bomColumns} dataSource={bomItems} rowKey="id" pagination={{ pageSize: 15 }} />
+                  ? <Table columns={bomColumns} dataSource={bomItems} rowKey="id" scroll={{ x: 800 }} pagination={{ pageSize: 15 }} />
                   : <Text type="secondary">Select an equipment to view its spare parts BOM</Text>
                 }
               </div>
@@ -382,18 +383,18 @@ export default function SparePartsPage() {
           <Form.Item name="name" label="Part Name" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="description" label="Description"><TextArea rows={2} /></Form.Item>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="unit_of_measure" label="Unit of Measure"><Input placeholder="pcs, kg, ltr..." /></Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="unit_cost" label="Unit Cost ($)"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="current_stock" label="Opening Stock" initialValue={0}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="min_stock" label="Minimum Stock" initialValue={0}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item>
             </Col>
           </Row>
@@ -438,7 +439,6 @@ export default function SparePartsPage() {
           </Space>
         </Form>
       </Modal>
-    </div>
     </AppLayout>
   );
 }

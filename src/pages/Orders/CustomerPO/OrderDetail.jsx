@@ -194,7 +194,7 @@ export default function OrderDetail() {
         bodyStyle={{ padding: '12px 20px' }}
       >
         <Table
-          rowKey="id" size="small" pagination={false} dataSource={items}
+          rowKey="id" size="small" pagination={false} scroll={{ x: 800 }} dataSource={items}
           columns={[
             { title: 'Item Code', key: 'code', render: (_, r) => r.Item?.code || '—' },
             { title: 'Description', key: 'desc', render: (_, r) => r.Item?.name || r.description || '—' },
@@ -214,7 +214,7 @@ export default function OrderDetail() {
           style={{ marginBottom: 16, border: '1px solid #e8eaed', borderRadius: 12 }}
           bodyStyle={{ padding: '12px 20px' }}
         >
-          <Table rowKey="id" size="small" pagination={false} dataSource={workOrders} columns={woColumns} />
+          <Table rowKey="id" size="small" pagination={false} scroll={{ x: 800 }} dataSource={workOrders} columns={woColumns} />
         </Card>
       )}
 
@@ -225,7 +225,7 @@ export default function OrderDetail() {
           style={{ marginBottom: 16, border: '1px solid #e8eaed', borderRadius: 12 }}
           bodyStyle={{ padding: '12px 20px' }}
         >
-          <Table rowKey="id" size="small" pagination={false} dataSource={allQc} columns={qcColumns} />
+          <Table rowKey="id" size="small" pagination={false} scroll={{ x: 800 }} dataSource={allQc} columns={qcColumns} />
         </Card>
       )}
 
@@ -236,7 +236,7 @@ export default function OrderDetail() {
           style={{ marginBottom: 16, border: '1px solid #e8eaed', borderRadius: 12 }}
           bodyStyle={{ padding: '12px 20px' }}
         >
-          <Table rowKey="id" size="small" pagination={false} dataSource={dispatchOrders} columns={dispatchColumns} />
+          <Table rowKey="id" size="small" pagination={false} scroll={{ x: 800 }} dataSource={dispatchOrders} columns={dispatchColumns} />
         </Card>
       )}
 

@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
+import ResponsiveTable     from '../../../components/ResponsiveTable';
 import usePermissions      from '../../../hooks/usePermissions';
 import { vendorInvoiceApi } from '../../../api/procurement.api';
 import { purchaseOrderApi } from '../../../api/procurement.api';
@@ -397,7 +398,7 @@ export default function VendorInvoicesPage() {
             )}
           </div>
 
-          <Table
+          <ResponsiveTable
             columns={columns}
             dataSource={filtered}
             rowKey="id"
@@ -426,19 +427,19 @@ export default function VendorInvoicesPage() {
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="invoice_no" label="Vendor Invoice No" rules={[{ required: true }]}>
                 <Input placeholder="e.g. INV-2024-001" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="invoice_date" label="Invoice Date" rules={[{ required: true }]}>
                 <DatePicker style={{ width: '100%' }} format="DD-MM-YYYY" />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="po_id" label="Against Purchase Order" rules={[{ required: true }]}>
                 <Select
                   showSearch
@@ -448,19 +449,19 @@ export default function VendorInvoicesPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="due_date" label="Due Date">
                 <DatePicker style={{ width: '100%' }} format="DD-MM-YYYY" />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="tax_amount" label="Tax / GST Amount (₹)">
                 <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="0.00" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="grn_id" label="Link to GRN (optional)">
                 <Input placeholder="GRN UUID..." />
               </Form.Item>

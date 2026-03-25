@@ -180,7 +180,7 @@ const TemplateModal = ({ record, open, onClose, onSaved, canWrite }) => {
       key:   'default',
       label: 'Default',
       children: (
-        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', paddingTop: 16 }}>
+        <div className="res-two-panel" style={{ display: 'flex', gap: 24, alignItems: 'flex-start', paddingTop: 16 }}>
           {/* Left: Form fields */}
           <div style={{ flex: 1, minWidth: 0 }}>
             {/* Type */}

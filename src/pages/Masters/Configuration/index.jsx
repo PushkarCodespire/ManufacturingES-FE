@@ -16,6 +16,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { siteApi }      from '../../../api/site.api';
 import AppLayout        from '../../../components/AppLayout';
+import ResponsiveTable  from '../../../components/ResponsiveTable';
 import usePermissions   from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
@@ -257,7 +258,7 @@ const ConfigurationPage = () => {
         </div>
 
         {/* Table */}
-        <Table
+        <ResponsiveTable
           rowKey="id"
           columns={buildColumns(handleToggle, toggleLoading, (r) => navigate(`/masters/configuration/sites/${r.id}`), canWrite)}
           dataSource={sites}

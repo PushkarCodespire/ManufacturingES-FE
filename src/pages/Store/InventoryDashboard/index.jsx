@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
+import ResponsiveTable from '../../../components/ResponsiveTable';
 import usePermissions from '../../../hooks/usePermissions';
 import { inventoryApi }  from '../../../api/store.api';
 import { warehouseApi }  from '../../../api/warehouse.api';
@@ -103,25 +104,25 @@ export default function InventoryDashboardPage() {
     return (
       <>
         <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Card size="small" style={{ borderRadius: 10, textAlign: 'center' }}>
               <Statistic title="Items in Stock" value={s.totalItems || 0}
                 valueStyle={{ color: '#1d4ed8', fontSize: 22 }} />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Card size="small" style={{ borderRadius: 10, textAlign: 'center' }}>
               <Statistic title="Total Quantity" value={s.totalQty || 0}
                 valueStyle={{ color: '#16a34a', fontSize: 22 }} />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Card size="small" style={{ borderRadius: 10, textAlign: 'center' }}>
               <Statistic title="Zero Stock Items" value={s.zeroStockCount || 0}
                 valueStyle={{ color: '#dc2626', fontSize: 22 }} />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Card size="small" style={{ borderRadius: 10, textAlign: 'center' }}>
               <Statistic title="Low Stock Alerts" value={lowStock.length}
                 prefix={lowStock.length > 0 ? <WarningOutlined /> : null}
@@ -132,7 +133,7 @@ export default function InventoryDashboardPage() {
 
         <Row gutter={16}>
           {/* Low Stock */}
-          <Col span={14}>
+          <Col xs={24} sm={14}>
             <Card
               title={<><WarningOutlined style={{ color: '#d97706', marginRight: 6 }} />Low Stock Items</>}
               size="small"
@@ -162,7 +163,7 @@ export default function InventoryDashboardPage() {
           </Col>
 
           {/* Stock by Warehouse */}
-          <Col span={10}>
+          <Col xs={24} sm={10}>
             <Card
               title={<><InboxOutlined style={{ color: '#7c3aed', marginRight: 6 }} />Stock by Warehouse</>}
               size="small"
@@ -236,7 +237,7 @@ export default function InventoryDashboardPage() {
       <>
         <Row gutter={16} style={{ marginBottom: 16 }}>
           {Object.entries(BUCKET_COLOR).filter(([k]) => k !== 'unknown').map(([bucket, color]) => (
-            <Col span={6} key={bucket}>
+            <Col xs={12} sm={6} key={bucket}>
               <Card size="small" style={{ borderRadius: 10, textAlign: 'center' }}>
                 <Statistic title={`${bucket} days`} value={summary[bucket] || 0}
                   valueStyle={{ color: color === 'green' ? '#16a34a' : color === 'blue' ? '#1d4ed8' : color === 'orange' ? '#d97706' : '#dc2626', fontSize: 22 }} />
@@ -262,7 +263,7 @@ export default function InventoryDashboardPage() {
             <Button icon={<ReloadOutlined />} onClick={loadStockAge}>Refresh</Button>
           </div>
 
-          <Table
+          <ResponsiveTable
             rowKey={(r) => `${r.item_id}-${r.warehouse_id}`}
             loading={ageLoading}
             dataSource={stockAge.data}
@@ -297,14 +298,14 @@ export default function InventoryDashboardPage() {
   const tabDeadStock = () => (
     <>
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={8}>
+        <Col xs={12} sm={8}>
           <Card size="small" style={{ borderRadius: 10, textAlign: 'center' }}>
             <Statistic title="Dead Stock Items" value={deadStock.summary.total_dead_items || 0}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: '#dc2626', fontSize: 22 }} />
           </Card>
         </Col>
-        <Col span={8}>
+        <Col xs={12} sm={8}>
           <Card size="small" style={{ borderRadius: 10, textAlign: 'center' }}>
             <Statistic title="Threshold" value={`${deadStock.summary.threshold_days || deadDays} days`}
               valueStyle={{ color: '#6b7280', fontSize: 22 }} />

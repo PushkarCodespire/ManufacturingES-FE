@@ -145,7 +145,7 @@ export default function CapacityPlanningPage() {
 
       {/* Summary tiles */}
       <Row gutter={12} style={{ marginTop: 16, marginBottom: 20 }}>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: '1px solid #e8eaed' }}>
             <Statistic
               title="Total Load"
@@ -154,7 +154,7 @@ export default function CapacityPlanningPage() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: '1px solid #fecaca', background: '#fff5f5' }}>
             <Statistic
               title={<Space><FireOutlined style={{ color: '#dc2626' }} />Overloaded</Space>}
@@ -164,7 +164,7 @@ export default function CapacityPlanningPage() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: '1px solid #fde68a', background: '#fffbeb' }}>
             <Statistic
               title={<Space><WarningOutlined style={{ color: '#d97706' }} />High Load (&gt;80%)</Space>}
@@ -174,7 +174,7 @@ export default function CapacityPlanningPage() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: '1px solid #bbf7d0', background: '#f0fdf4' }}>
             <Statistic
               title={<Space><CheckCircleOutlined style={{ color: '#16a34a' }} />Healthy (&le;80%)</Space>}
@@ -208,6 +208,7 @@ export default function CapacityPlanningPage() {
             dataSource={data}
             size="small"
             pagination={false}
+            scroll={{ x: 800 }}
             expandable={{
               expandedRowRender: (record) => (
                 <div style={{ margin: '0 0 12px 40px' }}>
@@ -220,6 +221,7 @@ export default function CapacityPlanningPage() {
                     dataSource={record.job_cards}
                     size="small"
                     pagination={false}
+                    scroll={{ x: 800 }}
                     style={{ border: '1px solid #e8eaed', borderRadius: 8 }}
                   />
                 </div>

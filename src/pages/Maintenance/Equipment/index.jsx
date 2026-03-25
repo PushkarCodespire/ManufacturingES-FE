@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import { equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
+import ResponsiveTable from '../../../components/ResponsiveTable';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -239,10 +240,9 @@ export default function EquipmentPage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <Title level={4} style={{ margin: 0 }}><ApartmentOutlined /> Equipment Master</Title>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={loadEquipment}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModal(true)}>Register Equipment</Button>
         </Space>
@@ -267,7 +267,7 @@ export default function EquipmentPage() {
           {
             key: 'list',
             label: 'Equipment List',
-            children: <Table columns={columns} dataSource={equipment} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />,
+            children: <ResponsiveTable columns={columns} dataSource={equipment} rowKey="id" loading={loading} scroll={{ x: 800 }} pagination={{ pageSize: 15 }} />,
           },
           {
             key: 'hierarchy',
@@ -353,6 +353,7 @@ export default function EquipmentPage() {
                         </div>
                         <Table
                           size="small"
+                          scroll={{ x: 800 }}
                           rowKey={(r) => `${r.equipment_id}-${r.failure_code_id}`}
                           dataSource={fpPatterns}
                           pagination={{ pageSize: 15 }}
@@ -448,19 +449,19 @@ export default function EquipmentPage() {
             <Input />
           </Form.Item>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="category_id" label="Category">
                 <Select allowClear options={categories.map((c) => ({ value: c.id, label: c.name }))} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="level" label="Level" initialValue="machine">
                 <Select options={['plant','line','machine','sub_assembly','component'].map((v) => ({ value: v, label: v.replace('_', ' ').toUpperCase() }))} />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 name="criticality"
                 label={
@@ -476,7 +477,7 @@ export default function EquipmentPage() {
                 <Select options={['A','B','C'].map((v) => ({ value: v, label: `${v} — ${v === 'A' ? 'Critical' : v === 'B' ? 'Major' : 'Minor'}` }))} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="parent_id" label="Parent Equipment">
                 <Select
                   allowClear
@@ -488,26 +489,26 @@ export default function EquipmentPage() {
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="manufacturer" label="Manufacturer"><Input /></Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="model_no" label="Model No"><Input /></Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="serial_no" label="Serial No"><Input /></Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="location" label="Location"><Input /></Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="installation_date" label="Installation Date"><Input type="date" /></Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="warranty_expiry" label="Warranty Expiry"><Input type="date" /></Form.Item>
             </Col>
           </Row>
@@ -642,7 +643,7 @@ export default function EquipmentPage() {
         <Form form={editForm} layout="vertical" onFinish={updateEquipment}>
           <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="criticality" label="Criticality">
                 <Select options={['A','B','C'].map((v) => ({ value: v, label: v }))} />
               </Form.Item>
@@ -661,7 +662,7 @@ export default function EquipmentPage() {
                 </div>
               )}
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="status" label="Status">
                 <Select options={['operational','under_maintenance','breakdown','decommissioned'].map((v) => ({ value: v, label: v.replace(/_/g, ' ') }))} />
               </Form.Item>
@@ -675,7 +676,6 @@ export default function EquipmentPage() {
           </Space>
         </Form>
       </Modal>
-    </div>
     </AppLayout>
   );
 }

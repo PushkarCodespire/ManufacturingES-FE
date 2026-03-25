@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout        from '../../../components/AppLayout';
+import ResponsiveTable  from '../../../components/ResponsiveTable';
 import usePermissions   from '../../../hooks/usePermissions';
 import { complaintApi } from '../../../api/quality.api';
 import { vendorApi }    from '../../../api/vendor.api';
@@ -206,7 +207,7 @@ export default function ComplaintsPage() {
           )}
         </div>
 
-        <Table
+        <ResponsiveTable
           rowKey="id"
           dataSource={filtered}
           columns={columns}

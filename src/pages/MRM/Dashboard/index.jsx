@@ -312,7 +312,7 @@ export default function MRMDashboard() {
 
         {actions.length > 0 && (<>
           <Title level={5} style={{ margin: 0 }}>Action Items ({actions.length})</Title>
-          <Table rowKey="id" size="small" dataSource={actions} pagination={false} columns={[
+          <Table rowKey="id" size="small" dataSource={actions} pagination={false} scroll={{ x: 800 }} columns={[
             { title: 'Action', dataIndex: 'title', key: 'title', ellipsis: true },
             { title: 'Assigned To', key: 'a', width: 130, render: (_, r) => r.AssignedTo?.name ?? 'Unassigned' },
             { title: 'Target', dataIndex: 'target_date', key: 'td', width: 100 },
@@ -447,7 +447,7 @@ export default function MRMDashboard() {
                 )}
               </div>
               <Card style={{ border:'1px solid #e8eaed', borderRadius:12, boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }} bodyStyle={{ padding:'16px 20px' }}>
-                <Table rowKey="id" dataSource={meetings} columns={meetingCols} loading={mlLoading} size="small" pagination={{ pageSize:15 }} />
+                <Table rowKey="id" dataSource={meetings} columns={meetingCols} loading={mlLoading} size="small" pagination={{ pageSize:15 }} scroll={{ x: 800 }} />
               </Card>
             </div>
           ),
@@ -466,7 +466,7 @@ export default function MRMDashboard() {
                 <Button icon={<ReloadOutlined />} onClick={loadActions}>Refresh</Button>
               </div>
               <Card style={{ border:'1px solid #e8eaed', borderRadius:12 }} bodyStyle={{ padding:'16px 20px' }}>
-                <Table rowKey="id" dataSource={allActions} columns={actionCols} loading={actLoading} size="small" pagination={{ pageSize:20 }} />
+                <Table rowKey="id" dataSource={allActions} columns={actionCols} loading={actLoading} size="small" pagination={{ pageSize:20 }} scroll={{ x: 800 }} />
               </Card>
             </div>
           ),

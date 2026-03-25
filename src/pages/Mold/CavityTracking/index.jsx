@@ -170,7 +170,7 @@ const CavityTrackingPage = () => {
 
           {/* Cavity Table */}
           <Card title="Cavities" style={{ border: '1px solid #e8eaed', borderRadius: 12, marginBottom: 20 }} bodyStyle={{ padding: '12px 16px' }}>
-            <Table rowKey="id" size="small" dataSource={cavities} loading={cavLoading} pagination={false} columns={cavityColumns}
+            <Table rowKey="id" size="small" dataSource={cavities} loading={cavLoading} pagination={false} scroll={{ x: 800 }} columns={cavityColumns}
               locale={{ emptyText: <Text type="secondary">No cavities found for this mold</Text> }} />
           </Card>
 

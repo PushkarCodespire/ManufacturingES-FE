@@ -234,6 +234,7 @@ export default function DemandForecastPage() {
                   { title: 'WO Count',  dataIndex: 'wo_count',  align: 'right' },
                 ]}
                 pagination={false}
+                scroll={{ x: 800 }}
               />
             </Spin>
           </TabPane>
@@ -250,6 +251,7 @@ export default function DemandForecastPage() {
                 dataSource={openOrders}
                 rowKey="item_id"
                 pagination={false}
+                scroll={{ x: 800 }}
               />
             </Spin>
           </TabPane>

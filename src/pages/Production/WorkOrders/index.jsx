@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
+import ResponsiveTable     from '../../../components/ResponsiveTable';
 import usePermissions      from '../../../hooks/usePermissions';
 import useAiSuggestion     from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard    from '../../../components/AiSuggestion/AiSuggestionCard';
@@ -546,7 +547,7 @@ export default function WorkOrdersPage() {
           )}
         </div>
 
-        <Table
+        <ResponsiveTable
           rowKey="id"
           loading={loading}
           columns={columns}
@@ -694,7 +695,7 @@ export default function WorkOrdersPage() {
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={16}>
+            <Col xs={24} sm={16}>
               <Form.Item
                 name="item_id"
                 label="Item"
@@ -712,7 +713,7 @@ export default function WorkOrdersPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item name="priority" label="Priority">
                 <Select options={PRIORITY_OPTIONS} />
               </Form.Item>
@@ -720,7 +721,7 @@ export default function WorkOrdersPage() {
           </Row>
 
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="machine_id" label="Machine">
                 <Select
                   showSearch
@@ -731,7 +732,7 @@ export default function WorkOrdersPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="shift_id" label="Shift">
                 <Select
                   showSearch
@@ -745,7 +746,7 @@ export default function WorkOrdersPage() {
           </Row>
 
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="customer_order_id" label="Customer Order">
                 <Select
                   showSearch
@@ -759,7 +760,7 @@ export default function WorkOrdersPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 name="planned_qty"
                 label="Planned Quantity"
@@ -771,12 +772,12 @@ export default function WorkOrdersPage() {
           </Row>
 
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="planned_start" label="Planned Start">
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="planned_end" label="Planned End">
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>
@@ -813,12 +814,12 @@ export default function WorkOrdersPage() {
             />
           </Form.Item>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="planned_qty" label="Planned Quantity" rules={[{ required: true, message: 'Enter quantity' }]}>
                 <InputNumber min={0} precision={3} style={{ width: '100%' }} placeholder="0" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="priority" label="Priority">
                 <Select options={PRIORITY_OPTIONS} />
               </Form.Item>
@@ -834,12 +835,12 @@ export default function WorkOrdersPage() {
             />
           </Form.Item>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="planned_start" label="Planned Start">
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="planned_end" label="Planned End">
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>

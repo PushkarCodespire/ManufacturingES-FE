@@ -17,6 +17,7 @@ import {
 import dayjs from 'dayjs';
 import { shiftApi }     from '../../../api/shift.api';
 import AppLayout        from '../../../components/AppLayout';
+import ResponsiveTable  from '../../../components/ResponsiveTable';
 import usePermissions   from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
@@ -185,7 +186,7 @@ const ListView = ({ shifts, loading, onRefresh, onNew, onEdit, onDelete, canWrit
         </div>
 
         {/* Table */}
-        <Table
+        <ResponsiveTable
           rowKey="id"
           columns={columns}
           dataSource={shifts}

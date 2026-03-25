@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
+import ResponsiveTable from '../../../components/ResponsiveTable';
 import api            from '../../../api/axios';
 import usePermissions from '../../../hooks/usePermissions';
 
@@ -200,7 +201,6 @@ export default function ShiftPlanningPage() {
 
   return (
     <AppLayout>
-      <div style={{ padding: '24px 28px' }}>
         {/* Breadcrumb */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
           <Text style={{ color: '#9ca3af', fontSize: 12 }}>Production</Text>
@@ -214,19 +214,18 @@ export default function ShiftPlanningPage() {
         </Text>
 
         {/* Date + controls bar */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 16, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 16, marginBottom: 16, flexWrap: 'wrap' }}>
           <CalendarOutlined style={{ color: '#6b7280' }} />
           <DatePicker
             value={selDate}
             onChange={d => d && setSelDate(d)}
             format="DD MMM YYYY"
             allowClear={false}
-            style={{ width: 170 }}
+            style={{ width: 150 }}
           />
           <Tag color="blue">{assignments.length} Assignment{assignments.length !== 1 ? 's' : ''}</Tag>
           <Tag color="green">{crew.length} Crew Member{crew.length !== 1 ? 's' : ''}</Tag>
-          <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<ReloadOutlined />} onClick={load} style={{ marginLeft: 'auto' }}>Refresh</Button>
         </div>
 
         {/* Assignments card */}
@@ -247,12 +246,13 @@ export default function ShiftPlanningPage() {
           style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16 }}
           bodyStyle={{ padding: '8px 20px' }}
         >
-          <Table
+          <ResponsiveTable
             columns={assignCols}
             dataSource={assignments}
             rowKey="id"
             loading={loading}
             size="small"
+            scroll={{ x: 800 }}
             pagination={false}
             locale={{ emptyText: 'No assignments for this date' }}
           />
@@ -419,7 +419,6 @@ export default function ShiftPlanningPage() {
             </Form.Item>
           </Form>
         </Drawer>
-      </div>
     </AppLayout>
   );
 }

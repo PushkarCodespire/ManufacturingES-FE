@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
+import ResponsiveTable from '../../../components/ResponsiveTable';
 import usePermissions from '../../../hooks/usePermissions';
 import api from '../../../api/axios';
 
@@ -208,7 +209,6 @@ export default function LaborTrackingPage() {
 
   return (
     <AppLayout>
-      <div style={{ padding: '24px' }}>
         {/* Header */}
         <div style={{ marginBottom: 16 }}>
           <Title level={3} style={{ margin: 0 }}>Labor Tracking</Title>
@@ -216,25 +216,25 @@ export default function LaborTrackingPage() {
         </div>
 
         {/* KPI row */}
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={6}>
+        <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+          <Col xs={12} sm={6}>
             <Card size="small">
-              <Statistic title="Total Logs" value={records.length} prefix={<BarChartOutlined />} />
+              <Statistic title="Total Logs" value={records.length} prefix={<BarChartOutlined />} valueStyle={{ fontSize: 20 }} />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Card size="small">
-              <Statistic title="Total Labor (hrs)" value={(totalMin / 60).toFixed(1)} suffix="hrs" />
+              <Statistic title="Total Labor (hrs)" value={(totalMin / 60).toFixed(1)} suffix="hrs" valueStyle={{ fontSize: 20 }} />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Card size="small">
-              <Statistic title="Direct Labor (hrs)" value={(directMin / 60).toFixed(1)} suffix="hrs" valueStyle={{ color: '#1890ff' }} />
+              <Statistic title="Direct Labor (hrs)" value={(directMin / 60).toFixed(1)} suffix="hrs" valueStyle={{ color: '#1890ff', fontSize: 20 }} />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Card size="small">
-              <Statistic title="Active (open)" value={activeLogs} valueStyle={{ color: activeLogs > 0 ? '#52c41a' : undefined }} />
+              <Statistic title="Active (open)" value={activeLogs} valueStyle={{ color: activeLogs > 0 ? '#52c41a' : undefined, fontSize: 20 }} />
             </Card>
           </Col>
         </Row>
@@ -242,51 +242,47 @@ export default function LaborTrackingPage() {
         {/* Main card */}
         <Card>
           {/* Toolbar */}
-          <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-            <Space wrap>
-              <RangePicker
-                onChange={v => setFilters(f => ({ ...f, dateRange: v }))}
-                format="DD MMM YYYY"
-                style={{ width: 260 }}
-              />
-              <Select
-                placeholder="Operator"
-                allowClear
-                style={{ width: 180 }}
-                onChange={v => setFilters(f => ({ ...f, operator_id: v }))}
-                showSearch
-                optionFilterProp="label"
-                options={operators.map(u => ({ label: u.name, value: u.id }))}
-              />
-              <Select
-                placeholder="Labor Type"
-                allowClear
-                style={{ width: 140 }}
-                onChange={v => setFilters(f => ({ ...f, labor_type: v }))}
-              >
-                {Object.keys(LABOR_TYPE_COLOR).map(t => (
-                  <Option key={t} value={t}><Tag color={LABOR_TYPE_COLOR[t]}>{t}</Tag></Option>
-                ))}
-              </Select>
-              <Space>
-                <Button
-                  type={viewMode === 'logs' ? 'primary' : 'default'}
-                  onClick={() => setViewMode('logs')} size="small"
-                >Logs</Button>
-                <Button
-                  type={viewMode === 'summary' ? 'primary' : 'default'}
-                  onClick={() => setViewMode('summary')} size="small"
-                >Summary</Button>
-              </Space>
-            </Space>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+            <RangePicker
+              onChange={v => setFilters(f => ({ ...f, dateRange: v }))}
+              format="DD MMM YYYY"
+              style={{ width: 240 }}
+            />
+            <Select
+              placeholder="Operator"
+              allowClear
+              style={{ width: 160 }}
+              onChange={v => setFilters(f => ({ ...f, operator_id: v }))}
+              showSearch
+              optionFilterProp="label"
+              options={operators.map(u => ({ label: u.name, value: u.id }))}
+            />
+            <Select
+              placeholder="Labor Type"
+              allowClear
+              style={{ width: 130 }}
+              onChange={v => setFilters(f => ({ ...f, labor_type: v }))}
+            >
+              {Object.keys(LABOR_TYPE_COLOR).map(t => (
+                <Option key={t} value={t}><Tag color={LABOR_TYPE_COLOR[t]}>{t}</Tag></Option>
+              ))}
+            </Select>
+            <Button
+              type={viewMode === 'logs' ? 'primary' : 'default'}
+              onClick={() => setViewMode('logs')} size="small"
+            >Logs</Button>
+            <Button
+              type={viewMode === 'summary' ? 'primary' : 'default'}
+              onClick={() => setViewMode('summary')} size="small"
+            >Summary</Button>
             {canWrite && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                 Log Labor
               </Button>
             )}
-          </Row>
+          </div>
 
-          <Table
+          <ResponsiveTable
             rowKey="id"
             dataSource={viewMode === 'logs' ? records : summary}
             columns={viewMode === 'logs' ? logColumns : summaryColumns}
@@ -296,7 +292,6 @@ export default function LaborTrackingPage() {
             pagination={{ pageSize: 20, showSizeChanger: true }}
           />
         </Card>
-      </div>
 
       {/* Create / Edit Drawer */}
       <Drawer
@@ -338,14 +333,14 @@ export default function LaborTrackingPage() {
           </Form.Item>
 
           <Row gutter={12}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="routing_step_id" label="Routing Step">
                 <Select allowClear placeholder="Select step (optional)">
                   {steps.map(s => <Option key={s.id} value={s.id}>Step {s.step_no} — {s.operation_name}</Option>)}
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="labor_type" label="Labor Type" rules={[{ required: true }]}>
                 <Select>
                   {Object.keys(LABOR_TYPE_COLOR).map(t => (
@@ -361,12 +356,12 @@ export default function LaborTrackingPage() {
           </Form.Item>
 
           <Row gutter={12}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="start_time" label="Start Time" rules={[{ required: true }]}>
                 <DatePicker showTime format="DD MMM YYYY HH:mm" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="end_time" label="End Time">
                 <DatePicker showTime format="DD MMM YYYY HH:mm" style={{ width: '100%' }} />
               </Form.Item>

@@ -285,6 +285,7 @@ export default function CheckSheetsPage() {
           columns={columns}
           loading={loading}
           size="small"
+          scroll={{ x: 800 }}
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
         />
       </Card>

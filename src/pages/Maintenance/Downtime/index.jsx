@@ -149,10 +149,9 @@ export default function DowntimePage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ClockCircleOutlined /> Downtime Log</Title>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={() => { loadLog(); loadPareto(); }}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setLogModal(true)}>Log Downtime</Button>
         </Space>
@@ -402,7 +401,6 @@ export default function DowntimePage() {
           </Space>
         </Form>
       </Modal>
-    </div>
     </AppLayout>
   );
 }

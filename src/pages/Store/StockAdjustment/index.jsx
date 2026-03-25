@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout              from '../../../components/AppLayout';
+import ResponsiveTable        from '../../../components/ResponsiveTable';
 import usePermissions         from '../../../hooks/usePermissions';
 import { stockAdjustmentApi } from '../../../api/store.api';
 import { itemApi }            from '../../../api/item.api';
@@ -329,7 +330,7 @@ export default function StockAdjustmentPage() {
           )}
         </div>
 
-        <Table
+        <ResponsiveTable
           rowKey="id"
           loading={loading}
           columns={columns}
@@ -359,7 +360,7 @@ export default function StockAdjustmentPage() {
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="warehouse_id" label="Warehouse" rules={[{ required: true, message: 'Select a warehouse' }]}>
                 <Select
                   showSearch
@@ -369,7 +370,7 @@ export default function StockAdjustmentPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="adj_date" label="Adjustment Date" rules={[{ required: true, message: 'Select a date' }]}>
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>
@@ -394,6 +395,7 @@ export default function StockAdjustmentPage() {
             Items
           </Divider>
 
+          <div className="res-line-items">
           {/* Header — drawer 760px - 48px padding = 712px content */}
           {/* Grid: 160px 1fr 80px 80px 80px 28px */}
           <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 80px 80px 80px 28px', gap: 6, marginBottom: 6 }}>
@@ -475,6 +477,7 @@ export default function StockAdjustmentPage() {
           >
             Add Item
           </Button>
+          </div>
         </Form>
       </Drawer>
     </AppLayout>

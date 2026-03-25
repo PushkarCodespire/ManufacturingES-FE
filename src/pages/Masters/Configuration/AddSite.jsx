@@ -603,7 +603,7 @@ const AddSitePage = () => {
         </div>
 
         {/* ── Two-panel layout ─────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', gap: 20, minHeight: 'calc(100vh - 240px)' }}>
+        <div className="res-two-panel" style={{ display: 'flex', gap: 20, minHeight: 'calc(100vh - 240px)' }}>
 
           {/* ── LEFT NAV ────────────────────────────────────────────────────── */}
           <div

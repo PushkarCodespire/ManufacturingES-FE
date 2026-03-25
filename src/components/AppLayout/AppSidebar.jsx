@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Layout, Menu, Avatar, Typography, Button, Tooltip,
+  Layout, Menu, Avatar, Typography, Button, Tooltip, Drawer,
 } from 'antd';
 import {
   AppstoreOutlined,
@@ -18,6 +18,7 @@ import {
   ControlOutlined,
   SolutionOutlined,
   SettingOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth }        from '../../context/AuthContext';
@@ -175,16 +176,38 @@ const NAV_ITEMS_DEF = [
     label: 'Procurement',
     icon:  <ShoppingCartOutlined />,
     children: [
-      { key: 'procurement-analytics',  label: 'Analytics',             permission: 'plan-procurement-analytics-procurement_analytics-read' },
-      { key: 'budget-management',      label: 'Budget Management',     permission: 'plan-budget-management-budget_management-read' },
-      { key: 'vendor-invoices',        label: 'Vendor Invoices',       permission: 'plan-vendor-invoices-vendor_invoices-read' },
-      { key: 'purchase-returns',       label: 'Purchase Returns',      permission: 'plan-purchase-returns-purchase_returns-read' },
-      { key: 'purchase-requisitions', label: 'Purchase Requisitions', permission: 'plan-pr-purchase_requisition-read' },
-      { key: 'vendor-rfq',            label: 'Vendor RFQ',            permission: 'plan-vendor-rfq-vendor_rfq-read' },
-      { key: 'purchase-orders',       label: 'Purchase Orders',       permission: 'plan-po-create_po-read' },
-      { key: 'bom-explosion',       label: 'BOM Explosion',       permission: 'plan-bom-explosion-bom_explosion-read' },
-      { key: 'supplier-scorecard',  label: 'Supplier Scorecard',  permission: 'plan-supplier-scorecard-supplier_scorecard-read' },
-      { key: 'scar',                label: 'SCAR',                permission: 'plan-scar-scar-read' },
+      // ── Purchasing ────────────────────────────────────────────────────
+      {
+        key: 'grp-proc-purchasing',
+        label: 'Purchasing',
+        children: [
+          { key: 'purchase-requisitions', label: 'Purchase Requisitions', permission: 'plan-pr-purchase_requisition-read'             },
+          { key: 'vendor-rfq',            label: 'Vendor RFQ',            permission: 'plan-vendor-rfq-vendor_rfq-read'               },
+          { key: 'purchase-orders',       label: 'Purchase Orders',       permission: 'plan-po-create_po-read'                        },
+          { key: 'vendor-invoices',       label: 'Vendor Invoices',       permission: 'plan-vendor-invoices-vendor_invoices-read'      },
+          { key: 'purchase-returns',      label: 'Purchase Returns',      permission: 'plan-purchase-returns-purchase_returns-read'    },
+        ],
+      },
+      // ── Planning ──────────────────────────────────────────────────────
+      {
+        key: 'grp-proc-planning',
+        label: 'Planning',
+        children: [
+          { key: 'procurement-analytics', label: 'Analytics',        permission: 'plan-procurement-analytics-procurement_analytics-read' },
+          { key: 'budget-management',     label: 'Budget Management', permission: 'plan-budget-management-budget_management-read'         },
+          { key: 'bom-explosion',         label: 'BOM Explosion',     permission: 'plan-bom-explosion-bom_explosion-read'                },
+        ],
+      },
+      // ── Vendor Management ─────────────────────────────────────────────
+      {
+        key: 'grp-proc-vendors',
+        label: 'Vendor Management',
+        children: [
+          { key: 'supplier-scorecard', label: 'Supplier Scorecard', permission: 'plan-supplier-scorecard-supplier_scorecard-read' },
+          { key: 'scar',               label: 'SCAR',               permission: 'plan-scar-scar-read'                             },
+        ],
+      },
+      // ── Subcontracting ────────────────────────────────────────────────
       {
         key:   'grp-subcontracting',
         label: 'Subcontracting',
@@ -235,24 +258,70 @@ const NAV_ITEMS_DEF = [
     label: 'Production',
     icon:  <ToolOutlined />,
     children: [
-      { key: 'work-orders',          label: 'Work Orders',       permission: 'prod-work_centre-manage_work_centre-read'          },
-      { key: 'job-cards',            label: 'Job Cards',         permission: 'prod-dpr-daily_production_report-read'             },
-      { key: 'time-standards',       label: 'Time Standards',    permission: 'prod-time_standards-operations-read'               },
-      { key: 'shift-planning',       label: 'Shift Planning',    permission: 'prod-shift_planning-manage_shifts-read'            },
-      { key: 'labor-tracking',       label: 'Labor Tracking',    permission: 'prod-labor_tracking-manage_labor-read'             },
-      { key: 'skill-matrix',         label: 'Skill Matrix',      permission: 'prod-skill_matrix-manage_skills-read'              },
-      { key: 'iqc',                  label: 'IQC Inspection',    permission: 'prod-quality_level-iqc-read'                       },
-      { key: 'lqc',                  label: 'LQC Inspection',    permission: 'prod-quality_level-iqc-read'                       },
-      { key: 'pqc',                  label: 'PQC Inspection',    permission: 'prod-quality_level-pqc-read'                       },
-      { key: 'oqc',                  label: 'OQC Inspection',    permission: 'prod-quality_level-oqc-read'                       },
-      { key: 'production-scheduling',label: 'Scheduling',        permission: 'prod-mrp_expected_production-create_plan-read'     },
-      { key: 'mrp-planning',         label: 'MRP / Net Req.',    permission: 'prod-mrp_expected_production-view_plan-read'        },
-      { key: 'oee-dashboard',        label: 'OEE Dashboard',     permission: 'prod-oee-oee_dashboard-read'                       },
-      { key: 'rework-tracking',      label: 'Rework Tracking',   permission: 'prod-rework_tracking-rework_vouchers-read'          },
-      { key: 'tool-management',      label: 'Tool Management',   permission: 'prod-tool_management-tool_logs-read'                },
-      { key: 'demand-forecast',      label: 'Demand Forecast',   permission: 'prod-demand_forecast-forecast-read'                 },
-      { key: 'capacity-planning',    label: 'Capacity Planning', permission: 'prod-dpr-daily_production_report-read'             },
-      { key: 'scrap-vouchers',       label: 'Scrap Authorization',permission: 'prod-dpr-rejection_entry-read'                   },
+      // ── Planning ───────────────────────────────────────────────────────
+      {
+        key: 'grp-prod-plan',
+        label: 'Planning',
+        children: [
+          { key: 'work-orders',           label: 'Work Orders',     permission: 'prod-work_centre-manage_work_centre-read'      },
+          { key: 'job-cards',             label: 'Job Cards',       permission: 'prod-dpr-daily_production_report-read'         },
+          { key: 'production-scheduling', label: 'Scheduling',      permission: 'prod-mrp_expected_production-create_plan-read' },
+          { key: 'mrp-planning',          label: 'MRP / Net Req.',  permission: 'prod-mrp_expected_production-view_plan-read'   },
+          { key: 'demand-forecast',       label: 'Demand Forecast', permission: 'prod-demand_forecast-forecast-read'            },
+        ],
+      },
+      // ── Inspections ────────────────────────────────────────────────────
+      {
+        key: 'grp-prod-inspect',
+        label: 'Inspections',
+        children: [
+          { key: 'iqc', label: 'IQC Inspection', permission: 'prod-quality_level-iqc-read' },
+          { key: 'lqc', label: 'LQC Inspection', permission: 'prod-quality_level-iqc-read' },
+          { key: 'pqc', label: 'PQC Inspection', permission: 'prod-quality_level-pqc-read' },
+          { key: 'oqc', label: 'OQC Inspection', permission: 'prod-quality_level-oqc-read' },
+        ],
+      },
+      // ── Workforce ──────────────────────────────────────────────────────
+      {
+        key: 'grp-prod-workforce',
+        label: 'Workforce',
+        children: [
+          { key: 'shift-planning', label: 'Shift Planning', permission: 'prod-shift_planning-manage_shifts-read'  },
+          { key: 'shift-handover', label: 'Shift Handover', permission: 'prod-shift_planning-manage_shifts-read'  },
+          { key: 'labor-tracking', label: 'Labor Tracking', permission: 'prod-labor_tracking-manage_labor-read'   },
+          { key: 'skill-matrix',   label: 'Skill Matrix',   permission: 'prod-skill_matrix-manage_skills-read'    },
+          { key: 'time-standards', label: 'Time Standards', permission: 'prod-time_standards-operations-read'     },
+        ],
+      },
+      // ── Monitoring ─────────────────────────────────────────────────────
+      {
+        key: 'grp-prod-monitor',
+        label: 'Monitoring',
+        children: [
+          { key: 'oee-dashboard',     label: 'OEE Dashboard',        permission: 'prod-oee-oee_dashboard-read'                 },
+          { key: 'capacity-planning', label: 'Capacity Planning',    permission: 'prod-dpr-daily_production_report-read'       },
+          { key: 'scoreboard',        label: 'Production Scoreboard',permission: 'prod-work_centre-manage_work_centre-read'    },
+          { key: 'andon',             label: 'Andon Board',          permission: 'prod-work_centre-manage_work_centre-read'    },
+        ],
+      },
+      // ── Operations ─────────────────────────────────────────────────────
+      {
+        key: 'grp-prod-ops',
+        label: 'Operations',
+        children: [
+          { key: 'rework-tracking', label: 'Rework Tracking',    permission: 'prod-rework_tracking-rework_vouchers-read' },
+          { key: 'scrap-vouchers',  label: 'Scrap Authorization', permission: 'prod-dpr-rejection_entry-read'            },
+          { key: 'tool-management', label: 'Tool Management',    permission: 'prod-tool_management-tool_logs-read'       },
+        ],
+      },
+      // ── Cost Intelligence ───────────────────────────────────────────────
+      {
+        key: 'grp-prod-costing',
+        label: 'Cost Intelligence',
+        children: [
+          { key: 'job-cost-sheet', label: 'Job Cost Sheet', permission: 'prod-cost_intelligence-job_cost_sheet-read' },
+        ],
+      },
     ],
   },
 
@@ -262,15 +331,36 @@ const NAV_ITEMS_DEF = [
     label: 'Maintenance',
     icon:  <ToolOutlined />,
     children: [
-      { key: 'mnt-equipment',   label: 'Equipment Master',       permission: 'mnt-equipment-read'   },
-      { key: 'mnt-health',      label: 'Health Dashboard',       permission: 'mnt-health-read'      },
-      { key: 'mnt-breakdown',   label: 'Breakdown / Corrective', permission: 'mnt-breakdown-read'   },
-      { key: 'mnt-downtime',    label: 'Downtime Log',           permission: 'mnt-downtime-read'    },
-      { key: 'mnt-pm',          label: 'PM Schedule',            permission: 'mnt-pm-read'          },
-      { key: 'mnt-spare-parts', label: 'Spare Parts',            permission: 'mnt-spare_parts-read' },
-      { key: 'mnt-loto',        label: 'LOTO & Safety',          permission: 'mnt-loto-read'        },
-      { key: 'mnt-kpi',         label: 'KPI Dashboard',          permission: 'mnt-kpi-read'         },
-      { key: 'mnt-ai',          label: 'AI Insights',            permission: 'mnt-ai-read'           },
+      // ── Assets ────────────────────────────────────────────────────────
+      {
+        key: 'grp-mnt-assets',
+        label: 'Assets',
+        children: [
+          { key: 'mnt-equipment',   label: 'Equipment Master', permission: 'mnt-equipment-read'   },
+          { key: 'mnt-spare-parts', label: 'Spare Parts',      permission: 'mnt-spare_parts-read' },
+        ],
+      },
+      // ── Work Management ───────────────────────────────────────────────
+      {
+        key: 'grp-mnt-work',
+        label: 'Work Management',
+        children: [
+          { key: 'mnt-breakdown', label: 'Breakdown / Corrective', permission: 'mnt-breakdown-read' },
+          { key: 'mnt-pm',        label: 'PM Schedule',            permission: 'mnt-pm-read'        },
+          { key: 'mnt-loto',      label: 'LOTO & Safety',          permission: 'mnt-loto-read'      },
+        ],
+      },
+      // ── Monitoring ────────────────────────────────────────────────────
+      {
+        key: 'grp-mnt-monitor',
+        label: 'Monitoring',
+        children: [
+          { key: 'mnt-health',   label: 'Health Dashboard', permission: 'mnt-health-read'   },
+          { key: 'mnt-kpi',      label: 'KPI Dashboard',    permission: 'mnt-kpi-read'      },
+          { key: 'mnt-downtime', label: 'Downtime Log',     permission: 'mnt-downtime-read' },
+          { key: 'mnt-ai',       label: 'AI Insights',      permission: 'mnt-ai-read'       },
+        ],
+      },
     ],
   },
   // ── Mold Management ────────────────────────────────────────────────────────
@@ -279,19 +369,40 @@ const NAV_ITEMS_DEF = [
     label: 'Mold Management',
     icon:  <ToolOutlined />,
     children: [
-      { key: 'mol-master',       label: 'Mold Master',       permission: 'mold-master-read' },
-      { key: 'mol-cavities',     label: 'Cavity Tracking',   permission: 'mold-cavities-read' },
-      { key: 'mol-shot-count',   label: 'Shot Count',        permission: 'mold-shot_count-read' },
-      { key: 'mol-life',         label: 'Life Management',   permission: 'mold-life_management-read' },
-      { key: 'mol-issue-return', label: 'Issue / Return',    permission: 'mold-issue_return-read' },
-      { key: 'mol-store',        label: 'Mold Store',        permission: 'mold-store_dashboard-read' },
-      { key: 'mol-pm',           label: 'PM Schedule',       permission: 'mold-pm-read' },
-      { key: 'mol-repair',       label: 'Repair',            permission: 'mold-repair-read' },
-      { key: 'mol-trial',        label: 'Trials',            permission: 'mold-trial-read' },
-      { key: 'mol-cost',         label: 'Cost Tracking',     permission: 'mold-cost-read' },
-      { key: 'mol-documents',    label: 'Documents',         permission: 'mold-documents-read' },
-      { key: 'mol-ai-insights',  label: 'AI Insights',       permission: 'mold-ai_insights-read' },
-      { key: 'mol-selection',    label: 'Mold Selection',    permission: 'mold-selection-read' },
+      // ── Mold Data ─────────────────────────────────────────────────────
+      {
+        key: 'grp-mol-data',
+        label: 'Mold Data',
+        children: [
+          { key: 'mol-master',     label: 'Mold Master',     permission: 'mold-master-read'           },
+          { key: 'mol-cavities',   label: 'Cavity Tracking', permission: 'mold-cavities-read'         },
+          { key: 'mol-shot-count', label: 'Shot Count',      permission: 'mold-shot_count-read'       },
+          { key: 'mol-life',       label: 'Life Management', permission: 'mold-life_management-read'  },
+          { key: 'mol-store',      label: 'Mold Store',      permission: 'mold-store_dashboard-read'  },
+        ],
+      },
+      // ── Work Orders ───────────────────────────────────────────────────
+      {
+        key: 'grp-mol-work',
+        label: 'Work Orders',
+        children: [
+          { key: 'mol-issue-return', label: 'Issue / Return', permission: 'mold-issue_return-read' },
+          { key: 'mol-pm',           label: 'PM Schedule',    permission: 'mold-pm-read'           },
+          { key: 'mol-repair',       label: 'Repair',         permission: 'mold-repair-read'       },
+          { key: 'mol-trial',        label: 'Trials',         permission: 'mold-trial-read'        },
+        ],
+      },
+      // ── Analytics ─────────────────────────────────────────────────────
+      {
+        key: 'grp-mol-analytics',
+        label: 'Analytics',
+        children: [
+          { key: 'mol-cost',        label: 'Cost Tracking',  permission: 'mold-cost-read'         },
+          { key: 'mol-documents',   label: 'Documents',      permission: 'mold-documents-read'    },
+          { key: 'mol-ai-insights', label: 'AI Insights',    permission: 'mold-ai_insights-read'  },
+          { key: 'mol-selection',   label: 'Mold Selection', permission: 'mold-selection-read'    },
+        ],
+      },
     ],
   },
   {
@@ -407,6 +518,10 @@ const KEY_TO_PATH = {
   'demand-forecast':       '/production/demand-forecast',
   'capacity-planning':     '/production/capacity-planning',
   'scrap-vouchers':        '/production/scrap',
+  'job-cost-sheet':        '/production/job-cost-sheet',
+  'scoreboard':            '/production/scoreboard',
+  'andon':                 '/production/andon',
+  'shift-handover':        '/production/shift-handover',
   // Quality & NPD module
   'q-capa':         '/quality/capa',
   'q-ncr':          '/quality/ncr',
@@ -479,7 +594,6 @@ const KEY_TO_PATH = {
 };
 
 // ── Derive selected key + open keys from current pathname ────────────────────
-// Both parent SubMenu (masters) AND child SubMenu (grp-sites etc.) are tracked
 const getNavState = (pathname) => {
   // Sites sub-group
   if (pathname.startsWith('/masters/employees'))     return { selected: 'employees',     open: ['masters', 'grp-sites'] };
@@ -532,38 +646,50 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/store/inventory-dashboard')) return { selected: 's-inventory-dashboard',open: ['store', 'grp-store-inventory']    };
   if (pathname.startsWith('/store/stock-ledger'))       return { selected: 's-stock-ledger',      open: ['store', 'grp-store-inventory']    };
   if (pathname.startsWith('/store/stock-adjustment'))   return { selected: 's-stock-adjustment',  open: ['store', 'grp-store-inventory']    };
-  // Production module
-  if (pathname.startsWith('/production/work-orders'))    return { selected: 'work-orders',           open: ['production'] };
-  if (pathname.startsWith('/production/job-cards'))      return { selected: 'job-cards',             open: ['production'] };
-  if (pathname.startsWith('/production/time-standards')) return { selected: 'time-standards',        open: ['production'] };
-  if (pathname.startsWith('/production/shift-planning'))  return { selected: 'shift-planning',  open: ['production'] };
-  if (pathname.startsWith('/production/labor-tracking'))  return { selected: 'labor-tracking',  open: ['production'] };
-  if (pathname.startsWith('/production/skill-matrix'))    return { selected: 'skill-matrix',    open: ['production'] };
-  if (pathname.startsWith('/production/iqc'))             return { selected: 'iqc',             open: ['production'] };
-  if (pathname.startsWith('/production/lqc'))          return { selected: 'lqc',                   open: ['production'] };
-  if (pathname.startsWith('/production/pqc'))          return { selected: 'pqc',                   open: ['production'] };
-  if (pathname.startsWith('/production/oqc'))          return { selected: 'oqc',                   open: ['production'] };
-  if (pathname.startsWith('/production/scheduling'))         return { selected: 'production-scheduling', open: ['production'] };
-  if (pathname.startsWith('/production/mrp'))               return { selected: 'mrp-planning',           open: ['production'] };
-  if (pathname.startsWith('/production/oee'))              return { selected: 'oee-dashboard',          open: ['production'] };
-  if (pathname.startsWith('/production/rework'))           return { selected: 'rework-tracking',        open: ['production'] };
-  if (pathname.startsWith('/production/tool-management'))  return { selected: 'tool-management',        open: ['production'] };
-  if (pathname.startsWith('/production/demand-forecast'))  return { selected: 'demand-forecast',        open: ['production'] };
-  if (pathname.startsWith('/production/capacity-planning')) return { selected: 'capacity-planning',      open: ['production'] };
-  if (pathname.startsWith('/production/scrap'))             return { selected: 'scrap-vouchers',         open: ['production'] };
-  // Procurement module
-  if (pathname.startsWith('/procurement/analytics'))            return { selected: 'procurement-analytics',  open: ['procurement'] };
-  if (pathname.startsWith('/procurement/budget-management'))    return { selected: 'budget-management',  open: ['procurement'] };
-  if (pathname.startsWith('/procurement/vendor-invoices'))      return { selected: 'vendor-invoices',    open: ['procurement'] };
-  if (pathname.startsWith('/procurement/purchase-returns'))     return { selected: 'purchase-returns',   open: ['procurement'] };
-  if (pathname.startsWith('/procurement/purchase-requisitions')) return { selected: 'purchase-requisitions', open: ['procurement'] };
-  if (pathname.startsWith('/procurement/vendor-rfq'))           return { selected: 'vendor-rfq',            open: ['procurement'] };
-  if (pathname.startsWith('/procurement/bom-explosion'))       return { selected: 'bom-explosion',      open: ['procurement'] };
-  if (pathname.startsWith('/procurement/supplier-scorecard'))  return { selected: 'supplier-scorecard', open: ['procurement'] };
-  if (pathname.startsWith('/procurement/scar'))                return { selected: 'scar',               open: ['procurement'] };
-  if (pathname.startsWith('/procurement/'))                    return { selected: 'purchase-orders',    open: ['procurement'] };
-  if (pathname.startsWith('/subcontracting/outward'))  return { selected: 'outward-challan',   open: ['procurement', 'grp-subcontracting']    };
-  if (pathname.startsWith('/subcontracting/inward'))   return { selected: 'inward-challan',    open: ['procurement', 'grp-subcontracting']    };
+  // Production — Planning sub-group
+  if (pathname.startsWith('/production/work-orders'))     return { selected: 'work-orders',           open: ['production', 'grp-prod-plan'] };
+  if (pathname.startsWith('/production/job-cards'))       return { selected: 'job-cards',             open: ['production', 'grp-prod-plan'] };
+  if (pathname.startsWith('/production/scheduling'))      return { selected: 'production-scheduling', open: ['production', 'grp-prod-plan'] };
+  if (pathname.startsWith('/production/mrp'))             return { selected: 'mrp-planning',           open: ['production', 'grp-prod-plan'] };
+  if (pathname.startsWith('/production/demand-forecast')) return { selected: 'demand-forecast',        open: ['production', 'grp-prod-plan'] };
+  // Production — Inspections sub-group
+  if (pathname.startsWith('/production/iqc'))             return { selected: 'iqc', open: ['production', 'grp-prod-inspect'] };
+  if (pathname.startsWith('/production/lqc'))             return { selected: 'lqc', open: ['production', 'grp-prod-inspect'] };
+  if (pathname.startsWith('/production/pqc'))             return { selected: 'pqc', open: ['production', 'grp-prod-inspect'] };
+  if (pathname.startsWith('/production/oqc'))             return { selected: 'oqc', open: ['production', 'grp-prod-inspect'] };
+  // Production — Workforce sub-group
+  if (pathname.startsWith('/production/shift-planning'))  return { selected: 'shift-planning', open: ['production', 'grp-prod-workforce'] };
+  if (pathname.startsWith('/production/shift-handover'))  return { selected: 'shift-handover', open: ['production', 'grp-prod-workforce'] };
+  if (pathname.startsWith('/production/labor-tracking'))  return { selected: 'labor-tracking', open: ['production', 'grp-prod-workforce'] };
+  if (pathname.startsWith('/production/skill-matrix'))    return { selected: 'skill-matrix',   open: ['production', 'grp-prod-workforce'] };
+  if (pathname.startsWith('/production/time-standards'))  return { selected: 'time-standards', open: ['production', 'grp-prod-workforce'] };
+  // Production — Monitoring sub-group
+  if (pathname.startsWith('/production/oee'))              return { selected: 'oee-dashboard',     open: ['production', 'grp-prod-monitor'] };
+  if (pathname.startsWith('/production/capacity-planning')) return { selected: 'capacity-planning', open: ['production', 'grp-prod-monitor'] };
+  if (pathname.startsWith('/production/scoreboard'))        return { selected: 'scoreboard',        open: ['production', 'grp-prod-monitor'] };
+  if (pathname.startsWith('/production/andon'))             return { selected: 'andon',             open: ['production', 'grp-prod-monitor'] };
+  // Production — Operations sub-group
+  if (pathname.startsWith('/production/rework'))           return { selected: 'rework-tracking',  open: ['production', 'grp-prod-ops'] };
+  if (pathname.startsWith('/production/scrap'))            return { selected: 'scrap-vouchers',   open: ['production', 'grp-prod-ops'] };
+  if (pathname.startsWith('/production/tool-management'))  return { selected: 'tool-management',  open: ['production', 'grp-prod-ops'] };
+  // Production — Cost Intelligence sub-group
+  if (pathname.startsWith('/production/job-cost-sheet'))   return { selected: 'job-cost-sheet',   open: ['production', 'grp-prod-costing'] };
+  // Procurement — Purchasing sub-group
+  if (pathname.startsWith('/procurement/purchase-requisitions')) return { selected: 'purchase-requisitions', open: ['procurement', 'grp-proc-purchasing'] };
+  if (pathname.startsWith('/procurement/vendor-rfq'))            return { selected: 'vendor-rfq',            open: ['procurement', 'grp-proc-purchasing'] };
+  if (pathname.startsWith('/procurement/purchase-orders'))       return { selected: 'purchase-orders',       open: ['procurement', 'grp-proc-purchasing'] };
+  if (pathname.startsWith('/procurement/vendor-invoices'))       return { selected: 'vendor-invoices',       open: ['procurement', 'grp-proc-purchasing'] };
+  if (pathname.startsWith('/procurement/purchase-returns'))      return { selected: 'purchase-returns',      open: ['procurement', 'grp-proc-purchasing'] };
+  // Procurement — Planning sub-group
+  if (pathname.startsWith('/procurement/analytics'))             return { selected: 'procurement-analytics', open: ['procurement', 'grp-proc-planning'] };
+  if (pathname.startsWith('/procurement/budget-management'))     return { selected: 'budget-management',     open: ['procurement', 'grp-proc-planning'] };
+  if (pathname.startsWith('/procurement/bom-explosion'))        return { selected: 'bom-explosion',         open: ['procurement', 'grp-proc-planning'] };
+  // Procurement — Vendor Management sub-group
+  if (pathname.startsWith('/procurement/supplier-scorecard'))   return { selected: 'supplier-scorecard',    open: ['procurement', 'grp-proc-vendors'] };
+  if (pathname.startsWith('/procurement/scar'))                 return { selected: 'scar',                  open: ['procurement', 'grp-proc-vendors'] };
+  // Subcontracting
+  if (pathname.startsWith('/subcontracting/outward'))  return { selected: 'outward-challan', open: ['procurement', 'grp-subcontracting'] };
+  if (pathname.startsWith('/subcontracting/inward'))   return { selected: 'inward-challan',  open: ['procurement', 'grp-subcontracting'] };
   // Accounts module
   if (pathname.startsWith('/accounts/tally-sync'))        return { selected: 'acc-tally-sync',        open: ['accounts'] };
   if (pathname.startsWith('/accounts/invoices'))           return { selected: 'acc-invoices',           open: ['accounts'] };
@@ -572,30 +698,34 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/accounts/copq'))               return { selected: 'acc-copq',              open: ['accounts'] };
   // Admin
   if (pathname.startsWith('/admin/control-room')) return { selected: 'admin-control-room', open: ['admin'] };
-  // Maintenance
-  if (pathname.startsWith('/maintenance/equipment'))   return { selected: 'mnt-equipment',   open: ['maintenance'] };
-  if (pathname.startsWith('/maintenance/health'))      return { selected: 'mnt-health',      open: ['maintenance'] };
-  if (pathname.startsWith('/maintenance/breakdown'))   return { selected: 'mnt-breakdown',   open: ['maintenance'] };
-  if (pathname.startsWith('/maintenance/downtime'))    return { selected: 'mnt-downtime',    open: ['maintenance'] };
-  if (pathname.startsWith('/maintenance/pm'))          return { selected: 'mnt-pm',          open: ['maintenance'] };
-  if (pathname.startsWith('/maintenance/spare-parts')) return { selected: 'mnt-spare-parts', open: ['maintenance'] };
-  if (pathname.startsWith('/maintenance/loto'))        return { selected: 'mnt-loto',        open: ['maintenance'] };
-  if (pathname.startsWith('/maintenance/kpi'))         return { selected: 'mnt-kpi',         open: ['maintenance'] };
-  if (pathname.startsWith('/maintenance/ai-insights')) return { selected: 'mnt-ai',           open: ['maintenance'] };
-  // Mold Management
-  if (pathname.startsWith('/mold/master'))       return { selected: 'mol-master',       open: ['mold'] };
-  if (pathname.startsWith('/mold/cavities'))     return { selected: 'mol-cavities',     open: ['mold'] };
-  if (pathname.startsWith('/mold/shot-count'))   return { selected: 'mol-shot-count',   open: ['mold'] };
-  if (pathname.startsWith('/mold/life'))         return { selected: 'mol-life',         open: ['mold'] };
-  if (pathname.startsWith('/mold/issue-return')) return { selected: 'mol-issue-return', open: ['mold'] };
-  if (pathname.startsWith('/mold/store'))        return { selected: 'mol-store',        open: ['mold'] };
-  if (pathname.startsWith('/mold/pm'))           return { selected: 'mol-pm',           open: ['mold'] };
-  if (pathname.startsWith('/mold/repair'))       return { selected: 'mol-repair',       open: ['mold'] };
-  if (pathname.startsWith('/mold/trial'))        return { selected: 'mol-trial',        open: ['mold'] };
-  if (pathname.startsWith('/mold/cost'))         return { selected: 'mol-cost',         open: ['mold'] };
-  if (pathname.startsWith('/mold/documents'))    return { selected: 'mol-documents',    open: ['mold'] };
-  if (pathname.startsWith('/mold/ai-insights'))  return { selected: 'mol-ai-insights',  open: ['mold'] };
-  if (pathname.startsWith('/mold/selection'))    return { selected: 'mol-selection',    open: ['mold'] };
+  // Maintenance — Assets sub-group
+  if (pathname.startsWith('/maintenance/equipment'))   return { selected: 'mnt-equipment',   open: ['maintenance', 'grp-mnt-assets'] };
+  if (pathname.startsWith('/maintenance/spare-parts')) return { selected: 'mnt-spare-parts', open: ['maintenance', 'grp-mnt-assets'] };
+  // Maintenance — Work Management sub-group
+  if (pathname.startsWith('/maintenance/breakdown'))   return { selected: 'mnt-breakdown',   open: ['maintenance', 'grp-mnt-work'] };
+  if (pathname.startsWith('/maintenance/pm'))          return { selected: 'mnt-pm',          open: ['maintenance', 'grp-mnt-work'] };
+  if (pathname.startsWith('/maintenance/loto'))        return { selected: 'mnt-loto',        open: ['maintenance', 'grp-mnt-work'] };
+  // Maintenance — Monitoring sub-group
+  if (pathname.startsWith('/maintenance/health'))      return { selected: 'mnt-health',   open: ['maintenance', 'grp-mnt-monitor'] };
+  if (pathname.startsWith('/maintenance/kpi'))         return { selected: 'mnt-kpi',      open: ['maintenance', 'grp-mnt-monitor'] };
+  if (pathname.startsWith('/maintenance/downtime'))    return { selected: 'mnt-downtime', open: ['maintenance', 'grp-mnt-monitor'] };
+  if (pathname.startsWith('/maintenance/ai-insights')) return { selected: 'mnt-ai',       open: ['maintenance', 'grp-mnt-monitor'] };
+  // Mold — Mold Data sub-group
+  if (pathname.startsWith('/mold/master'))       return { selected: 'mol-master',     open: ['mold', 'grp-mol-data'] };
+  if (pathname.startsWith('/mold/cavities'))     return { selected: 'mol-cavities',   open: ['mold', 'grp-mol-data'] };
+  if (pathname.startsWith('/mold/shot-count'))   return { selected: 'mol-shot-count', open: ['mold', 'grp-mol-data'] };
+  if (pathname.startsWith('/mold/life'))         return { selected: 'mol-life',       open: ['mold', 'grp-mol-data'] };
+  if (pathname.startsWith('/mold/store'))        return { selected: 'mol-store',      open: ['mold', 'grp-mol-data'] };
+  // Mold — Work Orders sub-group
+  if (pathname.startsWith('/mold/issue-return')) return { selected: 'mol-issue-return', open: ['mold', 'grp-mol-work'] };
+  if (pathname.startsWith('/mold/pm'))           return { selected: 'mol-pm',           open: ['mold', 'grp-mol-work'] };
+  if (pathname.startsWith('/mold/repair'))       return { selected: 'mol-repair',       open: ['mold', 'grp-mol-work'] };
+  if (pathname.startsWith('/mold/trial'))        return { selected: 'mol-trial',        open: ['mold', 'grp-mol-work'] };
+  // Mold — Analytics sub-group
+  if (pathname.startsWith('/mold/cost'))         return { selected: 'mol-cost',        open: ['mold', 'grp-mol-analytics'] };
+  if (pathname.startsWith('/mold/documents'))    return { selected: 'mol-documents',   open: ['mold', 'grp-mol-analytics'] };
+  if (pathname.startsWith('/mold/ai-insights'))  return { selected: 'mol-ai-insights', open: ['mold', 'grp-mol-analytics'] };
+  if (pathname.startsWith('/mold/selection'))    return { selected: 'mol-selection',   open: ['mold', 'grp-mol-analytics'] };
   // Generic masters fallback
   if (pathname.startsWith('/masters'))               return { selected: 'masters',       open: ['masters'] };
   // HR & Training
@@ -623,7 +753,17 @@ const cleanDividers = (items) =>
   });
 
 // ── Component ────────────────────────────────────────────────────────────────
-const AppSidebar = ({ collapsed, onCollapse }) => {
+/**
+ * AppSidebar
+ *
+ * Props:
+ *   collapsed      {boolean}  — desktop collapsed state
+ *   onCollapse     {function} — toggle desktop collapse
+ *   mobileMode     {boolean}  — true on mobile screens → renders as Drawer overlay
+ *   mobileOpen     {boolean}  — controls Drawer open/close state
+ *   onMobileClose  {function} — close the mobile Drawer
+ */
+const AppSidebar = ({ collapsed, onCollapse, mobileMode, mobileOpen, onMobileClose }) => {
   const { user, logout } = useAuth();
   const { can, isAdmin } = usePermissions();
   const navigate         = useNavigate();
@@ -633,7 +773,6 @@ const AppSidebar = ({ collapsed, onCollapse }) => {
   const [openKeys, setOpenKeys] = useState(initialOpen);
 
   // Sync open keys when route changes (e.g. programmatic navigation)
-  // Merge required keys so manually-opened sub-groups stay open
   useEffect(() => {
     const { open } = getNavState(location.pathname);
     setOpenKeys((prev) => {
@@ -645,20 +784,21 @@ const AppSidebar = ({ collapsed, onCollapse }) => {
   const deptColor = DEPT_COLORS[user?.department?.code] || '#1d4ed8';
   const initials  = user?.name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
 
+  // In mobile Drawer mode: always render expanded (never show collapsed icon-only view)
+  const isMobileDrawer     = !!mobileMode;
+  const effectiveCollapsed = isMobileDrawer ? false : collapsed;
+
   // ── Build filtered menu items based on current user's permissions ──────────
   const menuItems = useMemo(() => {
     const userRoleName = user?.role?.name;
 
     const resolveItem = (item) => {
-      // Pass-through dividers
       if (item.type === 'divider') return item;
 
       const { key, label, icon, disabled, permission, adminOnly, roles, children, type } = item;
 
-      // Role whitelist — hide entirely for anyone whose role is not in the list
       if (roles) {
         if (!roles.includes(userRoleName)) return null;
-        // User's role is allowed — resolve children recursively if any
         if (children) {
           const visible = children.map(resolveItem).filter(Boolean);
           if (visible.length === 0) return null;
@@ -667,36 +807,257 @@ const AppSidebar = ({ collapsed, onCollapse }) => {
         }
         return { key, label, icon, type };
       }
-      // Permission-gated leaf
       if (permission) {
         return can(permission) ? { key, label, icon, type } : null;
       }
-      // Admin-only disabled item
       if (adminOnly) {
         return isAdmin ? { key, label, icon, disabled: true, type } : null;
       }
-      // Has children (SubMenu or Group) — filter recursively
       if (children) {
         const visible = children.map(resolveItem).filter(Boolean);
         if (visible.length === 0) return null;
-        // Clean orphan dividers inside this group/submenu
         const cleaned = cleanDividers(visible);
         return cleaned.length > 0 ? { key, label, icon, children: cleaned, type } : null;
       }
-      // Unrestricted item
       return { key, label, icon, type };
     };
 
     return NAV_ITEMS_DEF.map(resolveItem).filter(Boolean);
   }, [can, isAdmin, user?.role?.name]);
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleLogout    = () => { logout(); navigate('/login'); };
+  const handleMenuClick = ({ key }) => { const path = KEY_TO_PATH[key]; if (path) navigate(path); };
 
-  const handleMenuClick = ({ key }) => {
-    const path = KEY_TO_PATH[key];
-    if (path) navigate(path);
-  };
+  // ── Shared inner content (same JSX used in both Sider and Drawer) ──────────
+  const sidebarContent = (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
+      {/* ── COMPACT USER PANEL ──────────────────────────────────────────── */}
+      <div
+        style={{
+          padding:        effectiveCollapsed ? '12px 0' : '12px 14px',
+          borderBottom:   '1px solid #f0f0f0',
+          flexShrink:     0,
+          display:        'flex',
+          alignItems:     'center',
+          justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
+          transition:     'padding 0.2s ease',
+          position:       'relative',
+        }}
+      >
+        {effectiveCollapsed ? (
+          <Tooltip title={user?.name} placement="right">
+            <Avatar
+              size={32}
+              style={{
+                background: deptColor,
+                fontWeight: 700,
+                fontSize:   13,
+                cursor:     'pointer',
+                boxShadow:  `0 2px 6px ${deptColor}30`,
+              }}
+              onClick={() => navigate('/profile')}
+            >
+              {initials}
+            </Avatar>
+          </Tooltip>
+        ) : (
+          <div
+            style={{
+              display:    'flex',
+              alignItems: 'center',
+              gap:        10,
+              cursor:     'pointer',
+              width:      '100%',
+              minWidth:   0,
+              paddingRight: isMobileDrawer ? 32 : 0,
+            }}
+            onClick={() => navigate('/profile')}
+          >
+            <Avatar
+              size={32}
+              style={{
+                background: deptColor,
+                fontWeight: 700,
+                fontSize:   13,
+                flexShrink: 0,
+                boxShadow:  `0 2px 6px ${deptColor}30`,
+              }}
+            >
+              {initials}
+            </Avatar>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <Text
+                ellipsis
+                style={{ fontSize: 13, fontWeight: 600, color: '#111827', display: 'block', lineHeight: '18px' }}
+              >
+                {user?.name}
+              </Text>
+              <Text
+                ellipsis
+                style={{ fontSize: 11, color: '#6b7280', display: 'block', lineHeight: '16px' }}
+              >
+                {user?.role?.label}
+              </Text>
+            </div>
+          </div>
+        )}
+
+        {/* ── Close button — only shown when rendered as mobile Drawer ── */}
+        {isMobileDrawer && (
+          <Button
+            type="text"
+            size="small"
+            icon={<CloseOutlined style={{ fontSize: 13 }} />}
+            onClick={onMobileClose}
+            style={{
+              position:  'absolute',
+              top:       '50%',
+              right:     10,
+              transform: 'translateY(-50%)',
+              color:     '#6b7280',
+              borderRadius: 6,
+              width:     28,
+              height:    28,
+              display:   'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          />
+        )}
+      </div>
+
+      {/* ── NAVIGATION MENU ────────────────────────────────────────────── */}
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: effectiveCollapsed ? 'visible' : 'hidden' }}>
+        <Menu
+          mode="inline"
+          inlineCollapsed={effectiveCollapsed}
+          inlineIndent={16}
+          selectedKeys={[selected]}
+          {...(effectiveCollapsed
+            ? {}
+            : { openKeys, onOpenChange: (keys) => setOpenKeys(keys) }
+          )}
+          items={menuItems}
+          onClick={handleMenuClick}
+          style={{ border: 'none', background: 'transparent', paddingTop: 4 }}
+        />
+      </div>
+
+      {/* ── BOTTOM ACTIONS ─────────────────────────────────────────────── */}
+      <div style={{ flexShrink: 0, borderTop: '1px solid #f0f0f0', padding: '6px 8px' }}>
+        {effectiveCollapsed ? (
+          /* Collapsed: icon-only buttons */
+          <>
+            {isAdmin && (
+              <Tooltip title="Reset Password" placement="right">
+                <Button
+                  type="text"
+                  icon={<KeyOutlined />}
+                  style={{ width: '100%', color: '#6b7280', marginBottom: 2 }}
+                  onClick={() => navigate('/admin/reset-password')}
+                />
+              </Tooltip>
+            )}
+            <Tooltip title="Sign Out" placement="right">
+              <Button
+                type="text"
+                danger
+                icon={<LogoutOutlined />}
+                style={{ width: '100%', marginBottom: 2 }}
+                onClick={handleLogout}
+              />
+            </Tooltip>
+            <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 6, marginTop: 2, display: 'flex', justifyContent: 'center' }}>
+              <Tooltip title="Expand sidebar" placement="right">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<MenuUnfoldOutlined />}
+                  onClick={onCollapse}
+                  style={{ color: '#9ca3af' }}
+                />
+              </Tooltip>
+            </div>
+          </>
+        ) : (
+          /* Expanded: text buttons */
+          <>
+            {isAdmin && (
+              <Button
+                type="text"
+                icon={<KeyOutlined />}
+                block
+                style={{
+                  textAlign:      'left',
+                  justifyContent: 'flex-start',
+                  color:          '#6b7280',
+                  fontSize:       12,
+                  height:         32,
+                  paddingInline:  10,
+                  marginBottom:   2,
+                  borderRadius:   6,
+                  display:        'flex',
+                  alignItems:     'center',
+                }}
+                onClick={() => navigate('/admin/reset-password')}
+              >
+                Reset Password
+              </Button>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Button
+                type="text"
+                danger
+                icon={<LogoutOutlined />}
+                size="small"
+                style={{ fontSize: 12, paddingInline: 10, borderRadius: 6 }}
+                onClick={handleLogout}
+              >
+                Sign Out
+              </Button>
+              {/* Hide the collapse toggle when inside a mobile Drawer */}
+              {!isMobileDrawer && (
+                <Tooltip title="Collapse sidebar" placement="right">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<MenuFoldOutlined />}
+                    onClick={onCollapse}
+                    style={{ color: '#9ca3af', borderRadius: 6 }}
+                  />
+                </Tooltip>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+    </div>
+  );
+
+  // ── Mobile: render as full-height Drawer overlay ──────────────────────────
+  if (isMobileDrawer) {
+    return (
+      <Drawer
+        placement="left"
+        open={mobileOpen}
+        onClose={onMobileClose}
+        width={Math.min(248, typeof window !== 'undefined' ? window.innerWidth - 48 : 248)}
+        closable={false}
+        maskClosable={true}
+        styles={{
+          header: { display: 'none' },
+          body:   { padding: 0 },
+        }}
+        style={{ zIndex: 300 }}
+      >
+        {sidebarContent}
+      </Drawer>
+    );
+  }
+
+  // ── Desktop / tablet: render as fixed Sider ───────────────────────────────
   return (
     <Sider
       width={248}
@@ -714,192 +1075,7 @@ const AppSidebar = ({ collapsed, onCollapse }) => {
         boxShadow:   '2px 0 8px rgba(0,0,0,0.04)',
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-
-        {/* ── COMPACT USER PANEL ──────────────────────────────────────────── */}
-        <div
-          style={{
-            padding:      collapsed ? '12px 0' : '12px 14px',
-            borderBottom: '1px solid #f0f0f0',
-            flexShrink:   0,
-            display:      'flex',
-            alignItems:   'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            transition:   'padding 0.2s ease',
-          }}
-        >
-          {collapsed ? (
-            <Tooltip title={user?.name} placement="right">
-              <Avatar
-                size={32}
-                style={{
-                  background: deptColor,
-                  fontWeight: 700,
-                  fontSize:   13,
-                  cursor:     'pointer',
-                  boxShadow:  `0 2px 6px ${deptColor}30`,
-                }}
-                onClick={() => navigate('/profile')}
-              >
-                {initials}
-              </Avatar>
-            </Tooltip>
-          ) : (
-            <div
-              style={{
-                display:    'flex',
-                alignItems: 'center',
-                gap:        10,
-                cursor:     'pointer',
-                width:      '100%',
-                minWidth:   0,
-              }}
-              onClick={() => navigate('/profile')}
-            >
-              <Avatar
-                size={32}
-                style={{
-                  background: deptColor,
-                  fontWeight: 700,
-                  fontSize:   13,
-                  flexShrink: 0,
-                  boxShadow:  `0 2px 6px ${deptColor}30`,
-                }}
-              >
-                {initials}
-              </Avatar>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <Text
-                  ellipsis
-                  style={{
-                    fontSize:   13,
-                    fontWeight: 600,
-                    color:      '#111827',
-                    display:    'block',
-                    lineHeight: '18px',
-                  }}
-                >
-                  {user?.name}
-                </Text>
-                <Text
-                  ellipsis
-                  style={{
-                    fontSize:   11,
-                    color:      '#6b7280',
-                    display:    'block',
-                    lineHeight: '16px',
-                  }}
-                >
-                  {user?.role?.label}
-                </Text>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ── NAVIGATION MENU ────────────────────────────────────────────── */}
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: collapsed ? 'visible' : 'hidden' }}>
-          <Menu
-            mode="inline"
-            inlineCollapsed={collapsed}
-            inlineIndent={16}
-            selectedKeys={[selected]}
-            {...(collapsed
-              ? {}  // collapsed: no openKeys control — let Ant Design handle popup state internally
-              : { openKeys, onOpenChange: (keys) => setOpenKeys(keys) }
-            )}
-            items={menuItems}
-            onClick={handleMenuClick}
-            style={{ border: 'none', background: 'transparent', paddingTop: 4 }}
-          />
-        </div>
-
-        {/* ── BOTTOM ACTIONS ─────────────────────────────────────────────── */}
-        <div style={{ flexShrink: 0, borderTop: '1px solid #f0f0f0', padding: '6px 8px' }}>
-          {collapsed ? (
-            <>
-              {isAdmin && (
-                <Tooltip title="Reset Password" placement="right">
-                  <Button
-                    type="text"
-                    icon={<KeyOutlined />}
-                    style={{ width: '100%', color: '#6b7280', marginBottom: 2 }}
-                    onClick={() => navigate('/admin/reset-password')}
-                  />
-                </Tooltip>
-              )}
-              <Tooltip title="Sign Out" placement="right">
-                <Button
-                  type="text"
-                  danger
-                  icon={<LogoutOutlined />}
-                  style={{ width: '100%', marginBottom: 2 }}
-                  onClick={handleLogout}
-                />
-              </Tooltip>
-              <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 6, marginTop: 2, display: 'flex', justifyContent: 'center' }}>
-                <Tooltip title="Expand sidebar" placement="right">
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<MenuUnfoldOutlined />}
-                    onClick={onCollapse}
-                    style={{ color: '#9ca3af' }}
-                  />
-                </Tooltip>
-              </div>
-            </>
-          ) : (
-            <>
-              {isAdmin && (
-                <Button
-                  type="text"
-                  icon={<KeyOutlined />}
-                  block
-                  style={{
-                    textAlign:      'left',
-                    justifyContent: 'flex-start',
-                    color:          '#6b7280',
-                    fontSize:       12,
-                    height:         32,
-                    paddingInline:  10,
-                    marginBottom:   2,
-                    borderRadius:   6,
-                    display:        'flex',
-                    alignItems:     'center',
-                  }}
-                  onClick={() => navigate('/admin/reset-password')}
-                >
-                  Reset Password
-                </Button>
-              )}
-              {/* Sign out + collapse toggle on same row */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Button
-                  type="text"
-                  danger
-                  icon={<LogoutOutlined />}
-                  size="small"
-                  style={{ fontSize: 12, paddingInline: 10, borderRadius: 6 }}
-                  onClick={handleLogout}
-                >
-                  Sign Out
-                </Button>
-                <Tooltip title="Collapse sidebar" placement="right">
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<MenuFoldOutlined />}
-                    onClick={onCollapse}
-                    style={{ color: '#9ca3af', borderRadius: 6 }}
-                  />
-                </Tooltip>
-              </div>
-            </>
-          )}
-        </div>
-
-      </div>
+      {sidebarContent}
     </Sider>
   );
 };

@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
+import ResponsiveTable     from '../../../components/ResponsiveTable';
 import usePermissions      from '../../../hooks/usePermissions';
 import useAiSuggestion     from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard    from '../../../components/AiSuggestion/AiSuggestionCard';
@@ -473,7 +474,7 @@ export default function InstrumentsPage() {
           )}
         </div>
 
-        <Table
+        <ResponsiveTable
           rowKey="id"
           loading={loading}
           columns={columns}

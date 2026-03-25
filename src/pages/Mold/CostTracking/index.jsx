@@ -82,7 +82,7 @@ export default function CostTrackingPage() {
 
   const summaryColumns = [
     {
-      title: 'Mold',
+      title: 'Mold', width: 160,
       render: (_, r) => (
         <>
           <Text strong>{r.Mold?.mold_code}</Text>
@@ -92,13 +92,13 @@ export default function CostTrackingPage() {
       ),
     },
     {
-      title: 'Total Cost',
+      title: 'Total Cost', width: 120,
       dataIndex: 'total_cost',
       render: (v) => <Text strong>₹{Number(v || 0).toLocaleString()}</Text>,
       sorter: (a, b) => Number(a.total_cost || 0) - Number(b.total_cost || 0),
     },
     {
-      title: 'Cost / Shot',
+      title: 'Cost / Shot', width: 110,
       key: 'cost_per_shot',
       render: (_, r) => {
         const shots = r.Mold?.current_shot_count || 0;
@@ -107,12 +107,12 @@ export default function CostTrackingPage() {
       },
     },
     {
-      title: 'Total Shots',
+      title: 'Total Shots', width: 100,
       key: 'total_shots',
       render: (_, r) => r.Mold?.current_shot_count?.toLocaleString() || '0',
     },
     {
-      title: 'Actions',
+      title: 'Actions', width: 110,
       key: 'actions',
       render: (_, r) => (
         <Button size="small" icon={<BarChartOutlined />} onClick={() => openMoldDrill(r)}>
@@ -152,42 +152,42 @@ export default function CostTrackingPage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><DollarOutlined /> Cost Tracking</Title>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={loadDashboard}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModal(true)}>Add Cost Entry</Button>
         </Space>
       </div>
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={8}>
-          <Card>
+        <Col xs={12} sm={8}>
+          <Card size="small">
             <Statistic
               title="Total Fleet Cost"
               value={totalCost}
               prefix="₹"
               formatter={(v) => Number(v).toLocaleString()}
-              valueStyle={{ color: '#1d4ed8' }}
+              valueStyle={{ color: '#1d4ed8', fontSize: 20 }}
             />
           </Card>
         </Col>
-        <Col xs={8}>
-          <Card>
+        <Col xs={12} sm={8}>
+          <Card size="small">
             <Statistic
               title="Molds Tracked"
               value={summaryData.length}
+              valueStyle={{ fontSize: 20 }}
               prefix={<DollarOutlined />}
             />
           </Card>
         </Col>
-        <Col xs={8}>
-          <Card>
+        <Col xs={12} sm={8}>
+          <Card size="small">
             <Statistic
               title="High-Cost Molds (>₹1L)"
               value={highCostMolds}
-              valueStyle={{ color: '#dc2626' }}
+              valueStyle={{ color: '#dc2626', fontSize: 20 }}
               prefix={<ExclamationCircleOutlined />}
             />
           </Card>
@@ -222,6 +222,7 @@ export default function CostTrackingPage() {
         dataSource={summaryData}
         rowKey="mold_id"
         loading={loading}
+        scroll={{ x: 600 }}
         pagination={{ pageSize: 15 }}
       />
 
@@ -354,7 +355,6 @@ export default function CostTrackingPage() {
           Add Cost for This Mold
         </Button>
       </Drawer>
-    </div>
     </AppLayout>
   );
 }

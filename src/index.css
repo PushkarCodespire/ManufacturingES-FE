@@ -105,3 +105,154 @@ body {
 
 /* Divider */
 .ant-divider { border-color: #e8eaed; }
+
+/* ── Responsive Utilities ───────────────────────────────────────────────────── */
+
+/* Touch-friendly table horizontal scroll */
+.ant-table-content { -webkit-overflow-scrolling: touch; }
+
+/* ── Global card body — compact padding on mobile ────────────────────────── */
+/* Applied globally so every page's Cards tighten up without code changes    */
+@media (max-width: 767px) {
+  .ant-card .ant-card-body { padding: 12px 14px !important; }
+}
+
+/* ── Mobile overrides (< 768 px) ─────────────────────────────────────────── */
+@media (max-width: 767px) {
+
+  /* Every Drawer becomes full-width on mobile — fixes all ~30 form drawers
+     without touching individual page files */
+  .ant-drawer-content-wrapper { width: 100vw !important; max-width: 100vw !important; }
+
+  /* ── Toolbar overflow fix ──────────────────────────────────────────────── */
+  /* Card bodies clip horizontal overflow so toolbar buttons can't bleed out */
+  .ant-card .ant-card-body { overflow-x: hidden; }
+
+  /* Toolbar divs that contain a search input: wrap so buttons go to row 2  */
+  .ant-card .ant-card-body > div:has(> .ant-input-affix-wrapper),
+  .ant-card .ant-card-body > div:has(> .ant-input-search) {
+    flex-wrap: wrap !important;
+  }
+
+  /* Search input takes the full first row on mobile                         */
+  .ant-card .ant-card-body > div > .ant-input-affix-wrapper,
+  .ant-card .ant-card-body > div > .ant-input-search {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Spacer divs (flex:1 separators between search and buttons) collapse    */
+  .ant-card .ant-card-body > div > div[style*="flex: 1"],
+  .ant-card .ant-card-body > div > div[style*="flex:1"] {
+    flex: 0 0 0 !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Buttons in toolbars don't shrink below their natural size              */
+  .ant-card .ant-card-body > div > .ant-btn { flex-shrink: 0; }
+
+  /* Tabs (e.g. Items page tabbed view) stay full-width                     */
+  .ant-card .ant-card-body > .ant-tabs { width: 100%; }
+
+  /* Drawers that intentionally use bottom/top placement keep their height */
+  .ant-drawer-bottom .ant-drawer-content-wrapper,
+  .ant-drawer-top    .ant-drawer-content-wrapper { width: 100vw !important; height: auto; }
+
+  /* Toolbar rows: wrap filters/buttons on small screens */
+  .res-toolbar {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .res-toolbar .ant-input-affix-wrapper,
+  .res-toolbar .ant-select,
+  .res-toolbar .ant-picker { width: 100% !important; flex: 0 0 100% !important; }
+
+  /* Stack flex rows vertically */
+  .res-stack { flex-direction: column !important; align-items: flex-start !important; }
+
+  /* Hide elements on mobile */
+  .res-hide-mobile { display: none !important; }
+
+  /* Force full width */
+  .res-full { width: 100% !important; }
+
+  /* Compact card body padding */
+  .res-card .ant-card-body { padding: 12px 12px !important; }
+
+  /* Page header title area stacks on mobile */
+  .res-page-header { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
+  .res-page-header .res-header-extra { align-self: stretch; }
+
+  /* Form columns: always full-width on mobile */
+  .res-form-col .ant-col { flex: 0 0 100% !important; max-width: 100% !important; }
+
+  /* Stat chips wrap */
+  .res-stat-row { flex-wrap: wrap !important; }
+
+  /* ── Line item grids (editable tables in forms): scroll on mobile ─────────
+     Add className="res-line-items" to the div wrapping the grid header +
+     grid rows + Add Item button inside drawer/modal forms.                 */
+  .res-line-items {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    /* Negative margin bleed so scroll area reaches card/drawer edges */
+    margin-left: -14px;
+    margin-right: -14px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  /* Each grid row keeps its natural pixel width so columns don't collapse   */
+  .res-line-items > div[style*="grid"],
+  .res-line-items > div[style*="grid-template"] {
+    min-width: max-content;
+  }
+
+  /* ── Two-panel side-by-side layouts: stack on mobile ──────────────────────
+     Add className="res-two-panel" to any outer flex div that has a left
+     panel + right panel layout (e.g. form + detail sidebar, main + aside).
+     Children automatically become full-width and stack vertically.          */
+  .res-two-panel {
+    flex-direction: column !important;
+  }
+  .res-two-panel > * {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* ── Form field rows: wrap on mobile ──────────────────────────────────────
+     Targets any div whose direct children are antd Form.Item elements.
+     Covers ALL pages with multi-column form layouts without touching page code */
+  div:has(> .ant-form-item) {
+    flex-wrap: wrap !important;
+  }
+  /* Form items in a wrapping row take full width so they stack cleanly */
+  div:has(> .ant-form-item) > .ant-form-item {
+    min-width: min(100%, 280px);
+    flex: 1 1 240px !important;
+  }
+
+  /* ── Machine tree node editor: wrap inline fields ─────────────────────── */
+  .ant-tree-treenode span[style*="inline-flex"],
+  .ant-tree-treenode span[style*="display: inline-flex"] {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  /* Constrain fixed-width inputs inside tree nodes */
+  .ant-tree-treenode .ant-input,
+  .ant-tree-treenode .ant-select { max-width: 100% !important; }
+}
+
+/* ── Tablet overrides (768 px – 1023 px) ─────────────────────────────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Drawers cap at 80 % of viewport on tablet */
+  .ant-drawer-content-wrapper { max-width: 80vw !important; }
+
+  .res-toolbar .ant-input-affix-wrapper { width: 180px !important; }
+}

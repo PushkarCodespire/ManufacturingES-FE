@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout        from '../../../components/AppLayout';
+import ResponsiveTable  from '../../../components/ResponsiveTable';
 import { inventoryApi } from '../../../api/store.api';
 import { warehouseApi } from '../../../api/warehouse.api';
 
@@ -210,7 +211,7 @@ export default function StockLedgerPage() {
               key: 'stock',
               label: `Current Stock (${stock.length})`,
               children: (
-                <Table
+                <ResponsiveTable
                   rowKey="id"
                   loading={loading}
                   columns={stockColumns}

@@ -662,7 +662,7 @@ const FormView = ({ tool, onBack, onSaved, canWrite }) => {
       </div>
 
       {/* ── Two-panel layout ─────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+      <div className="res-two-panel" style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
 
         {/* LEFT PANEL */}
         <div style={{ flex: '0 0 56%', minWidth: 0 }}>

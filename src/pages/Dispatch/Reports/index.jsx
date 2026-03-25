@@ -159,12 +159,12 @@ const DispatchReportsPage = () => {
         <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
         <Text style={{ color: '#6b7280', fontSize: 12 }}>Reports</Text>
       </div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>Dispatch Reports</Title>
           <Text type="secondary" style={{ fontSize: 13 }}>Overview and analytics for dispatch operations.</Text>
         </div>
-        <Space style={{ marginTop: 4 }}>
+        <Space wrap style={{ marginTop: 4 }}>
           <RangePicker value={dateRange} onChange={setDateRange} style={{ borderRadius: 8 }} />
           <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading} style={{ borderRadius: 8 }}>Refresh</Button>
         </Space>

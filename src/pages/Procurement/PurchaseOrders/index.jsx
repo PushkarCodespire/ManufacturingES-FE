@@ -16,6 +16,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout            from '../../../components/AppLayout';
+import ResponsiveTable      from '../../../components/ResponsiveTable';
 import usePermissions       from '../../../hooks/usePermissions';
 import { purchaseOrderApi } from '../../../api/procurement.api';
 import { vendorApi }        from '../../../api/vendor.api';
@@ -612,7 +613,7 @@ export default function PurchaseOrdersPage() {
           { label: 'Overdue',          value: countOverdue, color: '#dc2626', bg: '#fef2f2' },
           { label: 'Total Value',      value: fmtCcy(totalValue), color: '#059669', bg: '#f0fdf4', wide: true },
         ].map((t) => (
-          <Col key={t.label} span={t.wide ? 6 : 4}>
+          <Col key={t.label} xs={t.wide ? 24 : 12} sm={t.wide ? 6 : 4}>
             <Card
               size="small"
               style={{ background: t.bg, border: `1px solid ${t.color}20`, borderRadius: 10 }}
@@ -665,7 +666,7 @@ export default function PurchaseOrdersPage() {
           )}
         </div>
 
-        <Table
+        <ResponsiveTable
           rowKey="id"
           loading={loading}
           columns={columns}
@@ -854,12 +855,12 @@ export default function PurchaseOrdersPage() {
             />
           </Form.Item>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="order_date" label="Order Date" rules={[{ required: true, message: 'Select order date' }]}>
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="expected_date" label="Expected Delivery Date">
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>
@@ -871,6 +872,7 @@ export default function PurchaseOrdersPage() {
 
           <Divider orientation="left" style={{ fontSize: 13, fontWeight: 600 }}>Line Items</Divider>
 
+          <div className="res-line-items">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 60px 28px', gap: 6, marginBottom: 6 }}>
             {['Item', 'Qty', 'Unit Price', 'Unit', ''].map((h) => (
               <Text key={h} style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>{h}</Text>
@@ -919,6 +921,7 @@ export default function PurchaseOrdersPage() {
               </Text>
             </div>
           )}
+          </div>
         </Form>
       </Drawer>
 

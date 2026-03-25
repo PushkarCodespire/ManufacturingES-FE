@@ -145,24 +145,24 @@ export default function RepairPage() {
 
   const columns = [
     {
-      title: 'Mold',
+      title: 'Mold', width: 150,
       render: (_, r) => <><Text strong>{r.Mold?.mold_code}</Text><br /><Text type="secondary" style={{ fontSize: 12 }}>{r.Mold?.name}</Text></>,
     },
-    { title: 'Repair Type', dataIndex: ['RepairType', 'name'], render: (v) => v || '—' },
+    { title: 'Repair Type', dataIndex: ['RepairType', 'name'], width: 140, render: (v) => v || '—' },
     {
-      title: 'Urgency',
+      title: 'Urgency', width: 100,
       dataIndex: 'urgency',
       render: (v) => <Tag color={URGENCY_COLOR[v]}>{v?.toUpperCase()}</Tag>,
     },
     {
-      title: 'Status',
+      title: 'Status', width: 130,
       dataIndex: 'status',
       render: (v) => <Tag color={STATUS_COLOR[v]}>{v?.replace(/_/g, ' ').toUpperCase()}</Tag>,
     },
-    { title: 'Requested By', dataIndex: ['RequestedBy', 'name'], render: (v) => v || '—' },
-    { title: 'Est. Cost', dataIndex: 'estimated_cost', render: (v) => v ? `₹${Number(v).toLocaleString()}` : '—' },
+    { title: 'Requested By', dataIndex: ['RequestedBy', 'name'], width: 130, render: (v) => v || '—' },
+    { title: 'Est. Cost', dataIndex: 'estimated_cost', width: 100, render: (v) => v ? `₹${Number(v).toLocaleString()}` : '—' },
     {
-      title: 'Actions',
+      title: 'Actions', width: 80,
       key: 'actions',
       render: (_, r) => <Button size="small" onClick={() => openDetail(r.id)}>View</Button>,
     },
@@ -174,10 +174,9 @@ export default function RepairPage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ToolOutlined /> Mold Repair</Title>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={loadRequests}>Refresh</Button>
           <Button icon={<SettingOutlined />} onClick={() => setTypesDrawer(true)}>Manage Types</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModal(true)}>Request Repair</Button>
@@ -185,12 +184,13 @@ export default function RepairPage() {
       </div>
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={8}><Card><Statistic title="Active Repairs" value={activeCount} prefix={<ToolOutlined />} /></Card></Col>
-        <Col xs={8}><Card><Statistic title="Critical" value={criticalCount} valueStyle={{ color: '#dc2626' }} prefix={<ExclamationCircleOutlined />} /></Card></Col>
-        <Col xs={8}><Card><Statistic title="Completed" value={completedCount} valueStyle={{ color: '#16a34a' }} prefix={<CheckCircleOutlined />} /></Card></Col>
+        <Col xs={12} sm={8}><Card size="small"><Statistic title="Active Repairs" value={activeCount} valueStyle={{ fontSize: 20 }} prefix={<ToolOutlined />} /></Card></Col>
+        <Col xs={12} sm={8}><Card size="small"><Statistic title="Critical" value={criticalCount} valueStyle={{ color: '#dc2626', fontSize: 20 }} prefix={<ExclamationCircleOutlined />} /></Card></Col>
+        <Col xs={12} sm={8}><Card size="small"><Statistic title="Completed" value={completedCount} valueStyle={{ color: '#16a34a', fontSize: 20 }} prefix={<CheckCircleOutlined />} /></Card></Col>
       </Row>
 
-      <Table columns={columns} dataSource={requests} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />
+      <Table columns={columns} dataSource={requests} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />
+
 
       {/* Create Repair Request Modal */}
       <Modal title="New Repair Request" open={createModal} onCancel={() => setCreateModal(false)} footer={null} width={560}>
@@ -366,7 +366,6 @@ export default function RepairPage() {
           <Space><Button type="primary" htmlType="submit">Add Cost</Button><Button onClick={() => setCostModal(false)}>Cancel</Button></Space>
         </Form>
       </Modal>
-    </div>
     </AppLayout>
   );
 }

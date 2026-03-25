@@ -10,6 +10,7 @@ import {
 import dayjs from 'dayjs';
 import { WarningOutlined } from '@ant-design/icons';
 import AppLayout          from '../../../components/AppLayout';
+import useScreen            from '../../../hooks/useScreen';
 import { customerOrderApi } from '../../../api/orders.api';
 import aiApi              from '../../../api/ai.api';
 import useAiSuggestion    from '../../../hooks/useAiSuggestion';
@@ -31,6 +32,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function OrderTrackingPage() {
+  const { isMobile } = useScreen();
   const [tracking,     setTracking]     = useState(null);
   const [loading,      setLoading]      = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
@@ -211,20 +213,22 @@ export default function OrderTrackingPage() {
         style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
         bodyStyle={{ padding: '16px 20px' }}
       >
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
           <Select
             value={statusFilter}
             onChange={setStatusFilter}
             options={STATUS_OPTIONS}
-            style={{ width: 180 }}
+            style={{ width: isMobile ? '100%' : 180 }}
           />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Showing {filtered.length} of {allOrders.length} orders
-          </Text>
+          {!isMobile && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Showing {filtered.length} of {allOrders.length} orders
+            </Text>
+          )}
           <div style={{ flex: 1 }} />
           <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button>
           <Button type="dashed" icon={<WarningOutlined />} onClick={() => { setRiskVisible(true); aiRisk.fetch(); }} loading={aiRisk.loading}>
-            Delivery Risk
+            {isMobile ? 'Risk' : 'Delivery Risk'}
           </Button>
         </div>
 

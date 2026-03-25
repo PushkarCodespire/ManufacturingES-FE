@@ -178,7 +178,7 @@ const TallySyncPage = () => {
         <Text style={{ color: '#6b7280', fontSize: 12 }}>Tally Sync</Text>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 4 }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>Tally Sync Dashboard</Title>
           <Text type="secondary" style={{ fontSize: 13 }}>
@@ -302,6 +302,7 @@ const TallySyncPage = () => {
           dataSource={logs}
           size="small"
           loading={logsLoading}
+          scroll={{ x: 800 }}
           locale={{ emptyText: 'No sync activity yet. Click "Sync Now" on a type above to start syncing.' }}
           pagination={{
             current: logPage,

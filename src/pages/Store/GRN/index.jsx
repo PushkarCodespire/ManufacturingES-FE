@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout            from '../../../components/AppLayout';
+import ResponsiveTable      from '../../../components/ResponsiveTable';
 import usePermissions       from '../../../hooks/usePermissions';
 import { grnApi }           from '../../../api/store.api';
 import { vendorApi }        from '../../../api/vendor.api';
@@ -430,7 +431,7 @@ export default function GRNPage() {
           )}
         </div>
 
-        <Table
+        <ResponsiveTable
           rowKey="id"
           loading={loading}
           columns={columns}
@@ -481,7 +482,7 @@ export default function GRNPage() {
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="vendor_id" label="Vendor">
                 <Select
                   showSearch
@@ -492,7 +493,7 @@ export default function GRNPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="warehouse_id" label="Warehouse" rules={[{ required: true, message: 'Select a warehouse' }]}>
                 <Select
                   showSearch
@@ -505,7 +506,7 @@ export default function GRNPage() {
           </Row>
 
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="po_id" label="Link to Purchase Order">
                 <Select
                   showSearch
@@ -520,7 +521,7 @@ export default function GRNPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="received_date" label="Received Date" rules={[{ required: true, message: 'Select a date' }]}>
                 <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
               </Form.Item>
@@ -528,12 +529,12 @@ export default function GRNPage() {
           </Row>
 
           <Row gutter={16}>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item name="po_reference" label="PO Reference">
                 <Input placeholder="Vendor PO no." />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item name="invoice_no" label="Invoice No">
                 <Input placeholder="Invoice number" />
               </Form.Item>
@@ -554,6 +555,7 @@ export default function GRNPage() {
             Line Items
           </Divider>
 
+          <div className="res-line-items">
           {/* Header — drawer 760px - 48px padding = 712px content */}
           <div style={{ display: 'grid', gridTemplateColumns: '140px 70px 1fr 60px 45px 65px 50px 50px 80px 28px', gap: 6, marginBottom: 6 }}>
             {['Item', 'Code', 'Description', 'Qty Rcvd', 'Unit', 'Unit Price', 'Disc %', 'GST %', 'Total (₹)', ''].map((h) => (
@@ -659,6 +661,7 @@ export default function GRNPage() {
           >
             Add Item
           </Button>
+          </div>
         </Form>
       </Drawer>
       {/* ── AI Quality Flag Drawer ────────────────────────────────────────── */}

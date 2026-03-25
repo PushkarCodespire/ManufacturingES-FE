@@ -18,7 +18,9 @@ import { cycleTimeRuleApi } from '../../../api/cycleTimeRule.api';
 import { tagApi } from '../../../api/tag.api';
 import { machineApi } from '../../../api/machine.api';
 import AppLayout from '../../../components/AppLayout';
+import ResponsiveTable from '../../../components/ResponsiveTable';
 import usePermissions from '../../../hooks/usePermissions';
+import useScreen from '../../../hooks/useScreen';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -757,6 +759,7 @@ const ListView = ({
   items, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete,
   canWrite, pagination, onPageChange, onShowBomModal, onShowProcessModal,
 }) => {
+  const { isMobile } = useScreen();
   const columns = [
     {
       title: 'Item Details', key: 'item_details',
@@ -824,27 +827,27 @@ const ListView = ({
       </div>
 
       <Card style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '16px 20px' }}>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
           <Input
             placeholder="Search items…"
             prefix={<SearchOutlined style={{ color: '#9ca3af' }} />}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            style={{ width: 240, borderRadius: 8 }}
+            style={{ width: isMobile ? '100%' : 240, borderRadius: 8, flex: isMobile ? '1 1 100%' : undefined }}
             allowClear
           />
-          <div style={{ flex: 1 }} />
-          {canWrite && <Button icon={<AuditOutlined />} onClick={onShowBomModal} style={{ borderRadius: 8, fontWeight: 600 }}>FINALIZE BOM</Button>}
-          {canWrite && <Button icon={<ToolOutlined />} onClick={onShowProcessModal} style={{ borderRadius: 8, fontWeight: 600 }}>SET PROCESS</Button>}
-          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>Refresh</Button>
+          {!isMobile && <div style={{ flex: 1 }} />}
+          {canWrite && <Button icon={<AuditOutlined />} onClick={onShowBomModal} style={{ borderRadius: 8, fontWeight: 600 }}>{isMobile ? 'BOM' : 'FINALIZE BOM'}</Button>}
+          {canWrite && <Button icon={<ToolOutlined />} onClick={onShowProcessModal} style={{ borderRadius: 8, fontWeight: 600 }}>{isMobile ? 'Process' : 'SET PROCESS'}</Button>}
+          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }} />
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
-              NEW
+              {isMobile ? '' : 'NEW'}
             </Button>
           )}
         </div>
 
-        <Table
+        <ResponsiveTable
           rowKey="id" columns={columns} dataSource={items} loading={loading}
           rowSelection={canWrite ? { type: 'checkbox' } : undefined}
           pagination={{ current: pagination.page, pageSize: pagination.pageSize, total: pagination.total, showSizeChanger: true, pageSizeOptions: ['10', '20', '50'], showTotal: (t, r) => `${r[0]}-${r[1]} of ${t}`, onChange: onPageChange, style: { marginBottom: 0 } }}
@@ -1454,6 +1457,7 @@ const ItemsPage = () => {
   const [showBomModal, setShowBomModal]         = useState(false);
   const { can }  = usePermissions();
   const canWrite = can('production-items-create_edit_delete');
+  const { isMobile } = useScreen();
 
   const fetchItems = useCallback(async () => {
     setLoading(true);

@@ -53,6 +53,8 @@ import LaborTrackingPage      from './pages/Production/LaborTracking';
 import OperatorSkillMatrixPage from './pages/Production/OperatorSkillMatrix';
 import MrpPlanningPage        from './pages/Production/MrpPlanning';
 import OeeDashboardPage       from './pages/Production/OeeDashboard';
+import WipTrackingPage        from './pages/Production/WipTracking';
+import JobCostSheetPage      from './pages/Production/JobCostSheet';
 import ReworkTrackingPage     from './pages/Production/ReworkTracking';
 import ToolManagementPage     from './pages/Production/ToolManagement';
 import DemandForecastPage     from './pages/Production/DemandForecast';
@@ -138,6 +140,10 @@ import MntLOTOPage          from './pages/Maintenance/LOTO';
 import MntKpiDashboardPage  from './pages/Maintenance/KpiDashboard';
 import MntAiInsightsPage    from './pages/Maintenance/AiInsights';
 import MadadPage            from './pages/Madad';
+// Sprint 1: Visibility
+import ScoreboardPage      from './pages/Production/Scoreboard';
+import AndonPage           from './pages/Production/Andon';
+import ShiftHandoverPage   from './pages/Production/ShiftHandover';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
@@ -588,6 +594,8 @@ function App() {
               <Route path="/production/skill-matrix"      element={<ProtectedRoute permission="prod-skill_matrix-manage_skills-read"><OperatorSkillMatrixPage /></ProtectedRoute>} />
               <Route path="/production/mrp"               element={<ProtectedRoute permission="prod-mrp_expected_production-view_plan-read"><MrpPlanningPage /></ProtectedRoute>} />
               <Route path="/production/oee"              element={<ProtectedRoute permission="prod-oee-oee_dashboard-read"><OeeDashboardPage /></ProtectedRoute>} />
+              <Route path="/production/wip"              element={<ProtectedRoute permission="prod-wip-wip_tracking-read"><WipTrackingPage /></ProtectedRoute>} />
+              <Route path="/production/job-cost-sheet"  element={<ProtectedRoute permission="prod-cost_intelligence-job_cost_sheet-read"><JobCostSheetPage /></ProtectedRoute>} />
               <Route path="/production/rework"           element={<ProtectedRoute permission="prod-rework_tracking-rework_vouchers-read"><ReworkTrackingPage /></ProtectedRoute>} />
               <Route path="/production/tool-management"  element={<ProtectedRoute permission="prod-tool_management-tool_logs-read"><ToolManagementPage /></ProtectedRoute>} />
               <Route path="/production/demand-forecast"  element={<ProtectedRoute permission="prod-demand_forecast-forecast-read"><DemandForecastPage /></ProtectedRoute>} />
@@ -801,6 +809,11 @@ function App() {
               <Route path="/maintenance/loto"         element={<ProtectedRoute permission="mnt-loto-read"><MntLOTOPage /></ProtectedRoute>} />
               <Route path="/maintenance/kpi"          element={<ProtectedRoute permission="mnt-kpi-read"><MntKpiDashboardPage /></ProtectedRoute>} />
               <Route path="/maintenance/ai-insights"  element={<ProtectedRoute permission="mnt-ai-read"><MntAiInsightsPage /></ProtectedRoute>} />
+
+              {/* Sprint 1: Visibility */}
+              <Route path="/production/scoreboard"    element={<ProtectedRoute permission="prod-work_centre-manage_work_centre-read"><ScoreboardPage /></ProtectedRoute>} />
+              <Route path="/production/andon"         element={<ProtectedRoute permission="prod-work_centre-manage_work_centre-read"><AndonPage /></ProtectedRoute>} />
+              <Route path="/production/shift-handover" element={<ProtectedRoute permission="prod-shift_planning-manage_shifts-read"><ShiftHandoverPage /></ProtectedRoute>} />
 
               {/* Madad full-page chat */}
               <Route path="/madad" element={<ProtectedRoute><MadadPage /></ProtectedRoute>} />

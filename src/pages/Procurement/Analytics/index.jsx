@@ -178,8 +178,7 @@ export default function ProcurementAnalyticsPage() {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <AppLayout>
-      <div style={{ padding: '24px 24px 32px' }}>
-        {/* Breadcrumb */}
+      {/* Breadcrumb */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
           <Text style={{ color: '#9ca3af', fontSize: 12 }}>Procurement</Text>
           <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
@@ -194,7 +193,7 @@ export default function ProcurementAnalyticsPage() {
               Spend analysis, vendor performance, and procurement pipeline overview.
             </Text>
           </div>
-          <Space>
+          <Space wrap>
             <RangePicker
               value={dateRange}
               onChange={setDateRange}
@@ -385,6 +384,7 @@ export default function ProcurementAnalyticsPage() {
                   dataSource={topItems}
                   rowKey="id"
                   pagination={false}
+                  scroll={{ x: 800 }}
                   columns={[
                     {
                       title: '#', key: 'rank', width: 32,
@@ -419,6 +419,7 @@ export default function ProcurementAnalyticsPage() {
                     dataSource={overduePOs}
                     rowKey="id"
                     pagination={false}
+                    scroll={{ x: 800 }}
                     columns={[
                       { title: 'PO No',  dataIndex: 'po_no',   key: 'po',     width: 120 },
                       { title: 'Vendor', dataIndex: 'vendor',  key: 'vendor', ellipsis: true },
@@ -461,6 +462,7 @@ export default function ProcurementAnalyticsPage() {
                     dataSource={approvalAgeing}
                     rowKey="id"
                     pagination={{ pageSize: 8, showSizeChanger: false }}
+                    scroll={{ x: 800 }}
                     columns={[
                       { title: 'PO No',   dataIndex: 'po_no',    key: 'po',      width: 140 },
                       { title: 'Vendor',  dataIndex: 'vendor',   key: 'vendor',  ellipsis: true },
@@ -489,7 +491,6 @@ export default function ProcurementAnalyticsPage() {
             </Col>
           </Row>
         </Spin>
-      </div>
     </AppLayout>
   );
 }

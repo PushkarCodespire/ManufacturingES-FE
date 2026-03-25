@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
+import ResponsiveTable from '../../../components/ResponsiveTable';
 import usePermissions from '../../../hooks/usePermissions';
 import { purchaseReturnApi } from '../../../api/procurement.api';
 import { purchaseOrderApi } from '../../../api/procurement.api';
@@ -268,7 +269,6 @@ export default function PurchaseReturnsPage() {
   /* ─────────────────────── render ─────────────────────── */
   return (
     <AppLayout>
-    <div style={{ padding: '20px 24px' }}>
       {/* Breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         <Text style={{ color: '#9ca3af', fontSize: 12 }}>Procurement</Text>
@@ -306,12 +306,13 @@ export default function PurchaseReturnsPage() {
             </Button>
           )}
         </div>
-        <Table
+        <ResponsiveTable
           columns={columns}
           dataSource={rows}
           rowKey="id"
           loading={loading}
           size="small"
+          scroll={{ x: 800 }}
           pagination={{ pageSize: 12, showSizeChanger: false }}
         />
       </Card>
@@ -333,7 +334,7 @@ export default function PurchaseReturnsPage() {
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="po_id" label="Purchase Order" rules={[{ required: true, message: 'Select PO' }]}>
                 <Select
                   showSearch
@@ -348,7 +349,7 @@ export default function PurchaseReturnsPage() {
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="vendor_id" label="Vendor" rules={[{ required: true }]}>
                 <Select showSearch optionFilterProp="children" placeholder="Vendor (auto-filled from PO)">
                   {vendors.map(v => <Option key={v.id} value={v.id}>{v.name}</Option>)}
@@ -357,12 +358,12 @@ export default function PurchaseReturnsPage() {
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="return_date" label="Return Date" rules={[{ required: true }]}>
                 <DatePicker style={{ width: '100%' }} format="DD-MM-YYYY" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="reason" label="Return Reason" rules={[{ required: true }]}>
                 <Select placeholder="Select reason">
                   {Object.entries(REASON_LABELS).map(([k, v]) => <Option key={k} value={k}>{v}</Option>)}
@@ -384,7 +385,7 @@ export default function PurchaseReturnsPage() {
                 {fields.map(({ key, name, ...rest }) => (
                   <Card key={key} size="small" style={{ marginBottom: 8, background: '#fafafa' }}>
                     <Row gutter={8} align="middle">
-                      <Col span={6}>
+                      <Col xs={24} sm={6}>
                         <Form.Item {...rest} name={[name, 'item_id']} label="Item" rules={[{ required: true }]} style={{ marginBottom: 0 }}>
                           <Select showSearch optionFilterProp="children" placeholder={poItems.length ? 'Select item' : 'Select PO first'} size="small" disabled={!poItems.length && !grnItems.length}>
                             {/* Prefer GRN items (with received qty info), fall back to PO items */}
@@ -396,22 +397,22 @@ export default function PurchaseReturnsPage() {
                           </Select>
                         </Form.Item>
                       </Col>
-                      <Col span={4}>
+                      <Col xs={24} sm={4}>
                         <Form.Item {...rest} name={[name, 'qty_returned']} label="Qty" rules={[{ required: true }]} style={{ marginBottom: 0 }}>
                           <InputNumber min={0} style={{ width: '100%' }} size="small" />
                         </Form.Item>
                       </Col>
-                      <Col span={5}>
+                      <Col xs={24} sm={5}>
                         <Form.Item {...rest} name={[name, 'unit_price']} label="Unit Price" rules={[{ required: true }]} style={{ marginBottom: 0 }}>
                           <InputNumber min={0} prefix="₹" style={{ width: '100%' }} size="small" />
                         </Form.Item>
                       </Col>
-                      <Col span={7}>
+                      <Col xs={24} sm={7}>
                         <Form.Item {...rest} name={[name, 'reason']} label="Item Reason" style={{ marginBottom: 0 }}>
                           <Input placeholder="e.g. cracked" size="small" />
                         </Form.Item>
                       </Col>
-                      <Col span={2} style={{ textAlign: 'right', paddingTop: 22 }}>
+                      <Col xs={24} sm={2} style={{ textAlign: 'right', paddingTop: 22 }}>
                         <Button danger size="small" icon={<MinusCircleOutlined />} onClick={() => remove(name)} />
                       </Col>
                     </Row>
@@ -495,6 +496,7 @@ export default function PurchaseReturnsPage() {
               dataSource={detailRec.Items || []}
               rowKey="id"
               size="small"
+              scroll={{ x: 800 }}
               pagination={false}
               columns={[
                 { title: 'Item', dataIndex: ['Item', 'name'], ellipsis: true },
@@ -512,7 +514,6 @@ export default function PurchaseReturnsPage() {
           </>
         )}
       </Drawer>
-    </div>
     </AppLayout>
   );
 }

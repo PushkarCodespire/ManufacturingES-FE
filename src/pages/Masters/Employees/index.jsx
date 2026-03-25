@@ -22,6 +22,7 @@ import {
 } from '@ant-design/icons';
 import { userApi }  from '../../../api/user.api';
 import AppLayout    from '../../../components/AppLayout';
+import ResponsiveTable from '../../../components/ResponsiveTable';
 import usePermissions from '../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
@@ -428,7 +429,7 @@ const EmployeesPage = () => {
         </div>
 
         {/* Table */}
-        <Table
+        <ResponsiveTable
           rowKey="id"
           columns={buildColumns(handleToggle, toggleLoading, canWrite)}
           dataSource={users}
@@ -531,7 +532,7 @@ const EmployeesPage = () => {
             </Form.Item>
 
             <Row gutter={16}>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   name="phone"
                   label={<span style={{ color: '#374151', fontSize: 13, fontWeight: 500 }}>Mobile</span>}
@@ -539,7 +540,7 @@ const EmployeesPage = () => {
                   <Input placeholder="e.g. 9876543210" />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   name="email"
                   label={<span style={{ color: '#374151', fontSize: 13, fontWeight: 500 }}>Email</span>}
@@ -557,7 +558,7 @@ const EmployeesPage = () => {
           {/* ── Department & Role ──────────────────────────────────────── */}
           <SectionBox label="DEPARTMENT & ROLE ACCESS">
             <Row gutter={16}>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   name="department_id"
                   label={<span style={{ color: '#374151', fontSize: 13, fontWeight: 500 }}>Department</span>}
@@ -572,7 +573,7 @@ const EmployeesPage = () => {
                   />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   name="role_id"
                   label={<span style={{ color: '#374151', fontSize: 13, fontWeight: 500 }}>Role</span>}
@@ -593,7 +594,7 @@ const EmployeesPage = () => {
           {/* ── Sites & Warehouses ─────────────────────────────────────── */}
           <SectionBox label="SITE & WAREHOUSE ACCESS">
             <Row gutter={16}>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   name="site_ids"
                   label={
@@ -616,7 +617,7 @@ const EmployeesPage = () => {
                   />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Form.Item
                   name="warehouse_ids"
                   label={

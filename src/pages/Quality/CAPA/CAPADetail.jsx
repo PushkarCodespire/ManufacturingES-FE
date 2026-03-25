@@ -645,7 +645,7 @@ export default function CAPADetailPage() {
             )}
           >
             <Table rowKey={(a) => a._tempKey ?? a.id} dataSource={corrective}
-              columns={actionCols} size="small" pagination={false}
+              columns={actionCols} size="small" pagination={false} scroll={{ x: 800 }}
               locale={{ emptyText: 'No corrective actions yet' }} />
           </Card>
 
@@ -659,7 +659,7 @@ export default function CAPADetailPage() {
             )}
           >
             <Table rowKey={(a) => a._tempKey ?? a.id} dataSource={preventive}
-              columns={actionCols} size="small" pagination={false}
+              columns={actionCols} size="small" pagination={false} scroll={{ x: 800 }}
               locale={{ emptyText: 'No preventive actions yet' }} />
           </Card>
 
@@ -705,7 +705,7 @@ export default function CAPADetailPage() {
             title={`Effectiveness Checks (${effChecks.length})`}
           >
             <Table rowKey="id" dataSource={effChecks} columns={effCols} size="small"
-              pagination={false} locale={{ emptyText: 'No checks recorded yet' }} />
+              pagination={false} scroll={{ x: 800 }} locale={{ emptyText: 'No checks recorded yet' }} />
 
             {canWrite && (
               <div style={{ marginTop: 16, padding: '12px 16px', background: '#f8faff', borderRadius: 8, border: '1px solid #e0e7ff' }}>

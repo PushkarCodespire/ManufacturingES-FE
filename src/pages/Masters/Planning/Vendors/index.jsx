@@ -18,6 +18,7 @@ import dayjs from 'dayjs';
 import { vendorApi }   from '../../../../api/vendor.api';
 import { warehouseApi } from '../../../../api/warehouse.api';
 import AppLayout        from '../../../../components/AppLayout';
+import ResponsiveTable  from '../../../../components/ResponsiveTable';
 import usePermissions   from '../../../../hooks/usePermissions';
 
 const { Title, Text } = Typography;
@@ -137,7 +138,7 @@ const AddEditView = ({ vendor, defaultType = 'vendor', onBack, onSaved, canWrite
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+      <div className="res-two-panel" style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
         {/* ── Left: Form ──────────────────────────────────────────────────── */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <Card
@@ -535,7 +536,7 @@ const ListView = ({ vendors, loading, search, onSearchChange, onRefresh, onNew, 
         <Divider style={{ margin: '0 0 16px' }} />
 
         {/* Table */}
-        <Table
+        <ResponsiveTable
           rowKey="id"
           columns={columns}
           dataSource={filtered}

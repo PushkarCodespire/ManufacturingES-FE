@@ -122,7 +122,7 @@ export default function TrialsPage() {
 
   const trialColumns = [
     {
-      title: 'Mold',
+      title: 'Mold', width: 140,
       render: (_, r) => (
         <>
           <Text strong>{r.Mold?.mold_code}</Text>
@@ -132,28 +132,27 @@ export default function TrialsPage() {
       ),
     },
     {
-      title: 'Protocol',
+      title: 'Protocol', width: 150,
       dataIndex: ['Protocol', 'name'],
       render: (v) => v || '—',
     },
-    { title: 'Machine', dataIndex: ['Machine', 'name'], render: (v) => v || '—' },
-    { title: 'Trial No', dataIndex: 'trial_number', render: (v) => v || '—' },
+    { title: 'Machine', dataIndex: ['Machine', 'name'], width: 140, render: (v) => v || '—' },
+    { title: 'Trial No', dataIndex: 'trial_number', width: 80, render: (v) => v || '—' },
     {
-      title: 'Status',
+      title: 'Status', width: 120,
       dataIndex: 'status',
       render: (v) => <Tag color={STATUS_COLOR[v]}>{v?.replace(/_/g, ' ').toUpperCase()}</Tag>,
     },
     {
-      title: 'Result',
+      title: 'Result', width: 110,
       dataIndex: 'overall_result',
       render: (v) => v
         ? <Tag color={RESULT_COLOR[v]}>{v?.replace(/_/g, ' ').toUpperCase()}</Tag>
         : <Tag>PENDING</Tag>,
     },
-    { title: 'Shots Run', dataIndex: 'shots_taken', render: (v) => v?.toLocaleString() || '—' },
+    { title: 'Shots Run', dataIndex: 'shots_taken', width: 90, render: (v) => v?.toLocaleString() || '—' },
     {
-      title: 'Actions',
-      key: 'actions',
+      title: 'Actions', width: 80, key: 'actions',
       render: (_, r) => (
         <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(r.id)}>View</Button>
       ),
@@ -161,11 +160,11 @@ export default function TrialsPage() {
   ];
 
   const protocolColumns = [
-    { title: 'Protocol Name', dataIndex: 'name', render: (v) => <Text strong>{v}</Text> },
-    { title: 'Trial Type', dataIndex: 'trial_type', render: (v) => <Tag>{v?.replace(/_/g, ' ')}</Tag> },
-    { title: 'Min Shots', dataIndex: 'min_sample_shots', render: (v) => v?.toLocaleString() || '—' },
+    { title: 'Protocol Name', dataIndex: 'name', width: 180, render: (v) => <Text strong>{v}</Text> },
+    { title: 'Trial Type', dataIndex: 'trial_type', width: 120, render: (v) => <Tag>{v?.replace(/_/g, ' ')}</Tag> },
+    { title: 'Min Shots', dataIndex: 'min_sample_shots', width: 100, render: (v) => v?.toLocaleString() || '—' },
     {
-      title: 'Status',
+      title: 'Status', width: 90,
       dataIndex: 'is_active',
       render: (v) => <Tag color={v ? 'green' : 'default'}>{v ? 'Active' : 'Inactive'}</Tag>,
     },
@@ -177,10 +176,9 @@ export default function TrialsPage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ExperimentOutlined /> Mold Trials</Title>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={loadTrials}>Refresh</Button>
           <Button onClick={() => setProtocolModal(true)}>New Protocol</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setStartModal(true)}>Start Trial</Button>
@@ -188,22 +186,22 @@ export default function TrialsPage() {
       </div>
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={8}>
-          <Card>
+        <Col xs={12} sm={8}>
+          <Card size="small">
             <Statistic title="In Progress" value={inProgressCount}
-              valueStyle={{ color: '#d97706' }} prefix={<ClockCircleOutlined />} />
+              valueStyle={{ color: '#d97706', fontSize: 20 }} prefix={<ClockCircleOutlined />} />
           </Card>
         </Col>
-        <Col xs={8}>
-          <Card>
+        <Col xs={12} sm={8}>
+          <Card size="small">
             <Statistic title="Completed" value={completedCount}
-              valueStyle={{ color: '#16a34a' }} prefix={<CheckCircleOutlined />} />
+              valueStyle={{ color: '#16a34a', fontSize: 20 }} prefix={<CheckCircleOutlined />} />
           </Card>
         </Col>
-        <Col xs={8}>
-          <Card>
+        <Col xs={12} sm={8}>
+          <Card size="small">
             <Statistic title="Failed" value={failedCount}
-              valueStyle={{ color: '#dc2626' }} prefix={<ExclamationCircleOutlined />} />
+              valueStyle={{ color: '#dc2626', fontSize: 20 }} prefix={<ExclamationCircleOutlined />} />
           </Card>
         </Col>
       </Row>
@@ -221,6 +219,7 @@ export default function TrialsPage() {
                 dataSource={trials}
                 rowKey="id"
                 loading={loading}
+                scroll={{ x: 870 }}
                 pagination={{ pageSize: 15 }}
               />
             ),
@@ -233,6 +232,7 @@ export default function TrialsPage() {
                 columns={protocolColumns}
                 dataSource={protocols}
                 rowKey="id"
+                scroll={{ x: 490 }}
                 pagination={{ pageSize: 15 }}
               />
             ),
@@ -429,7 +429,6 @@ export default function TrialsPage() {
           </Space>
         </Form>
       </Modal>
-    </div>
     </AppLayout>
   );
 }

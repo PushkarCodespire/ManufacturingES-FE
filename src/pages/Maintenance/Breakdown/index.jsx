@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import { breakdownApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
+import ResponsiveTable from '../../../components/ResponsiveTable';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -238,10 +239,9 @@ export default function BreakdownPage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <Title level={4} style={{ margin: 0 }}><ThunderboltOutlined /> Breakdown & Corrective Maintenance</Title>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={() => { loadBreakdowns(); loadWorkOrders(); }}>Refresh</Button>
           <Button type="primary" danger icon={<ExclamationCircleOutlined />} onClick={() => setReportModal(true)}>
             🚨 Machine Down
@@ -249,10 +249,10 @@ export default function BreakdownPage() {
         </Space>
       </div>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={8}><Card><Statistic title="Open Breakdowns" value={openCount} valueStyle={{ color: '#dc2626' }} prefix={<ExclamationCircleOutlined />} /></Card></Col>
-        <Col xs={8}><Card><Statistic title="WOs In Progress" value={inProgressWOs} valueStyle={{ color: '#d97706' }} prefix={<ToolOutlined />} /></Card></Col>
-        <Col xs={8}><Card><Statistic title="Resolved Today" value={resolvedToday} valueStyle={{ color: '#16a34a' }} prefix={<CheckCircleOutlined />} /></Card></Col>
+      <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={8}><Card size="small"><Statistic title="Open Breakdowns" value={openCount} valueStyle={{ color: '#dc2626', fontSize: 20 }} prefix={<ExclamationCircleOutlined />} /></Card></Col>
+        <Col xs={12} sm={8}><Card size="small"><Statistic title="WOs In Progress" value={inProgressWOs} valueStyle={{ color: '#d97706', fontSize: 20 }} prefix={<ToolOutlined />} /></Card></Col>
+        <Col xs={24} sm={8}><Card size="small"><Statistic title="Resolved Today" value={resolvedToday} valueStyle={{ color: '#16a34a', fontSize: 20 }} prefix={<CheckCircleOutlined />} /></Card></Col>
       </Row>
 
       <Space style={{ marginBottom: 16 }}>
@@ -261,10 +261,10 @@ export default function BreakdownPage() {
       </Space>
 
       {activeView === 'breakdowns' && (
-        <Table columns={bdColumns} dataSource={breakdowns} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />
+        <ResponsiveTable columns={bdColumns} dataSource={breakdowns} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />
       )}
       {activeView === 'workorders' && (
-        <Table columns={woColumns} dataSource={workOrders} rowKey="id" pagination={{ pageSize: 15 }} />
+        <ResponsiveTable columns={woColumns} dataSource={workOrders} rowKey="id" pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />
       )}
 
       {/* Report Breakdown Modal */}
@@ -596,7 +596,6 @@ export default function BreakdownPage() {
           </Space>
         </Form>
       </Modal>
-    </div>
     </AppLayout>
   );
 }

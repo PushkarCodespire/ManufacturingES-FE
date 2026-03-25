@@ -457,6 +457,7 @@ export default function QuotationPage() {
             Line Items
           </Divider>
 
+          <div className="res-line-items">
           {/* Header row */}
           <div style={{ display: 'grid', gridTemplateColumns: '180px 90px 60px 80px 70px 60px 60px 90px 32px', gap: 6, marginBottom: 6 }}>
             {['Item', 'Description', 'Qty', 'Unit', 'Unit Price', 'Disc %', 'GST %', 'Total (₹)', ''].map((h) => (
@@ -505,6 +506,7 @@ export default function QuotationPage() {
           <Button type="dashed" onClick={addLine} icon={<PlusCircleOutlined />} style={{ width: '100%', marginTop: 4 }}>
             Add Item
           </Button>
+          </div>
         </Form>
       </Drawer>
     </AppLayout>

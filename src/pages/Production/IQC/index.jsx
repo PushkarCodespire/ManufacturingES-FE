@@ -227,32 +227,32 @@ export default function IQCPage() {
 
       {/* Dashboard stats (IQC-008) */}
       <Row gutter={16} style={{ marginTop: 16, marginBottom: 16 }}>
-        <Col span={4}>
+        <Col xs={12} sm={4}>
           <Card size="small" style={{ borderRadius: 10, textAlign: 'center' }}>
             <Statistic title="Total" value={total} valueStyle={{ color: '#1d4ed8', fontSize: 22 }} />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={12} sm={4}>
           <Card size="small" style={{ borderRadius: 10, textAlign: 'center' }}>
             <Statistic title="Pending" value={pending} valueStyle={{ color: '#d97706', fontSize: 22 }} />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={12} sm={4}>
           <Card size="small" style={{ borderRadius: 10, textAlign: 'center' }}>
             <Statistic title="Pass" value={pass} valueStyle={{ color: '#16a34a', fontSize: 22 }} />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={12} sm={4}>
           <Card size="small" style={{ borderRadius: 10, textAlign: 'center' }}>
             <Statistic title="Fail" value={fail} valueStyle={{ color: '#dc2626', fontSize: 22 }} />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={12} sm={4}>
           <Card size="small" style={{ borderRadius: 10, textAlign: 'center' }}>
             <Statistic title="On Hold" value={onHold} valueStyle={{ color: '#7c3aed', fontSize: 22 }} />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={12} sm={4}>
           <Card size="small" style={{ borderRadius: 10, textAlign: 'center', background: fail > 0 ? '#fef2f2' : undefined }}>
             <Statistic title="Rejection %" value={`${rejRate}%`}
               valueStyle={{ color: fail > 0 ? '#dc2626' : '#16a34a', fontSize: 22 }} />

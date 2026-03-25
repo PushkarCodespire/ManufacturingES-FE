@@ -330,7 +330,7 @@ export default function MoldLifeManagementPage() {
 
             <Divider />
             <div style={{ marginBottom: 12 }}><Text style={{ fontWeight: 600, fontSize: 15 }}>Alert History</Text></div>
-            <Table dataSource={moldLifeStatus.LifeAlerts || moldLifeStatus.alerts || []} rowKey="id" size="small" pagination={{ pageSize: 5 }} columns={[
+            <Table dataSource={moldLifeStatus.LifeAlerts || moldLifeStatus.alerts || []} rowKey="id" size="small" pagination={{ pageSize: 5 }} scroll={{ x: 800 }} columns={[
               { title: "Type", dataIndex: "alert_type", key: "alert_type", width: 120, render: (val) => <Tag>{(val || "").replace(/_/g, " ").toUpperCase()}</Tag> },
               { title: "Threshold", dataIndex: "threshold_pct", key: "threshold_pct", width: 80, render: (val) => (val ?? "—") + "%" },
               { title: "Status", dataIndex: "status", key: "status", width: 100, render: (val) => { const cc = { active: "red", acknowledged: "blue", resolved: "green" }; return <Tag color={cc[val] || "default"}>{(val || "").toUpperCase()}</Tag>; } },
@@ -339,7 +339,7 @@ export default function MoldLifeManagementPage() {
 
             <Divider />
             <div style={{ marginBottom: 12 }}><Text style={{ fontWeight: 600, fontSize: 15 }}>Extension History</Text></div>
-            <Table dataSource={moldLifeStatus.LifeExtensions || moldLifeStatus.extensions || []} rowKey="id" size="small" pagination={{ pageSize: 5 }} columns={[
+            <Table dataSource={moldLifeStatus.LifeExtensions || moldLifeStatus.extensions || []} rowKey="id" size="small" pagination={{ pageSize: 5 }} scroll={{ x: 800 }} columns={[
               { title: "From", dataIndex: "extended_from", key: "extended_from", width: 100, render: (val) => (val != null ? Number(val).toLocaleString() : "—") },
               { title: "To", dataIndex: "extended_to", key: "extended_to", width: 100, render: (val) => (val != null ? Number(val).toLocaleString() : "—") },
               { title: "Reason", dataIndex: "reason", key: "reason", width: 160, ellipsis: true },

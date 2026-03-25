@@ -520,6 +520,7 @@ export default function RFQPage() {
             Line Items
           </Divider>
 
+          <div className="res-line-items">
           {/* Line item header — drawer 760px - 48px padding = 712px content */}
           {/* columns: Item(150) CustNo(96) Desc(1fr) Qty(54) Unit(56) Price(80) Drawing(32) Remove(24) */}
           <div style={{ display: 'grid', gridTemplateColumns: '150px 96px 1fr 54px 56px 80px 56px 24px', gap: 6, marginBottom: 6 }}>
@@ -672,6 +673,7 @@ export default function RFQPage() {
               <CheckCircleOutlined style={{ color: '#16a34a' }} /> = click to replace, right-click to remove
             </Text>
           </div>
+          </div>{/* /res-line-items */}
         </Form>
       </Drawer>
     </AppLayout>

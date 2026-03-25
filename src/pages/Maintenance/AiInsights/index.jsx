@@ -135,7 +135,7 @@ function SmartScheduleTab() {
       )}
       <Table
         columns={cols} dataSource={data} rowKey="wo_id"
-        loading={loading} size="small" pagination={{ pageSize: 15 }}
+        loading={loading} size="small" scroll={{ x: 800 }} pagination={{ pageSize: 15 }}
         rowClassName={(r) => r.is_overdue ? 'ant-table-row-overdue' : ''}
       />
     </div>
@@ -211,7 +211,7 @@ function FailurePatternsTab() {
         <Empty description="No recurring failure patterns detected in the last 90 days" />
       )}
       <Table columns={cols} dataSource={data} rowKey={(r) => `${r.equipment_id}-${r.failure_code_id}`}
-        loading={loading} size="small" pagination={{ pageSize: 15 }} />
+        loading={loading} size="small" pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />
     </div>
   );
 }
@@ -284,7 +284,7 @@ function PmOptimizationTab() {
 
   return (
     <Table columns={cols} dataSource={data} rowKey="schedule_id"
-      loading={loading} size="small" pagination={{ pageSize: 15 }} />
+      loading={loading} size="small" pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />
   );
 }
 
@@ -386,7 +386,7 @@ function DowntimeAnalysisTab() {
             <Card size="small" title="Top Equipment by Downtime" style={{ borderRadius: 10, border: '1px solid #e8eaed' }}>
               {data.top_equipment.length === 0
                 ? <Empty description="No unplanned downtime recorded" />
-                : <Table columns={topEquipCols} dataSource={data.top_equipment} rowKey="equipment_id" size="small" pagination={false} />
+                : <Table columns={topEquipCols} dataSource={data.top_equipment} rowKey="equipment_id" size="small" pagination={false} scroll={{ x: 800 }} />
               }
             </Card>
           </Col>
@@ -461,7 +461,7 @@ function SpareAnomaliesTab() {
           message="No consumption anomalies detected. All spare parts are within normal usage ranges." />
       )}
       <Table columns={cols} dataSource={data} rowKey="spare_part_id"
-        loading={loading} size="small" pagination={{ pageSize: 15 }} />
+        loading={loading} size="small" pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />
     </div>
   );
 }
@@ -555,7 +555,7 @@ function SpareForecastTab() {
             </Row>
           )}
           <Table columns={cols} dataSource={forecast.data} rowKey="spare_part_id"
-            loading={loading} size="small" pagination={{ pageSize: 15 }} />
+            loading={loading} size="small" pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />
         </>
       )}
     </div>

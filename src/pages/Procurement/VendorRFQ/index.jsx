@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout        from '../../../components/AppLayout';
+import ResponsiveTable  from '../../../components/ResponsiveTable';
 import usePermissions   from '../../../hooks/usePermissions';
 import { vendorRfqApi } from '../../../api/procurement.api';
 import { itemApi }      from '../../../api/item.api';
@@ -577,7 +578,7 @@ export default function VendorRFQPage() {
             )}
           </div>
 
-          <Table
+          <ResponsiveTable
             columns={columns}
             dataSource={records}
             rowKey="id"

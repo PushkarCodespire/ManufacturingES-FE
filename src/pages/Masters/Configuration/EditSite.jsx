@@ -557,7 +557,7 @@ const EditSitePage = () => {
         </div>
 
         {/* ── Two-panel layout ────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', gap: 20, minHeight: 'calc(100vh - 340px)' }}>
+        <div className="res-two-panel" style={{ display: 'flex', gap: 20, minHeight: 'calc(100vh - 340px)' }}>
 
           {/* ── LEFT NAV ──────────────────────────────────────────────────── */}
           <div style={{ width: 280, flexShrink: 0, position: 'sticky', top: 72, alignSelf: 'flex-start' }}>

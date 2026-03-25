@@ -71,17 +71,16 @@ export default function HealthDashboardPage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><HeartOutlined /> Equipment Health Dashboard</Title>
         <Button icon={<ReloadOutlined />} onClick={loadDashboard} loading={loading}>Refresh</Button>
       </div>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={6}><Card><Statistic title="Total Equipment" value={summary.total || 0} prefix={<ToolOutlined />} /></Card></Col>
-        <Col xs={6}><Card><Statistic title="Healthy (≥70)" value={summary.healthyCount || 0} valueStyle={{ color: '#16a34a' }} prefix={<CheckCircleOutlined />} /></Card></Col>
-        <Col xs={6}><Card><Statistic title="Warning (40–69)" value={summary.warningCount || 0} valueStyle={{ color: '#d97706' }} prefix={<ExclamationCircleOutlined />} /></Card></Col>
-        <Col xs={6}><Card><Statistic title="Critical (<40)" value={summary.criticalCount || 0} valueStyle={{ color: '#dc2626' }} prefix={<ThunderboltOutlined />} /></Card></Col>
+      <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={6}><Card size="small"><Statistic title="Total Equipment" value={summary.total || 0} prefix={<ToolOutlined />} valueStyle={{ fontSize: 20 }} /></Card></Col>
+        <Col xs={12} sm={6}><Card size="small"><Statistic title="Healthy (≥70)" value={summary.healthyCount || 0} valueStyle={{ color: '#16a34a', fontSize: 20 }} prefix={<CheckCircleOutlined />} /></Card></Col>
+        <Col xs={12} sm={6}><Card size="small"><Statistic title="Warning (40–69)" value={summary.warningCount || 0} valueStyle={{ color: '#d97706', fontSize: 20 }} prefix={<ExclamationCircleOutlined />} /></Card></Col>
+        <Col xs={12} sm={6}><Card size="small"><Statistic title="Critical (<40)" value={summary.criticalCount || 0} valueStyle={{ color: '#dc2626', fontSize: 20 }} prefix={<ThunderboltOutlined />} /></Card></Col>
       </Row>
 
       {/* Equipment Health Cards */}
@@ -195,7 +194,6 @@ export default function HealthDashboardPage() {
           </>
         )}
       </Drawer>
-    </div>
     </AppLayout>
   );
 }

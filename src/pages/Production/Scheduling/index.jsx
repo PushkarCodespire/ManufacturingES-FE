@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Drawer,
   Form, Select, DatePicker, InputNumber, message, Tooltip,
-  Popconfirm, Row, Col,
+  Popconfirm, Row, Col, Tabs, Empty,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined,
@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout            from '../../../components/AppLayout';
+import ResponsiveTable      from '../../../components/ResponsiveTable';
 import usePermissions       from '../../../hooks/usePermissions';
 import useAiSuggestion      from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionCard';
@@ -27,6 +28,134 @@ const STATUS_CONFIG = {
   published: { color: 'green',   label: 'Published' },
   completed: { color: 'cyan',    label: 'Completed' },
 };
+
+// ── Schedule Board (daily machine grid view) ──────────────────────────────────
+function ScheduleBoard({ schedules, ganttDays }) {
+  const machineRows = useMemo(() => {
+    const map = {};
+    schedules.forEach((s) => {
+      const key  = s.machine_id || '__none__';
+      const name = s.Machine?.name || 'No Machine';
+      if (!map[key]) map[key] = { name, slots: {} };
+      const date = s.schedule_date ? dayjs(s.schedule_date).format('YYYY-MM-DD') : null;
+      if (!date) return;
+      if (!map[key].slots[date]) map[key].slots[date] = [];
+      map[key].slots[date].push(s);
+    });
+    return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
+  }, [schedules]);
+
+  if (ganttDays.length === 0) return (
+    <Empty description="Select a date range to view the schedule board" style={{ padding: '40px 0' }} />
+  );
+  if (machineRows.length === 0) return (
+    <Empty description="No schedules found for this period" style={{ padding: '40px 0' }} />
+  );
+
+  const CELL_COLORS = {
+    draft:     { bg: '#f3f4f6', border: '#d1d5db', text: '#374151', badge: 'default' },
+    published: { bg: '#dcfce7', border: '#86efac', text: '#166534', badge: 'success' },
+    completed: { bg: '#dbeafe', border: '#93c5fd', text: '#1e40af', badge: 'processing' },
+  };
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead>
+          <tr>
+            <th style={{
+              minWidth: 150, maxWidth: 150, textAlign: 'left',
+              padding: '8px 12px', background: '#f9fafb',
+              borderBottom: '2px solid #e5e7eb', borderRight: '1px solid #e5e7eb',
+              position: 'sticky', left: 0, zIndex: 2,
+            }}>
+              Machine
+            </th>
+            {ganttDays.map((d) => {
+              const isToday = d === dayjs().format('YYYY-MM-DD');
+              return (
+                <th key={d} style={{
+                  minWidth: 130, textAlign: 'center',
+                  padding: '6px 4px', background: isToday ? '#eff6ff' : '#f9fafb',
+                  borderBottom: '2px solid #e5e7eb',
+                  borderLeft: isToday ? '2px solid #3b82f6' : '1px solid #f3f4f6',
+                  fontWeight: 600,
+                }}>
+                  <div style={{ fontSize: 11, color: isToday ? '#1d4ed8' : '#374151' }}>
+                    {dayjs(d).format('ddd').toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: 12, color: isToday ? '#1d4ed8' : '#6b7280', fontWeight: isToday ? 700 : 400 }}>
+                    {dayjs(d).format('DD MMM')}
+                  </div>
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {machineRows.map((row, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+              <td style={{
+                padding: '8px 12px', fontWeight: 600, fontSize: 12, color: '#374151',
+                borderRight: '1px solid #e5e7eb',
+                position: 'sticky', left: 0, background: '#fff', zIndex: 1,
+                verticalAlign: 'middle',
+              }}>
+                {row.name}
+              </td>
+              {ganttDays.map((d) => {
+                const isToday = d === dayjs().format('YYYY-MM-DD');
+                const slots   = row.slots[d] || [];
+                return (
+                  <td key={d} style={{
+                    padding: 4, verticalAlign: 'top',
+                    borderLeft: isToday ? '2px solid #bfdbfe' : '1px solid #f3f4f6',
+                    background: isToday ? '#f0f9ff' : undefined,
+                    minWidth: 130,
+                  }}>
+                    {slots.length === 0 ? null : slots.map((s) => {
+                      const col = CELL_COLORS[s.status] || CELL_COLORS.draft;
+                      return (
+                        <Tooltip
+                          key={s.id}
+                          title={
+                            <div style={{ fontSize: 12 }}>
+                              <div><strong>{s.schedule_no}</strong></div>
+                              <div>Item: {s.Item?.name || '—'}</div>
+                              <div>WO: {s.WorkOrder?.wo_no || '—'}</div>
+                              <div>Qty: {s.planned_qty ? parseFloat(s.planned_qty).toLocaleString() : '—'}</div>
+                              <div>Shift: {s.Shift?.name || '—'}</div>
+                              <div>Status: {s.status}</div>
+                            </div>
+                          }
+                        >
+                          <div style={{
+                            background: col.bg, border: `1px solid ${col.border}`,
+                            borderRadius: 6, padding: '4px 6px', marginBottom: 3, cursor: 'default',
+                          }}>
+                            <div style={{ fontWeight: 700, color: col.text, fontSize: 11 }}>{s.schedule_no}</div>
+                            <div style={{ color: '#374151', fontSize: 11, marginTop: 1 }}>
+                              {s.Item?.name ? (s.Item.name.length > 18 ? s.Item.name.slice(0, 18) + '…' : s.Item.name) : '—'}
+                            </div>
+                            {s.planned_qty && (
+                              <div style={{ color: '#6b7280', fontSize: 10 }}>
+                                {parseFloat(s.planned_qty).toLocaleString()} pcs
+                              </div>
+                            )}
+                          </div>
+                        </Tooltip>
+                      );
+                    })}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function SchedulingPage() {
   const { can } = usePermissions();
@@ -54,6 +183,21 @@ export default function SchedulingPage() {
   const bottleneck = useAiSuggestion(aiApi.getBottleneckDetection);
   const [showShortage, setShowShortage]     = useState(false);
   const [showBottleneck, setShowBottleneck] = useState(false);
+
+  const [viewMode, setViewMode] = useState('table');
+
+  // ── Gantt date columns (current date range, capped at 14 days) ────────────
+  const ganttDays = useMemo(() => {
+    const start = (dateFrom || dayjs()).startOf('day');
+    const end   = (dateTo   || dayjs().add(6, 'day')).startOf('day');
+    const days  = [];
+    let curr = start;
+    while (!curr.isAfter(end) && days.length < 14) {
+      days.push(curr.format('YYYY-MM-DD'));
+      curr = curr.add(1, 'day');
+    }
+    return days;
+  }, [dateFrom, dateTo]);
 
   // ── Load schedules ─────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -341,14 +485,33 @@ export default function SchedulingPage() {
           )}
         </div>
 
-        <Table
-          rowKey="id"
-          loading={loading}
-          columns={columns}
-          dataSource={schedules}
+        <Tabs
+          activeKey={viewMode}
+          onChange={setViewMode}
           size="small"
-          scroll={{ x: 1300 }}
-          pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
+          style={{ marginTop: 4 }}
+          items={[
+            {
+              key: 'table',
+              label: 'Table View',
+              children: (
+                <ResponsiveTable
+                  rowKey="id"
+                  loading={loading}
+                  columns={columns}
+                  dataSource={schedules}
+                  size="small"
+                  scroll={{ x: 1300 }}
+                  pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
+                />
+              ),
+            },
+            {
+              key: 'board',
+              label: 'Schedule Board',
+              children: <ScheduleBoard schedules={schedules} ganttDays={ganttDays} />,
+            },
+          ]}
         />
       </Card>
 
@@ -472,7 +635,7 @@ export default function SchedulingPage() {
           </Form.Item>
 
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="machine_id" label="Machine">
                 <Select
                   showSearch
@@ -483,7 +646,7 @@ export default function SchedulingPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="shift_id" label="Shift">
                 <Select
                   showSearch
@@ -497,7 +660,7 @@ export default function SchedulingPage() {
           </Row>
 
           <Row gutter={16}>
-            <Col span={16}>
+            <Col xs={24} sm={16}>
               <Form.Item
                 name="item_id"
                 label="Item"
@@ -514,7 +677,7 @@ export default function SchedulingPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item
                 name="planned_qty"
                 label="Planned Qty"

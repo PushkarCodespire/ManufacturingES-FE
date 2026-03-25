@@ -91,10 +91,9 @@ export default function MoldDocumentsPage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><FileTextOutlined /> Mold Documents</Title>
-        <Space>
+        <Space wrap>
           <Button onClick={() => setReportDrawer(true)}>Fleet Report</Button>
           {selectedMold && (
             <Button icon={<PrinterOutlined />} onClick={printDocument}>Print</Button>
@@ -422,7 +421,6 @@ export default function MoldDocumentsPage() {
           </>
         )}
       </Drawer>
-    </div>
     </AppLayout>
   );
 }

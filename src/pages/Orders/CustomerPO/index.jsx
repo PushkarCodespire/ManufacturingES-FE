@@ -549,6 +549,7 @@ export default function CustomerPOPage() {
             Order Items
           </Divider>
 
+          <div className="res-line-items">
           <div style={{ display: 'grid', gridTemplateColumns: '180px 100px 55px 65px 80px 55px 55px 85px 32px', gap: 6, marginBottom: 6 }}>
             {['Item', 'Description', 'Qty', 'Unit', 'Unit Price', 'Disc %', 'GST %', 'Total (₹)', ''].map((h) => (
               <Text key={h} style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>{h}</Text>
@@ -587,6 +588,7 @@ export default function CustomerPOPage() {
           <Button type="dashed" onClick={addLine} icon={<PlusCircleOutlined />} style={{ width: '100%', marginTop: 4 }}>
             Add Item
           </Button>
+          </div>
         </Form>
       </Drawer>
     </AppLayout>

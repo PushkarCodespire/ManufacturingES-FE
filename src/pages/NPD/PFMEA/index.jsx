@@ -196,6 +196,7 @@ export default function PFMEAPage() {
           loading={loading}
           size="small"
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
+          scroll={{ x: 800 }}
         />
       </Card>
 

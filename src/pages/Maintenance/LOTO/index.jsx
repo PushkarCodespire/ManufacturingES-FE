@@ -12,6 +12,7 @@ import {
 import { lotoApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import { userApi } from '../../../api/user.api';
 import AppLayout from '../../../components/AppLayout';
+import ResponsiveTable from '../../../components/ResponsiveTable';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -187,10 +188,9 @@ export default function LOTOPage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><LockOutlined /> LOTO & Safety</Title>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={loadAll}>Refresh</Button>
           <Button icon={<PlusOutlined />} onClick={() => setProcModal(true)}>New Procedure</Button>
           <Button icon={<PlusOutlined />} onClick={() => setPermitModal(true)}>Issue Permit</Button>
@@ -220,7 +220,7 @@ export default function LOTOPage() {
           {
             key: 'executions',
             label: `LOTO Executions (${executions.length})`,
-            children: <Table columns={execColumns} dataSource={executions} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />,
+            children: <ResponsiveTable columns={execColumns} dataSource={executions} rowKey="id" loading={loading} scroll={{ x: 800 }} pagination={{ pageSize: 15 }} />,
           },
           {
             key: 'procedures',
@@ -230,6 +230,7 @@ export default function LOTOPage() {
                 columns={procColumns}
                 dataSource={procedures}
                 rowKey="id"
+                scroll={{ x: 800 }}
                 pagination={{ pageSize: 15 }}
                 expandable={{
                   expandedRowRender: (r) => (
@@ -251,7 +252,7 @@ export default function LOTOPage() {
           {
             key: 'permits',
             label: `Permits (${permits.length})`,
-            children: <Table columns={permitColumns} dataSource={permits} rowKey="id" pagination={{ pageSize: 15 }} />,
+            children: <Table columns={permitColumns} dataSource={permits} rowKey="id" scroll={{ x: 800 }} pagination={{ pageSize: 15 }} />,
           },
         ]}
       />
@@ -381,7 +382,7 @@ export default function LOTOPage() {
           </Form.Item>
           <Form.Item name="permit_type" label="Permit Type"><Input placeholder="Hot work, Confined space, General..." /></Form.Item>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="issued_to" label="Issued To" rules={[{ required: true, message: 'Select the worker this permit is issued to' }]}>
                 <Select
                   showSearch
@@ -391,7 +392,7 @@ export default function LOTOPage() {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="authorized_by" label="Authorized By" rules={[{ required: true, message: 'Select the supervisor authorizing this permit' }]}>
                 <Select
                   showSearch
@@ -403,8 +404,8 @@ export default function LOTOPage() {
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}><Form.Item name="valid_from" label="Valid From" rules={[{ required: true }]}><Input type="datetime-local" /></Form.Item></Col>
-            <Col span={12}><Form.Item name="valid_to" label="Valid To" rules={[{ required: true }]}><Input type="datetime-local" /></Form.Item></Col>
+            <Col xs={24} sm={12}><Form.Item name="valid_from" label="Valid From" rules={[{ required: true }]}><Input type="datetime-local" /></Form.Item></Col>
+            <Col xs={24} sm={12}><Form.Item name="valid_to" label="Valid To" rules={[{ required: true }]}><Input type="datetime-local" /></Form.Item></Col>
           </Row>
           <Space>
             <Button type="primary" htmlType="submit">Issue Permit</Button>
@@ -412,7 +413,6 @@ export default function LOTOPage() {
           </Space>
         </Form>
       </Modal>
-    </div>
     </AppLayout>
   );
 }

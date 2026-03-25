@@ -229,7 +229,6 @@ export default function OperatorSkillMatrixPage() {
 
   return (
     <AppLayout>
-      <div style={{ padding: '24px' }}>
         <div style={{ marginBottom: 16 }}>
           <Title level={3} style={{ margin: 0 }}>Operator Skill Matrix</Title>
           <Text type="secondary">Define skills and track operator proficiency & certifications</Text>
@@ -324,7 +323,6 @@ export default function OperatorSkillMatrixPage() {
             ]}
           />
         </Card>
-      </div>
 
       {/* Skill Drawer */}
       <Drawer

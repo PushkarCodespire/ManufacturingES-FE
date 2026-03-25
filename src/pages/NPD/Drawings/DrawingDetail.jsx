@@ -267,6 +267,7 @@ export default function DrawingDetailPage() {
           columns={versionCols}
           size="small"
           pagination={false}
+          scroll={{ x: 800 }}
           locale={{ emptyText: 'No revisions uploaded yet' }}
         />
       </Card>

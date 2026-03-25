@@ -148,10 +148,9 @@ export default function KpiDashboardPage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><BarChartOutlined /> Maintenance KPI Dashboard</Title>
-        <Space>
+        <Space wrap>
           <RangePicker onChange={(dates) => setDateRange(dates || [])} />
           <Button icon={<ReloadOutlined />} onClick={loadAll} loading={loading}>Refresh</Button>
         </Space>
@@ -247,26 +246,25 @@ export default function KpiDashboardPage() {
           {
             key: 'mtbf',
             label: 'MTBF',
-            children: <Table columns={mtbfColumns} dataSource={mtbf} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />,
+            children: <Table columns={mtbfColumns} dataSource={mtbf} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />,
           },
           {
             key: 'mttr',
             label: 'MTTR',
-            children: <Table columns={mttrColumns} dataSource={mttr} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />,
+            children: <Table columns={mttrColumns} dataSource={mttr} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />,
           },
           {
             key: 'compliance',
             label: 'PM Compliance',
-            children: <Table columns={complianceColumns} dataSource={compliance} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />,
+            children: <Table columns={complianceColumns} dataSource={compliance} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />,
           },
           {
             key: 'cost',
             label: 'Cost Report',
-            children: <Table columns={costColumns} dataSource={costReport.summary} rowKey={(r) => r.equipment?.id || 'unknown'} loading={loading} pagination={{ pageSize: 15 }} />,
+            children: <Table columns={costColumns} dataSource={costReport.summary} rowKey={(r) => r.equipment?.id || 'unknown'} loading={loading} pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />,
           },
         ]}
       />
-    </div>
     </AppLayout>
   );
 }

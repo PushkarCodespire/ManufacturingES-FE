@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import { maintenancePmApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
+import ResponsiveTable from '../../../components/ResponsiveTable';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -294,10 +295,9 @@ export default function PMSchedulePage() {
 
   return (
     <AppLayout>
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ClockCircleOutlined /> PM Schedule & Execution</Title>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={loadAll}>Refresh</Button>
           <Button icon={<ThunderboltOutlined />} onClick={autoGenerate} loading={generating}>Auto-Generate WOs</Button>
           <Button icon={<PlusOutlined />} onClick={() => setSchedModal(true)}>New Schedule</Button>
@@ -319,7 +319,7 @@ export default function PMSchedulePage() {
           {
             key: 'workorders',
             label: `PM Work Orders (${workOrders.length})`,
-            children: <Table columns={woColumns} dataSource={workOrders} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />,
+            children: <ResponsiveTable columns={woColumns} dataSource={workOrders} rowKey="id" loading={loading} scroll={{ x: 800 }} pagination={{ pageSize: 15 }} />,
           },
           {
             key: 'schedules',
@@ -343,7 +343,7 @@ export default function PMSchedulePage() {
                     Refresh AI
                   </Button>
                 </div>
-                <Table columns={schedColumns} dataSource={schedules} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />
+                <Table columns={schedColumns} dataSource={schedules} rowKey="id" loading={loading} scroll={{ x: 800 }} pagination={{ pageSize: 15 }} />
               </div>
             ),
           },
@@ -383,6 +383,7 @@ export default function PMSchedulePage() {
                     </Space>
                     <Table
                       size="small"
+                      scroll={{ x: 800 }}
                       rowKey="wo_id"
                       dataSource={smartSchedule?.data ?? []}
                       pagination={{ pageSize: 15 }}
@@ -464,6 +465,7 @@ export default function PMSchedulePage() {
                 dataSource={templates}
                 rowKey="id"
                 loading={loading}
+                scroll={{ x: 800 }}
                 pagination={{ pageSize: 15 }}
                 expandable={{
                   expandedRowRender: (r) => (
@@ -586,12 +588,12 @@ export default function PMSchedulePage() {
         <Form form={form} layout="vertical" onFinish={createTemplate}>
           <Form.Item name="name" label="Template Name" rules={[{ required: true }]}><Input /></Form.Item>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="frequency_type" label="Frequency" initialValue="monthly" rules={[{ required: true }]}>
                 <Select options={Object.entries(FREQ_LABEL).map(([v, l]) => ({ value: v, label: l }))} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="estimated_duration_minutes" label="Est. Duration (min)">
                 <InputNumber style={{ width: '100%' }} min={1} />
               </Form.Item>
@@ -619,12 +621,12 @@ export default function PMSchedulePage() {
             <Select options={templates.map((t) => ({ value: t.id, label: `${t.name} (${FREQ_LABEL[t.frequency_type]})` }))} />
           </Form.Item>
           <Row gutter={16}>
-            <Col span={14}>
+            <Col xs={24} sm={14}>
               <Form.Item name="next_due_date" label="First Due Date" rules={[{ required: true }]}>
                 <Input type="date" />
               </Form.Item>
             </Col>
-            <Col span={10}>
+            <Col xs={24} sm={10}>
               <Form.Item name="advance_days" label="Advance Days" initialValue={7}>
                 <InputNumber style={{ width: '100%' }} min={1} max={30} />
               </Form.Item>
@@ -636,7 +638,6 @@ export default function PMSchedulePage() {
           </Space>
         </Form>
       </Modal>
-    </div>
     </AppLayout>
   );
 }

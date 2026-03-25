@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
+import ResponsiveTable     from '../../../components/ResponsiveTable';
 import usePermissions      from '../../../hooks/usePermissions';
 import useAiSuggestion     from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard    from '../../../components/AiSuggestion/AiSuggestionCard';
@@ -312,6 +313,24 @@ export default function JobCardsPage() {
       },
     },
     {
+      title: 'FPI', key: 'fpi_status', width: 105,
+      render: (_, r) => {
+        const s = r.WorkOrder?.fpi_status;
+        if (!s || s === 'not_required') return <Text type="secondary" style={{ fontSize: 11 }}>—</Text>;
+        const cfg = {
+          pending:     { color: 'orange', label: 'Pending'     },
+          pass:        { color: 'green',  label: 'Pass'        },
+          fail:        { color: 'red',    label: 'Fail'        },
+          conditional: { color: 'gold',   label: 'Conditional' },
+        }[s] || { color: 'default', label: s };
+        return (
+          <Tooltip title={`Work Order FPI: ${cfg.label}`}>
+            <Tag color={cfg.color} style={{ fontSize: 10 }}>FPI: {cfg.label}</Tag>
+          </Tooltip>
+        );
+      },
+    },
+    {
       title: 'AI', key: 'ai', width: 44, align: 'center',
       render: (_, r) => (
         <Tooltip title="AI ETA Prediction">
@@ -417,13 +436,13 @@ export default function JobCardsPage() {
           )}
         </div>
 
-        <Table
+        <ResponsiveTable
           rowKey="id"
           loading={loading}
           columns={columns}
           dataSource={jobCards}
           size="small"
-          scroll={{ x: 1500 }}
+          scroll={{ x: 1600 }}
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `${t} records` }}
         />
       </Card>
@@ -542,13 +561,13 @@ export default function JobCardsPage() {
           </Form.Item>
 
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="machine_id" label="Machine">
                 <Select showSearch placeholder="Select machine" optionFilterProp="label"
                   options={machines.map((m) => ({ value: m.id, label: m.name }))} allowClear />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="shift_id" label="Shift">
                 <Select showSearch placeholder="Select shift" optionFilterProp="label"
                   options={shifts.map((s) => ({ value: s.id, label: s.name }))} allowClear />

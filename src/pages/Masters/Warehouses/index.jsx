@@ -536,7 +536,7 @@ const AddWarehouseView = ({ onBack, onSaved }) => {
         }}
       >
         {/* ── Two-column layout ──────────────────────────────────────────── */}
-        <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
+        <div className="res-two-panel" style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
           {/* LEFT COLUMN */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <Form
@@ -871,7 +871,7 @@ const DetailView = ({ warehouse, onBack, onSaved, canWrite }) => {
         }}
       >
         {/* Two-column layout (same as Add) */}
-        <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
+        <div className="res-two-panel" style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
           {/* LEFT COLUMN */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <Form

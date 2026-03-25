@@ -213,6 +213,7 @@ export default function PFMEADetailPage() {
           columns={cols}
           size="small"
           pagination={false}
+          scroll={{ x: 800 }}
           locale={{ emptyText: 'No actions yet — click "Add Action"' }}
         />
       </div>
@@ -379,6 +380,7 @@ export default function PFMEADetailPage() {
           size="small"
           expandable={{ expandedRowRender }}
           pagination={false}
+          scroll={{ x: 800 }}
           locale={{ emptyText: canWrite ? 'No steps — click "Add Process Step"' : 'No steps defined' }}
         />
       </Card>
