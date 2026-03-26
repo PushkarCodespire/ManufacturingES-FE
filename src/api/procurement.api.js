@@ -99,4 +99,6 @@ export const vendorApi = {
   update:     (id, d)  => api.patch('/vendors/' + id, d),
   delete:     (id)     => api.delete('/vendors/' + id),
   scorecard:  (id)     => api.get('/vendors/' + id + '/scorecard'),
+  trend:      (id)     => api.get('/vendors/' + id + '/scorecard/trend'),
+  avl:        ()       => api.get('/vendors/scorecard/avl'),
 };

@@ -1,137 +1,323 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Typography, Card, Button, Table, Tag, Space, Tooltip,
-  Row, Col, Statistic, Progress, Collapse, Badge, message,
+  Typography, Card, Button, Table, Tag, Space, Tooltip, Tabs,
+  Row, Col, Statistic, Progress, Badge, message, Spin, Empty, Alert,
+  Popconfirm,
 } from 'antd';
 import {
   ReloadOutlined, RightOutlined, WarningOutlined,
-  CheckCircleOutlined, FireOutlined,
+  CheckCircleOutlined, FireOutlined, ThunderboltOutlined,
+  CalendarOutlined, BarChartOutlined, LeftOutlined,
 } from '@ant-design/icons';
-import AppLayout        from '../../../components/AppLayout';
-import { jobCardApi }  from '../../../api/production.api';
+import AppLayout from '../../../components/AppLayout';
+import { jobCardApi, capacitySchedulerApi } from '../../../api/production.api';
 
 const { Title, Text } = Typography;
 
 const TYPE_COLOR = {
-  machining:  'blue',
-  assembly:   'green',
-  welding:    'orange',
-  inspection: 'purple',
-  painting:   'cyan',
-  other:      'default',
+  machining: 'blue', assembly: 'green', welding: 'orange',
+  inspection: 'purple', painting: 'cyan', other: 'default',
 };
 
 function loadColor(pct) {
-  if (pct > 100) return '#dc2626'; // overloaded — red
-  if (pct > 80)  return '#d97706'; // high load — amber
-  if (pct > 50)  return '#2563eb'; // moderate — blue
-  return '#16a34a';                // comfortable — green
+  if (pct > 100) return '#dc2626';
+  if (pct > 80)  return '#d97706';
+  if (pct > 50)  return '#2563eb';
+  return '#16a34a';
 }
 
-function fmtMin(min) {
-  if (min == null || min === 0) return '0 min';
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+const STATUS_COLORS = { draft: '#9ca3af', published: '#1d4ed8', completed: '#16a34a' };
+
+// ── Gantt View Tab ───────────────────────────────────────────────────────────
+function GanttViewTab() {
+  const [data, setData]           = useState(null);
+  const [loading, setLoading]     = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const days = 14;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await capacitySchedulerApi.getGantt({ from: startDate, days });
+      setData(res?.data ?? res);
+    } catch { message.error('Failed to load Gantt data'); }
+    finally { setLoading(false); }
+  }, [startDate]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAutoSchedule = async () => {
+    setScheduling(true);
+    try {
+      const res = await capacitySchedulerApi.autoSchedule();
+      const d = res?.data ?? res;
+      message.success(d?.message || `${d?.scheduled || 0} work orders scheduled`);
+      load();
+    } catch (err) {
+      message.error(err?.response?.data?.message || 'Auto-schedule failed');
+    } finally { setScheduling(false); }
+  };
+
+  const navigateWeek = (dir) => {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + (dir * 7));
+    setStartDate(d.toISOString().slice(0, 10));
+  };
+
+  const machines = data?.machines || [];
+  const schedules = data?.schedules || [];
+  const overloads = data?.overloads || [];
+  const dates = data?.dates || [];
+  const loadMap = data?.load_map || {};
+  const shiftCap = data?.shift_capacity_min || 480;
+
+  // Group schedules by machine_id + date
+  const schedByMachineDate = {};
+  for (const s of schedules) {
+    const key = `${s.machine_id}_${s.schedule_date}`;
+    if (!schedByMachineDate[key]) schedByMachineDate[key] = [];
+    schedByMachineDate[key].push(s);
+  }
+
+  const fmtDate = (d) => {
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+  };
+
+  const fmtDuration = (min) => {
+    if (!min) return '-';
+    if (min >= 60) return `${Math.floor(min / 60)}h ${min % 60}m`;
+    return `${min}m`;
+  };
+
+  return (
+    <>
+      {/* Toolbar */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Button icon={<LeftOutlined />} onClick={() => navigateWeek(-1)} size="small" />
+        <Text strong style={{ fontSize: 13 }}>
+          {fmtDate(dates[0] || startDate)} — {fmtDate(dates[dates.length - 1] || startDate)}
+        </Text>
+        <Button icon={<RightOutlined />} onClick={() => navigateWeek(1)} size="small" />
+        <div style={{ flex: 1 }} />
+        {overloads.length > 0 && (
+          <Tag color="red" icon={<WarningOutlined />}>{overloads.length} Overloaded</Tag>
+        )}
+        <Tag color="blue">Scheduled: {schedules.length}</Tag>
+        <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button>
+        <Popconfirm title="Auto-schedule all unscheduled WOs using Earliest Due Date algorithm?" onConfirm={handleAutoSchedule} okText="Schedule">
+          <Button type="primary" icon={<ThunderboltOutlined />} loading={scheduling}>
+            Auto-Schedule (EDD)
+          </Button>
+        </Popconfirm>
+      </div>
+
+      {/* Overload alerts */}
+      {overloads.length > 0 && (
+        <Alert type="warning" showIcon icon={<WarningOutlined />} style={{ marginBottom: 16, borderRadius: 8 }}
+          message={`${overloads.length} machine-day(s) overloaded`}
+          description={overloads.map((o) => `${o.machine_name} on ${o.date} (${o.load_pct}%)`).join(', ')}
+        />
+      )}
+
+      {/* Gantt Grid */}
+      <Spin spinning={loading && !data}>
+        <Card style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+          bodyStyle={{ padding: 0, overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: dates.length * 120 + 160 }}>
+            <thead>
+              <tr style={{ background: '#f4f6f9' }}>
+                <th style={{ padding: '10px 12px', textAlign: 'left', borderBottom: '1px solid #e8eaed', position: 'sticky', left: 0, background: '#f4f6f9', zIndex: 2, minWidth: 140 }}>
+                  <Text strong style={{ fontSize: 12 }}>Machine</Text>
+                </th>
+                {dates.map((d) => (
+                  <th key={d} style={{ padding: '6px 8px', textAlign: 'center', borderBottom: '1px solid #e8eaed', borderLeft: '1px solid #f0f0f0', minWidth: 120 }}>
+                    <Text style={{ fontSize: 11, fontWeight: 600 }}>{fmtDate(d)}</Text>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {machines.length === 0 ? (
+                <tr><td colSpan={dates.length + 1} style={{ padding: 40, textAlign: 'center' }}>
+                  <Empty description="No machines found" />
+                </td></tr>
+              ) : machines.map((machine) => (
+                <tr key={machine.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '8px 12px', position: 'sticky', left: 0, background: '#fff', zIndex: 1, borderRight: '1px solid #e8eaed' }}>
+                    <Text strong style={{ fontSize: 12 }}>{machine.code}</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: 11 }}>{machine.name}</Text>
+                  </td>
+                  {dates.map((d) => {
+                    const key = `${machine.id}_${d}`;
+                    const cellSchedules = schedByMachineDate[key] || [];
+                    const totalMin = loadMap[key] || 0;
+                    const loadPct = Math.round((totalMin / shiftCap) * 100);
+                    const isOverloaded = loadPct > 100;
+
+                    return (
+                      <td key={d} style={{
+                        padding: '4px 6px', verticalAlign: 'top', borderLeft: '1px solid #f0f0f0',
+                        background: isOverloaded ? '#fef2f2' : cellSchedules.length > 0 ? '#f8fafc' : '#fff',
+                        minHeight: 50,
+                      }}>
+                        {cellSchedules.map((s) => {
+                          const wo = s.WorkOrder;
+                          const item = s.Item;
+                          const statusColor = STATUS_COLORS[s.status] || '#9ca3af';
+                          return (
+                            <Tooltip key={s.id} title={
+                              <div style={{ fontSize: 11 }}>
+                                <div><strong>{wo?.wo_no || s.schedule_no}</strong></div>
+                                <div>{item?.code} — {item?.name}</div>
+                                <div>Qty: {s.planned_qty}</div>
+                                <div>Duration: {fmtDuration(s.duration_min)}</div>
+                                <div>Status: {s.status}</div>
+                                {wo?.planned_end && <div>Due: {wo.planned_end}</div>}
+                              </div>
+                            }>
+                              <div style={{
+                                background: statusColor,
+                                color: '#fff',
+                                padding: '3px 6px',
+                                borderRadius: 4,
+                                fontSize: 11,
+                                marginBottom: 3,
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}>
+                                {wo?.wo_no || s.schedule_no}
+                                <span style={{ opacity: 0.8, marginLeft: 4 }}>{fmtDuration(s.duration_min)}</span>
+                              </div>
+                            </Tooltip>
+                          );
+                        })}
+                        {totalMin > 0 && (
+                          <div style={{ fontSize: 10, color: loadColor(loadPct), fontWeight: 600, textAlign: 'right', marginTop: 2 }}>
+                            {loadPct}%
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      </Spin>
+    </>
+  );
 }
 
-export default function CapacityPlanningPage() {
-  const [data,    setData]    = useState([]);
+// ── Load View Tab (existing capacity bars) ───────────────────────────────────
+function LoadViewTab() {
+  const [data, setData]       = useState([]);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await jobCardApi.getCapacityPlan();
-      setData(Array.isArray(res) ? res : (res?.data ?? []));
-    } catch (err) {
-      message.error(err?.message || 'Failed to load capacity plan');
-    } finally {
-      setLoading(false);
-    }
+      const arr = res?.data ?? (Array.isArray(res) ? res : []);
+      setData(Array.isArray(arr) ? arr : []);
+    } catch { message.error('Failed to load capacity data'); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const overloaded = data.filter((d) => d.overloaded).length;
-  const highLoad   = data.filter((d) => d.load_pct > 80 && !d.overloaded).length;
-  const healthy    = data.filter((d) => d.load_pct <= 80).length;
-  const totalLoad  = data.reduce((s, d) => s + d.total_load_min, 0);
+  const overloaded = data.filter((wc) => wc.overloaded).length;
+  const highLoad   = data.filter((wc) => wc.load_pct > 80 && !wc.overloaded).length;
+  const healthy    = data.filter((wc) => wc.load_pct <= 80).length;
 
-  // Sub-table: job cards per work center
-  const jcColumns = [
-    { title: 'Job No',        dataIndex: 'job_no',         key: 'job_no',         width: 130 },
-    { title: 'Work Order',    dataIndex: 'wo_no',          key: 'wo_no',          width: 130 },
-    { title: 'Operation',     dataIndex: 'operation_name', key: 'operation_name', width: 160 },
-    {
-      title: 'Remaining Qty', dataIndex: 'remaining_qty', key: 'remaining_qty', width: 110, align: 'right',
-      render: (v) => parseFloat(v || 0).toLocaleString(),
-    },
-    {
-      title: 'Cycle Time', dataIndex: 'cycle_time_min', key: 'cycle_time_min', width: 100, align: 'right',
-      render: (v) => v > 0 ? `${parseFloat(v).toFixed(1)} min/pc` : '—',
-    },
-    {
-      title: 'Load (min)', dataIndex: 'load_min', key: 'load_min', width: 100, align: 'right',
-      render: (v) => <Text style={{ fontWeight: 500 }}>{fmtMin(Math.round(v))}</Text>,
-    },
-  ];
-
-  const mainColumns = [
+  const columns = [
     {
       title: 'Work Center', key: 'wc', width: 200,
       render: (_, r) => (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {r.overloaded && <WarningOutlined style={{ color: '#dc2626', fontSize: 13 }} />}
-            <Text style={{ fontWeight: 600, fontSize: 13 }}>{r.work_center_name}</Text>
-          </div>
-          <Tag color={TYPE_COLOR[r.work_center_type] || 'default'} style={{ fontSize: 10, marginTop: 2 }}>
-            {r.work_center_type}
-          </Tag>
+          <Text strong>{r.work_center_name}</Text>
+          <br /><Tag color={TYPE_COLOR[r.work_center_type] || 'default'} style={{ fontSize: 10 }}>{r.work_center_type}</Tag>
         </div>
       ),
     },
     {
-      title: 'Active Jobs', key: 'jobs', width: 90, align: 'center',
+      title: 'Load', key: 'load', width: 280,
       render: (_, r) => (
-        <Badge count={r.job_cards.length} style={{ backgroundColor: r.overloaded ? '#dc2626' : '#1d4ed8' }} />
-      ),
-    },
-    {
-      title: 'Total Load', key: 'load', width: 110, align: 'right',
-      render: (_, r) => <Text style={{ fontWeight: 500, color: loadColor(r.load_pct) }}>{fmtMin(r.total_load_min)}</Text>,
-    },
-    {
-      title: 'Shift Cap (8h)', key: 'cap', width: 110, align: 'right',
-      render: (_, r) => <Text type="secondary">{fmtMin(r.shift_capacity_min)}</Text>,
-    },
-    {
-      title: 'Load %', key: 'load_pct', width: 200,
-      render: (_, r) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div>
           <Progress
-            percent={Math.min(r.load_pct, 150)}
+            percent={Math.min(r.load_pct, 100)}
             strokeColor={loadColor(r.load_pct)}
-            trailColor="#e5e7eb"
-            size="small"
-            style={{ flex: 1, margin: 0 }}
-            showInfo={false}
+            format={() => `${r.load_pct}%`}
+            style={{ marginBottom: 0 }}
           />
-          <Text style={{ fontSize: 12, fontWeight: 600, color: loadColor(r.load_pct), minWidth: 44 }}>
-            {r.load_pct}%
-          </Text>
-          {r.overloaded && <Tag color="error" style={{ fontSize: 10 }}>Overloaded</Tag>}
-          {!r.overloaded && r.load_pct > 80 && <Tag color="warning" style={{ fontSize: 10 }}>High</Tag>}
-          {r.load_pct <= 80 && <Tag color="success" style={{ fontSize: 10 }}>OK</Tag>}
+          <Text type="secondary" style={{ fontSize: 11 }}>{r.total_load_min} min / {r.shift_capacity_min} min</Text>
         </div>
       ),
+    },
+    {
+      title: 'Jobs', key: 'jobs', width: 60, align: 'center',
+      render: (_, r) => <Badge count={r.job_cards?.length || 0} style={{ backgroundColor: '#1d4ed8' }} />,
+    },
+    {
+      title: 'Status', key: 'status', width: 100,
+      render: (_, r) => r.overloaded
+        ? <Tag color="red" icon={<WarningOutlined />}>Overloaded</Tag>
+        : r.load_pct > 80 ? <Tag color="orange" icon={<FireOutlined />}>High</Tag>
+        : <Tag color="green" icon={<CheckCircleOutlined />}>OK</Tag>,
     },
   ];
 
   return (
+    <>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col xs={8}><Card style={{ border: '1px solid #e8eaed', borderRadius: 10 }} bodyStyle={{ padding: '12px 16px' }}>
+          <Statistic title="Overloaded" value={overloaded} valueStyle={{ color: '#dc2626', fontSize: 20 }} />
+        </Card></Col>
+        <Col xs={8}><Card style={{ border: '1px solid #e8eaed', borderRadius: 10 }} bodyStyle={{ padding: '12px 16px' }}>
+          <Statistic title="High Load" value={highLoad} valueStyle={{ color: '#d97706', fontSize: 20 }} />
+        </Card></Col>
+        <Col xs={8}><Card style={{ border: '1px solid #e8eaed', borderRadius: 10 }} bodyStyle={{ padding: '12px 16px' }}>
+          <Statistic title="Healthy" value={healthy} valueStyle={{ color: '#16a34a', fontSize: 20 }} />
+        </Card></Col>
+      </Row>
+
+      <Card style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+        bodyStyle={{ padding: '16px 20px' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ flex: 1 }} />
+          <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button>
+        </div>
+        <Table rowKey="work_center_id" dataSource={data} columns={columns} size="small"
+          loading={loading} pagination={false} scroll={{ x: 600 }}
+          expandable={{
+            expandedRowRender: (r) => (
+              <Table rowKey="job_no" dataSource={r.job_cards || []} size="small" pagination={false}
+                columns={[
+                  { title: 'Job No', dataIndex: 'job_no', width: 130 },
+                  { title: 'WO No', dataIndex: 'wo_no', width: 130 },
+                  { title: 'Operation', dataIndex: 'operation_name', width: 160 },
+                  { title: 'Remaining', dataIndex: 'remaining_qty', width: 100, align: 'right' },
+                  { title: 'Load (min)', dataIndex: 'load_min', width: 100, align: 'right',
+                    render: (v) => <Text style={{ fontWeight: 600 }}>{Math.round(v)}</Text> },
+                ]}
+              />
+            ),
+          }}
+        />
+      </Card>
+    </>
+  );
+}
+
+// ── Main Page ────────────────────────────────────────────────────────────────
+export default function CapacityPlanningPage() {
+  return (
     <AppLayout>
-      {/* Breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
         <Text style={{ color: '#9ca3af', fontSize: 12 }}>Production</Text>
         <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
@@ -140,103 +326,26 @@ export default function CapacityPlanningPage() {
 
       <Title level={3} style={{ margin: 0 }}>Capacity Planning</Title>
       <Text type="secondary" style={{ fontSize: 13 }}>
-        Work-center load based on open job cards and routing cycle times. Updated in real time.
+        Gantt-style scheduling with auto-schedule (EDD), overload detection, and work center load analysis.
       </Text>
 
-      {/* Summary tiles */}
-      <Row gutter={12} style={{ marginTop: 16, marginBottom: 20 }}>
-        <Col xs={12} sm={6}>
-          <Card size="small" style={{ borderRadius: 10, border: '1px solid #e8eaed' }}>
-            <Statistic
-              title="Total Load"
-              value={fmtMin(Math.round(totalLoad))}
-              valueStyle={{ fontSize: 20, fontWeight: 700 }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small" style={{ borderRadius: 10, border: '1px solid #fecaca', background: '#fff5f5' }}>
-            <Statistic
-              title={<Space><FireOutlined style={{ color: '#dc2626' }} />Overloaded</Space>}
-              value={overloaded}
-              suffix="centers"
-              valueStyle={{ fontSize: 20, fontWeight: 700, color: '#dc2626' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small" style={{ borderRadius: 10, border: '1px solid #fde68a', background: '#fffbeb' }}>
-            <Statistic
-              title={<Space><WarningOutlined style={{ color: '#d97706' }} />High Load (&gt;80%)</Space>}
-              value={highLoad}
-              suffix="centers"
-              valueStyle={{ fontSize: 20, fontWeight: 700, color: '#d97706' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small" style={{ borderRadius: 10, border: '1px solid #bbf7d0', background: '#f0fdf4' }}>
-            <Statistic
-              title={<Space><CheckCircleOutlined style={{ color: '#16a34a' }} />Healthy (&le;80%)</Space>}
-              value={healthy}
-              suffix="centers"
-              valueStyle={{ fontSize: 20, fontWeight: 700, color: '#16a34a' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      <Card
-        style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
-        bodyStyle={{ padding: '16px 20px' }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
-        </div>
-
-        {data.length === 0 && !loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
-            <CheckCircleOutlined style={{ fontSize: 32, marginBottom: 8 }} />
-            <div>No open routing-based job cards found.</div>
-            <div style={{ fontSize: 12, marginTop: 4 }}>Generate job cards from a released Work Order to see capacity load.</div>
-          </div>
-        ) : (
-          <Table
-            rowKey="work_center_id"
-            loading={loading}
-            columns={mainColumns}
-            dataSource={data}
-            size="small"
-            pagination={false}
-            scroll={{ x: 800 }}
-            expandable={{
-              expandedRowRender: (record) => (
-                <div style={{ margin: '0 0 12px 40px' }}>
-                  <Text strong style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 8 }}>
-                    Open Job Cards at {record.work_center_name}
-                  </Text>
-                  <Table
-                    rowKey="job_no"
-                    columns={jcColumns}
-                    dataSource={record.job_cards}
-                    size="small"
-                    pagination={false}
-                    scroll={{ x: 800 }}
-                    style={{ border: '1px solid #e8eaed', borderRadius: 8 }}
-                  />
-                </div>
-              ),
-              rowExpandable: (r) => r.job_cards && r.job_cards.length > 0,
-            }}
-            rowClassName={(r) => r.overloaded ? 'ant-table-row-danger' : ''}
-          />
-        )}
-      </Card>
-
-      <style>{`
-        .ant-table-row-danger > td { background: #fff5f5 !important; }
-        .ant-table-row-danger:hover > td { background: #fee2e2 !important; }
-      `}</style>
+      <div style={{ marginTop: 16 }}>
+        <Tabs
+          defaultActiveKey="gantt"
+          items={[
+            {
+              key: 'gantt',
+              label: <span><CalendarOutlined style={{ marginRight: 6 }} />Gantt View</span>,
+              children: <GanttViewTab />,
+            },
+            {
+              key: 'load',
+              label: <span><BarChartOutlined style={{ marginRight: 6 }} />Load View</span>,
+              children: <LoadViewTab />,
+            },
+          ]}
+        />
+      </div>
     </AppLayout>
   );
 }

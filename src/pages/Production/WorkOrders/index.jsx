@@ -8,7 +8,7 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
   DownOutlined, BulbOutlined, ThunderboltOutlined,
-  ApartmentOutlined, BranchesOutlined,
+  ApartmentOutlined, BranchesOutlined, QrcodeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
@@ -22,6 +22,7 @@ import { machineApi }      from '../../../api/machine.api';
 import { shiftApi }        from '../../../api/shift.api';
 import api                 from '../../../api/axios';
 import aiApi               from '../../../api/ai.api';
+import QrLabelPrint        from '../../../components/common/QrLabelPrint';
 
 const { Title, Text } = Typography;
 
@@ -96,6 +97,9 @@ export default function WorkOrdersPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing,    setEditing]    = useState(null);
   const [saving,     setSaving]     = useState(false);
+
+  // QR label state
+  const [qrRecord, setQrRecord] = useState(null);
 
   // Sub-assembly state
   const [subWoMap,   setSubWoMap]   = useState({});   // parentId -> sub-WOs array
@@ -406,6 +410,15 @@ export default function WorkOrdersPage() {
             icon={<BulbOutlined style={{ color: '#7c3aed' }} />}
             onClick={() => openAiWoDrawer(r)}
           />
+        </Tooltip>
+      ),
+    },
+    {
+      title: '', key: 'qr', width: 40,
+      render: (_, r) => (
+        <Tooltip title="QR Label">
+          <Button size="small" type="text" icon={<QrcodeOutlined />}
+            onClick={() => setQrRecord(r)} />
         </Tooltip>
       ),
     },
@@ -851,6 +864,16 @@ export default function WorkOrdersPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      {/* QR Label Modal */}
+      <QrLabelPrint
+        open={!!qrRecord}
+        onClose={() => setQrRecord(null)}
+        type="WO"
+        identifier={qrRecord?.wo_no || ''}
+        title="Work Order"
+        subtitle={qrRecord?.Item?.name || ''}
+      />
     </AppLayout>
   );
 }

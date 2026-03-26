@@ -19,6 +19,9 @@ import {
   SolutionOutlined,
   SettingOutlined,
   CloseOutlined,
+  ApartmentOutlined,
+  FileTextOutlined,
+  ScanOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth }        from '../../context/AuthContext';
@@ -46,6 +49,24 @@ const NAV_ITEMS_DEF = [
     label:      'Dashboard',
     icon:       <AppstoreOutlined />,
     permission: null,             // always show
+  },
+  {
+    key:        'multi-plant',
+    label:      'Multi-Plant',
+    icon:       <ApartmentOutlined />,
+    permission: null,             // route-level role check handles access (plant_head/it_admin)
+  },
+  {
+    key:        'qr-scanner',
+    label:      'QR Scanner',
+    icon:       <ScanOutlined />,
+    permission: null,             // always show — any authenticated user
+  },
+  {
+    key:        'operator-panel',
+    label:      'Operator Panel',
+    icon:       <ToolOutlined />,
+    permission: null,             // any authenticated user — touch-optimized for shop floor
   },
 
   // ── Masters ──────────────────────────────────────────────────────────────────
@@ -146,6 +167,7 @@ const NAV_ITEMS_DEF = [
           { key: 'q-complaints', label: 'Customer Complaints',permission: 'quality-complaints-read' },
           { key: 'q-instruments',label: 'Instruments',         permission: 'quality-instruments-read'},
           { key: 'q-audit-plan', label: 'Audit Plans',         permission: 'quality-audit_plan-read' },
+          { key: 'q-spc-charts',label: 'SPC Control Charts',  permission: 'quality-spc_control_charts-read' },
         ],
       },
       // ── NPD / Documents ────────────────────────────────────
@@ -268,6 +290,7 @@ const NAV_ITEMS_DEF = [
           { key: 'production-scheduling', label: 'Scheduling',      permission: 'prod-mrp_expected_production-create_plan-read' },
           { key: 'mrp-planning',          label: 'MRP / Net Req.',  permission: 'prod-mrp_expected_production-view_plan-read'   },
           { key: 'demand-forecast',       label: 'Demand Forecast', permission: 'prod-demand_forecast-forecast-read'            },
+          { key: 'process-recipes',      label: 'Process Recipes', permission: 'prod-process_recipes-process_recipes-read'      },
         ],
       },
       // ── Inspections ────────────────────────────────────────────────────
@@ -279,6 +302,7 @@ const NAV_ITEMS_DEF = [
           { key: 'lqc', label: 'LQC Inspection', permission: 'prod-quality_level-iqc-read' },
           { key: 'pqc', label: 'PQC Inspection', permission: 'prod-quality_level-pqc-read' },
           { key: 'oqc', label: 'OQC Inspection', permission: 'prod-quality_level-oqc-read' },
+          { key: 'ewi', label: 'Work Instructions', permission: null },
         ],
       },
       // ── Workforce ──────────────────────────────────────────────────────
@@ -299,6 +323,7 @@ const NAV_ITEMS_DEF = [
         label: 'Monitoring',
         children: [
           { key: 'oee-dashboard',     label: 'OEE Dashboard',        permission: 'prod-oee-oee_dashboard-read'                 },
+          { key: 'wip-tracking',      label: 'WIP Tracking',         permission: 'prod-wip-wip_tracking-read'                  },
           { key: 'capacity-planning', label: 'Capacity Planning',    permission: 'prod-dpr-daily_production_report-read'       },
           { key: 'scoreboard',        label: 'Production Scoreboard',permission: 'prod-work_centre-manage_work_centre-read'    },
           { key: 'andon',             label: 'Andon Board',          permission: 'prod-work_centre-manage_work_centre-read'    },
@@ -320,6 +345,16 @@ const NAV_ITEMS_DEF = [
         label: 'Cost Intelligence',
         children: [
           { key: 'job-cost-sheet', label: 'Job Cost Sheet', permission: 'prod-cost_intelligence-job_cost_sheet-read' },
+        ],
+      },
+      // ── Analytics & Reports ─────────────────────────────────────────────
+      {
+        key: 'grp-prod-analytics',
+        label: 'Analytics & Reports',
+        children: [
+          { key: 'production-analytics',   label: 'Production Analytics',    permission: 'prod-analytics-production_analytics-read' },
+          { key: 'production-dpr',         label: 'Daily Production Report', permission: 'prod-analytics-dpr-read' },
+          { key: 'executive-report',       label: 'Executive Report',        adminOnly: true },
         ],
       },
     ],
@@ -449,6 +484,14 @@ const NAV_ITEMS_DEF = [
     ],
   },
 
+  // ── Traceability ─────────────────────────────────────────────────────────────
+  {
+    key:        'traceability',
+    label:      'Traceability',
+    icon:       <ApartmentOutlined />,
+    permission: null,   // all authenticated users
+  },
+
   // ── Admin ────────────────────────────────────────────────────────────────────
   {
     key:   'admin',
@@ -456,7 +499,9 @@ const NAV_ITEMS_DEF = [
     icon:  <SettingOutlined />,
     roles: ['plant_head', 'it_admin'],
     children: [
-      { key: 'admin-control-room', label: 'Control Room' },
+      { key: 'admin-control-room', label: 'Control Room'          },
+      { key: 'admin-audit-log',    label: 'Audit Log'             },
+      { key: 'admin-whatsapp',     label: 'WhatsApp Notifications' },
     ],
   },
 ];
@@ -464,6 +509,9 @@ const NAV_ITEMS_DEF = [
 // key → route path (for items that navigate)
 const KEY_TO_PATH = {
   dashboard:       '/dashboard',
+  'multi-plant':   '/dashboard/multi-plant',
+  'qr-scanner':    '/scan',
+  'operator-panel': '/operator',
   configuration:   '/masters/configuration',
   employees:       '/masters/employees',
   shifts:          '/masters/shifts',
@@ -510,15 +558,21 @@ const KEY_TO_PATH = {
   'lqc':                   '/production/lqc',
   'pqc':                   '/production/pqc',
   'oqc':                   '/production/oqc',
+  'ewi':                   '/production/ewi',
   'production-scheduling': '/production/scheduling',
   'mrp-planning':          '/production/mrp',
+  'process-recipes':       '/production/process-recipes',
   'oee-dashboard':         '/production/oee',
+  'wip-tracking':          '/production/wip',
   'rework-tracking':       '/production/rework',
   'tool-management':       '/production/tool-management',
   'demand-forecast':       '/production/demand-forecast',
   'capacity-planning':     '/production/capacity-planning',
   'scrap-vouchers':        '/production/scrap',
   'job-cost-sheet':        '/production/job-cost-sheet',
+  'production-analytics':  '/production/analytics',
+  'production-dpr':        '/production/dpr',
+  'executive-report':      '/reports/executive',
   'scoreboard':            '/production/scoreboard',
   'andon':                 '/production/andon',
   'shift-handover':        '/production/shift-handover',
@@ -532,6 +586,7 @@ const KEY_TO_PATH = {
   'q-pfmea':        '/quality/pfmea',
   'q-ppap':         '/quality/ppap',
   'q-audit-plan':   '/quality/audit-plan',
+  'q-spc-charts':   '/quality/spc-charts',
   // Procurement module
   'procurement-analytics':  '/procurement/analytics',
   'budget-management':      '/procurement/budget-management',
@@ -563,8 +618,12 @@ const KEY_TO_PATH = {
   'dispatch-challans':     '/dispatch/challans',
   'dispatch-tracking':     '/dispatch/tracking',
   'dispatch-reports':      '/dispatch/reports',
+  // Traceability
+  'traceability': '/traceability',
   // Admin
   'admin-control-room':    '/admin/control-room',
+  'admin-audit-log':       '/admin/audit-log',
+  'admin-whatsapp':        '/admin/whatsapp',
   // Maintenance
   'mnt-equipment':   '/maintenance/equipment',
   'mnt-health':      '/maintenance/health',
@@ -633,6 +692,7 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/quality/pfmea'))        return { selected: 'q-pfmea',        open: ['quality', 'grp-npd'] };
   if (pathname.startsWith('/quality/ppap'))         return { selected: 'q-ppap',         open: ['quality', 'grp-npd'] };
   if (pathname.startsWith('/quality/audit-plan'))   return { selected: 'q-audit-plan',   open: ['quality', 'grp-qms'] };
+  if (pathname.startsWith('/quality/spc-charts'))  return { selected: 'q-spc-charts',  open: ['quality', 'grp-qms'] };
   if (pathname.startsWith('/management/mrm')) return { selected: 'mrm-dashboard', open: ['quality', 'grp-management'] };
   // Orders module
   if (pathname.startsWith('/orders/rfq'))       return { selected: 'o-rfq',            open: ['orders'] };
@@ -651,12 +711,14 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/production/job-cards'))       return { selected: 'job-cards',             open: ['production', 'grp-prod-plan'] };
   if (pathname.startsWith('/production/scheduling'))      return { selected: 'production-scheduling', open: ['production', 'grp-prod-plan'] };
   if (pathname.startsWith('/production/mrp'))             return { selected: 'mrp-planning',           open: ['production', 'grp-prod-plan'] };
+  if (pathname.startsWith('/production/process-recipes')) return { selected: 'process-recipes',        open: ['production', 'grp-prod-plan'] };
   if (pathname.startsWith('/production/demand-forecast')) return { selected: 'demand-forecast',        open: ['production', 'grp-prod-plan'] };
   // Production — Inspections sub-group
   if (pathname.startsWith('/production/iqc'))             return { selected: 'iqc', open: ['production', 'grp-prod-inspect'] };
   if (pathname.startsWith('/production/lqc'))             return { selected: 'lqc', open: ['production', 'grp-prod-inspect'] };
   if (pathname.startsWith('/production/pqc'))             return { selected: 'pqc', open: ['production', 'grp-prod-inspect'] };
   if (pathname.startsWith('/production/oqc'))             return { selected: 'oqc', open: ['production', 'grp-prod-inspect'] };
+  if (pathname.startsWith('/production/ewi'))             return { selected: 'ewi', open: ['production', 'grp-prod-inspect'] };
   // Production — Workforce sub-group
   if (pathname.startsWith('/production/shift-planning'))  return { selected: 'shift-planning', open: ['production', 'grp-prod-workforce'] };
   if (pathname.startsWith('/production/shift-handover'))  return { selected: 'shift-handover', open: ['production', 'grp-prod-workforce'] };
@@ -665,6 +727,7 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/production/time-standards'))  return { selected: 'time-standards', open: ['production', 'grp-prod-workforce'] };
   // Production — Monitoring sub-group
   if (pathname.startsWith('/production/oee'))              return { selected: 'oee-dashboard',     open: ['production', 'grp-prod-monitor'] };
+  if (pathname.startsWith('/production/wip'))              return { selected: 'wip-tracking',      open: ['production', 'grp-prod-monitor'] };
   if (pathname.startsWith('/production/capacity-planning')) return { selected: 'capacity-planning', open: ['production', 'grp-prod-monitor'] };
   if (pathname.startsWith('/production/scoreboard'))        return { selected: 'scoreboard',        open: ['production', 'grp-prod-monitor'] };
   if (pathname.startsWith('/production/andon'))             return { selected: 'andon',             open: ['production', 'grp-prod-monitor'] };
@@ -673,7 +736,10 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/production/scrap'))            return { selected: 'scrap-vouchers',   open: ['production', 'grp-prod-ops'] };
   if (pathname.startsWith('/production/tool-management'))  return { selected: 'tool-management',  open: ['production', 'grp-prod-ops'] };
   // Production — Cost Intelligence sub-group
-  if (pathname.startsWith('/production/job-cost-sheet'))   return { selected: 'job-cost-sheet',   open: ['production', 'grp-prod-costing'] };
+  if (pathname.startsWith('/production/job-cost-sheet'))   return { selected: 'job-cost-sheet',        open: ['production', 'grp-prod-costing']   };
+  if (pathname.startsWith('/production/analytics'))        return { selected: 'production-analytics', open: ['production', 'grp-prod-analytics'] };
+  if (pathname.startsWith('/production/dpr'))              return { selected: 'production-dpr',       open: ['production', 'grp-prod-analytics'] };
+  if (pathname.startsWith('/reports/executive'))          return { selected: 'executive-report',     open: ['production', 'grp-prod-analytics'] };
   // Procurement — Purchasing sub-group
   if (pathname.startsWith('/procurement/purchase-requisitions')) return { selected: 'purchase-requisitions', open: ['procurement', 'grp-proc-purchasing'] };
   if (pathname.startsWith('/procurement/vendor-rfq'))            return { selected: 'vendor-rfq',            open: ['procurement', 'grp-proc-purchasing'] };
@@ -698,6 +764,8 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/accounts/copq'))               return { selected: 'acc-copq',              open: ['accounts'] };
   // Admin
   if (pathname.startsWith('/admin/control-room')) return { selected: 'admin-control-room', open: ['admin'] };
+  if (pathname.startsWith('/admin/audit-log'))    return { selected: 'admin-audit-log',    open: ['admin'] };
+  if (pathname.startsWith('/admin/whatsapp'))     return { selected: 'admin-whatsapp',      open: ['admin'] };
   // Maintenance — Assets sub-group
   if (pathname.startsWith('/maintenance/equipment'))   return { selected: 'mnt-equipment',   open: ['maintenance', 'grp-mnt-assets'] };
   if (pathname.startsWith('/maintenance/spare-parts')) return { selected: 'mnt-spare-parts', open: ['maintenance', 'grp-mnt-assets'] };
@@ -740,6 +808,13 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/dispatch/challans'))     return { selected: 'dispatch-challans',     open: ['dispatch'] };
   if (pathname.startsWith('/dispatch/tracking'))     return { selected: 'dispatch-tracking',     open: ['dispatch'] };
   if (pathname.startsWith('/dispatch/reports'))      return { selected: 'dispatch-reports',      open: ['dispatch'] };
+  // Traceability
+  if (pathname.startsWith('/traceability')) return { selected: 'traceability', open: [] };
+  // Multi-Plant
+  if (pathname.startsWith('/dashboard/multi-plant')) return { selected: 'multi-plant', open: [] };
+  // QR Scanner
+  if (pathname.startsWith('/scan')) return { selected: 'qr-scanner', open: [] };
+  if (pathname.startsWith('/operator')) return { selected: 'operator-panel', open: [] };
   return { selected: 'dashboard', open: [] };
 };
 

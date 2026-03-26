@@ -45,3 +45,10 @@ export const fieldVisibilityApi = {
 export const auditLogApi = {
   getAll: (params = {}) => api.get(`${BASE}/audit-log`, { params }).then((r) => r.data),
 };
+
+// ── WhatsApp Notifications ───────────────────────────────────────────────────
+export const whatsappApi = {
+  getStatus:   ()           => api.get('/admin/whatsapp/status').then((r) => r.data),
+  sendTest:    (data)       => api.post('/admin/whatsapp/test', data).then((r) => r.data),
+  getLogs:     (params = {})=> api.get('/admin/whatsapp/logs', { params }).then((r) => r.data),
+};

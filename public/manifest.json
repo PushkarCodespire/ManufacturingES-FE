@@ -1,0 +1,26 @@
+{
+  "name": "Dynatech ONE — Operations 'N' Everything",
+  "short_name": "Dynatech ONE",
+  "description": "Manufacturing ERP — production, quality, inventory, maintenance, dispatch.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f6f9",
+  "theme_color": "#1d4ed8",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/codespire-logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "en-IN"
+}

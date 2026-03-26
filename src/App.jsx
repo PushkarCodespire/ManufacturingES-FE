@@ -3,9 +3,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntApp, theme as antTheme } from 'antd';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './routes/ProtectedRoute';
+import OfflineIndicator from './components/OfflineIndicator';
+import PwaInstallPrompt from './components/PwaInstallPrompt';
 import LoginPage from './pages/Login';
 import ChangePasswordPage from './pages/ChangePassword';
 import DashboardPage from './pages/Dashboard';
+import MultiPlantDashboard from './pages/Dashboard/MultiPlant';
 import ProfilePage from './pages/Profile';
 import ResetPasswordPage from './pages/Admin/ResetPassword';
 import ControlRoomPage from './pages/Admin/ControlRoom';
@@ -54,10 +57,20 @@ import OperatorSkillMatrixPage from './pages/Production/OperatorSkillMatrix';
 import MrpPlanningPage        from './pages/Production/MrpPlanning';
 import OeeDashboardPage       from './pages/Production/OeeDashboard';
 import WipTrackingPage        from './pages/Production/WipTracking';
-import JobCostSheetPage      from './pages/Production/JobCostSheet';
+import JobCostSheetPage        from './pages/Production/JobCostSheet';
+import ProductionAnalyticsPage from './pages/Production/Analytics';
+import DPRPage                 from './pages/Production/DPR';
+import NotificationsPage       from './pages/Notifications';
+import AuditLogPage            from './pages/Admin/AuditLog';
+import WhatsAppPage            from './pages/Admin/WhatsApp';
+import ExecutiveReportPage    from './pages/Reports/ExecutiveReport';
+import TraceabilitySearchPage from './pages/Traceability';
+import TraceResultPage        from './pages/Traceability/TraceResult';
+import ScannerPage            from './pages/Scanner';
 import ReworkTrackingPage     from './pages/Production/ReworkTracking';
 import ToolManagementPage     from './pages/Production/ToolManagement';
 import DemandForecastPage     from './pages/Production/DemandForecast';
+import ProcessRecipesPage    from './pages/Production/ProcessRecipes';
 import LQCPage               from './pages/Production/LQC';
 import IQCPage               from './pages/Production/IQC';
 import IQCDetailPage         from './pages/Production/IQC/IQCDetail';
@@ -66,6 +79,7 @@ import OQCPage               from './pages/Production/OQC';
 import SchedulingPage        from './pages/Production/Scheduling';
 import CapacityPlanningPage  from './pages/Production/CapacityPlanning';
 import ScrapVoucherPage      from './pages/Production/ScrapVoucher';
+import EWIPage               from './pages/Production/EWI';
 import ProcurementAnalyticsPage from './pages/Procurement/Analytics';
 import BudgetManagementPage     from './pages/Procurement/BudgetManagement';
 import VendorInvoicesPage       from './pages/Procurement/VendorInvoices';
@@ -86,6 +100,7 @@ import EffectivenessPage    from './pages/HR/Effectiveness';
 import CAPAPage             from './pages/Quality/CAPA';
 import CAPADetailPage       from './pages/Quality/CAPA/CAPADetail';
 import NCRPage              from './pages/Quality/NCR';
+import SPCControlChartsPage from './pages/Quality/SPCControlCharts';
 import NCRDetailPage        from './pages/Quality/NCR/NCRDetail';
 import ComplaintsPage       from './pages/Quality/Complaints';
 import ComplaintDetailPage  from './pages/Quality/Complaints/ComplaintDetail';
@@ -144,6 +159,7 @@ import MadadPage            from './pages/Madad';
 import ScoreboardPage      from './pages/Production/Scoreboard';
 import AndonPage           from './pages/Production/Andon';
 import ShiftHandoverPage   from './pages/Production/ShiftHandover';
+import OperatorPanelPage   from './pages/Operator';
 
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
@@ -211,6 +227,14 @@ function App() {
               />
 
               <Route
+                path="/dashboard/multi-plant"
+                element={
+                  <ProtectedRoute roles={['plant_head', 'it_admin']}>
+                    <MultiPlantDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
@@ -243,6 +267,42 @@ function App() {
                 element={
                   <ProtectedRoute roles={['it_admin', 'plant_head']}>
                     <ControlRoomPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/audit-log"
+                element={
+                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                    <AuditLogPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/scan"
+                element={<ProtectedRoute><ScannerPage /></ProtectedRoute>}
+              />
+              <Route
+                path="/traceability"
+                element={<ProtectedRoute><TraceabilitySearchPage /></ProtectedRoute>}
+              />
+              <Route
+                path="/traceability/result"
+                element={<ProtectedRoute><TraceResultPage /></ProtectedRoute>}
+              />
+              <Route
+                path="/admin/whatsapp"
+                element={
+                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                    <WhatsAppPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reports/executive"
+                element={
+                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                    <ExecutiveReportPage />
                   </ProtectedRoute>
                 }
               />
@@ -596,9 +656,12 @@ function App() {
               <Route path="/production/oee"              element={<ProtectedRoute permission="prod-oee-oee_dashboard-read"><OeeDashboardPage /></ProtectedRoute>} />
               <Route path="/production/wip"              element={<ProtectedRoute permission="prod-wip-wip_tracking-read"><WipTrackingPage /></ProtectedRoute>} />
               <Route path="/production/job-cost-sheet"  element={<ProtectedRoute permission="prod-cost_intelligence-job_cost_sheet-read"><JobCostSheetPage /></ProtectedRoute>} />
+              <Route path="/production/analytics"       element={<ProtectedRoute permission="prod-analytics-production_analytics-read"><ProductionAnalyticsPage /></ProtectedRoute>} />
+              <Route path="/production/dpr"             element={<ProtectedRoute permission="prod-analytics-dpr-read"><DPRPage /></ProtectedRoute>} />
               <Route path="/production/rework"           element={<ProtectedRoute permission="prod-rework_tracking-rework_vouchers-read"><ReworkTrackingPage /></ProtectedRoute>} />
               <Route path="/production/tool-management"  element={<ProtectedRoute permission="prod-tool_management-tool_logs-read"><ToolManagementPage /></ProtectedRoute>} />
               <Route path="/production/demand-forecast"  element={<ProtectedRoute permission="prod-demand_forecast-forecast-read"><DemandForecastPage /></ProtectedRoute>} />
+              <Route path="/production/process-recipes" element={<ProtectedRoute permission="prod-process_recipes-process_recipes-read"><ProcessRecipesPage /></ProtectedRoute>} />
               <Route path="/production/iqc" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><IQCPage /></ProtectedRoute>} />
               <Route path="/production/iqc/:id" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><IQCDetailPage /></ProtectedRoute>} />
               <Route path="/production/lqc" element={<ProtectedRoute permission="prod-quality_level-iqc-read"><LQCPage /></ProtectedRoute>} />
@@ -607,6 +670,7 @@ function App() {
               <Route path="/production/scheduling" element={<ProtectedRoute permission="prod-mrp_expected_production-create_plan-read"><SchedulingPage /></ProtectedRoute>} />
               <Route path="/production/capacity-planning" element={<ProtectedRoute permission="prod-dpr-daily_production_report-read"><CapacityPlanningPage /></ProtectedRoute>} />
               <Route path="/production/scrap" element={<ProtectedRoute permission="prod-dpr-rejection_entry-read"><ScrapVoucherPage /></ProtectedRoute>} />
+              <Route path="/production/ewi" element={<ProtectedRoute><EWIPage /></ProtectedRoute>} />
 
               {/* ── Procurement Module ─────────────────────────────────────────── */}
               <Route path="/procurement/analytics"             element={<ProtectedRoute permission="plan-procurement-analytics-procurement_analytics-read"><ProcurementAnalyticsPage /></ProtectedRoute>} />
@@ -645,6 +709,7 @@ function App() {
               <Route path="/quality/pfmea/:id"       element={<ProtectedRoute permission="npd-pfmea-read">            <PFMEADetailPage />     </ProtectedRoute>} />
               <Route path="/quality/ppap"            element={<ProtectedRoute permission="npd-ppap-read">             <PPAPPage />            </ProtectedRoute>} />
               <Route path="/quality/audit-plan"      element={<ProtectedRoute permission="quality-audit_plan-read">   <AuditPlanPage />       </ProtectedRoute>} />
+              <Route path="/quality/spc-charts"     element={<ProtectedRoute permission="quality-spc_control_charts-read"><SPCControlChartsPage /></ProtectedRoute>} />
               <Route path="/management/mrm"          element={<ProtectedRoute permission="management-mrm-read">         <MRMDashboard />         </ProtectedRoute>} />
 
               {/* HR & Training — hr_admin, it_admin, plant_head only */}
@@ -815,6 +880,12 @@ function App() {
               <Route path="/production/andon"         element={<ProtectedRoute permission="prod-work_centre-manage_work_centre-read"><AndonPage /></ProtectedRoute>} />
               <Route path="/production/shift-handover" element={<ProtectedRoute permission="prod-shift_planning-manage_shifts-read"><ShiftHandoverPage /></ProtectedRoute>} />
 
+              {/* Mobile Operator Panel */}
+              <Route path="/operator" element={<ProtectedRoute><OperatorPanelPage /></ProtectedRoute>} />
+
+              {/* Notification Center */}
+              <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+
               {/* Madad full-page chat */}
               <Route path="/madad" element={<ProtectedRoute><MadadPage /></ProtectedRoute>} />
 
@@ -823,6 +894,8 @@ function App() {
             </Routes>
           </BrowserRouter>
         </AuthProvider>
+        <OfflineIndicator />
+        <PwaInstallPrompt />
       </AntApp>
     </ConfigProvider>
   );

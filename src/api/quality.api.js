@@ -114,3 +114,12 @@ export const pfmeaApi = {
   updateAction:  (id, itemId, actionId, data) => api.patch(`/npd/pfmea/${id}/items/${itemId}/actions/${actionId}`, data).then((r) => r.data),
   delete:        (id)          => api.delete(`/npd/pfmea/${id}`).then((r) => r.data),
 };
+
+export const spcApi = {
+  getConfigs:  ()         => api.get('/quality/spc/configs'),
+  createConfig:(data)     => api.post('/quality/spc/configs', data),
+  updateConfig:(id, data) => api.patch(`/quality/spc/configs/${id}`, data),
+  deleteConfig:(id)       => api.delete(`/quality/spc/configs/${id}`),
+  calculate:   (id)       => api.post(`/quality/spc/configs/${id}/calculate`),
+  getChartData:(id)       => api.get(`/quality/spc/configs/${id}/chart-data`),
+};

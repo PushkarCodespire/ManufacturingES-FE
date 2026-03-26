@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Button, Input, Typography, Spin, Tooltip, Empty } from 'antd';
+import { Button, Input, Typography, Spin, Tooltip, Empty, message as antdMessage } from 'antd';
 import {
   PlusOutlined,
   SendOutlined,
   DeleteOutlined,
   MessageOutlined,
   CommentOutlined,
+  AudioOutlined,
+  AudioMutedOutlined,
 } from '@ant-design/icons';
 import { useSearchParams } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
@@ -41,6 +43,9 @@ const MadadPage = () => {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [input, setInput]                     = useState('');
   const [sending, setSending]                 = useState(false);
+
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef(null);
 
   const listRef   = useRef(null);
   const sessionId = useRef(null);
@@ -157,6 +162,38 @@ const MadadPage = () => {
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
+
+  // ── Voice-to-Text (Web Speech API) ────────────────────────────────────────
+  const handleVoice = useCallback(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      antdMessage.warning('Voice input is not supported in this browser.');
+      return;
+    }
+
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'hi-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => setListening(true);
+    recognition.onend   = () => setListening(false);
+    recognition.onerror = () => { setListening(false); antdMessage.error('Voice recognition failed. Try again.'); };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    };
+
+    recognition.start();
+  }, [listening]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -359,10 +396,25 @@ const MadadPage = () => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Madad se poochho..."
+                  placeholder={listening ? 'Bol raha hai... (bolo abhi)' : 'Madad se poochho...'}
                   autoSize={{ minRows: 1, maxRows: 5 }}
-                  style={{ flex: 1, resize: 'none', borderRadius: 8 }}
+                  style={{ flex: 1, resize: 'none', borderRadius: 8, border: listening ? '1.5px solid #dc2626' : undefined }}
                 />
+                <Tooltip title={listening ? 'Stop listening' : 'Voice input (Hinglish/Hindi/English)'}>
+                  <Button
+                    type={listening ? 'primary' : 'text'}
+                    icon={listening ? <AudioMutedOutlined /> : <AudioOutlined />}
+                    onClick={handleVoice}
+                    danger={listening}
+                    style={{
+                      borderRadius: 8,
+                      flexShrink:   0,
+                      background:   listening ? '#fef2f2' : undefined,
+                      color:        listening ? '#dc2626' : '#6b7280',
+                      animation:    listening ? 'pulse 1s infinite' : undefined,
+                    }}
+                  />
+                </Tooltip>
                 <Button
                   type="primary"
                   icon={<SendOutlined />}

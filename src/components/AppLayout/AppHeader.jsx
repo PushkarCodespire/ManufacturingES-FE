@@ -1,8 +1,10 @@
 import React from 'react';
-import { Layout, Button, Space, Typography, Grid } from 'antd';
-import { QuestionCircleOutlined, MenuOutlined } from '@ant-design/icons';
+import { Layout, Button, Space, Typography, Grid, Select } from 'antd';
+import { QuestionCircleOutlined, MenuOutlined, BankOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import NotificationPanel from './NotificationPanel';
+import GlobalSearch from './GlobalSearch';
+import { useAuth } from '../../context/AuthContext';
 
 const { Header }       = Layout;
 const { Text }         = Typography;
@@ -23,6 +25,8 @@ const AppHeader = ({ onMenuOpen }) => {
   const navigate  = useNavigate();
   const bp        = useBreakpoint();
   const isMobile  = !bp.md;
+  const { user, currentSiteId, switchSite } = useAuth();
+  const sites = user?.sites || [];
 
   return (
     <Header
@@ -80,8 +84,26 @@ const AppHeader = ({ onMenuOpen }) => {
         </div>
       </div>
 
-      {/* ── Right: Help + Live Notification Bell ──────────────────────── */}
+      {/* ── Centre: Global Search (desktop only) ──────────────────────── */}
+      {!isMobile && <GlobalSearch />}
+
+      {/* ── Right: Site switcher + Help + Live Notification Bell ─────── */}
       <Space size={6}>
+        {/* Site/Plant switcher */}
+        {!isMobile && sites.length > 0 && (
+          <Select
+            value={currentSiteId}
+            onChange={switchSite}
+            placeholder="All Plants"
+            allowClear
+            size="small"
+            suffixIcon={<BankOutlined />}
+            style={{ width: 160, fontSize: 12 }}
+            options={[
+              ...sites.map((s) => ({ value: s.id, label: s.name })),
+            ]}
+          />
+        )}
         {/* Help button — hidden on mobile */}
         {!isMobile && (
           <Button

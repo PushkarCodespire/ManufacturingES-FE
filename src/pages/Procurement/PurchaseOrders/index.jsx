@@ -60,6 +60,7 @@ const emptyLine = () => ({
   qty_ordered: null,
   unit_price:  null,
   unit:        'pcs',
+  gst_rate:    0,
 });
 
 const fmtCcy = (v) =>
@@ -75,16 +76,25 @@ const poTotal = (items) =>
 
 // ── Print PO ─────────────────────────────────────────────────────────────────
 const printPO = (po, items) => {
-  const lines = items.map((it) => `
+  const fmtInr = (v) => `₹${parseFloat(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  const lines = items.map((it) => {
+    const lineAmt = parseFloat(it.qty_ordered || 0) * parseFloat(it.unit_price || 0);
+    return `
     <tr>
       <td>${it.Item?.code || '—'}</td>
       <td>${it.Item?.name || '—'}</td>
+      <td>${it.hsn_code || '—'}</td>
       <td style="text-align:right">${parseFloat(it.qty_ordered).toLocaleString()}</td>
       <td>${it.unit || 'pcs'}</td>
-      <td style="text-align:right">₹${parseFloat(it.unit_price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-      <td style="text-align:right">₹${(parseFloat(it.qty_ordered || 0) * parseFloat(it.unit_price || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-    </tr>`).join('');
-  const total = poTotal(items);
+      <td style="text-align:right">${fmtInr(it.unit_price)}</td>
+      <td style="text-align:right">${fmtInr(lineAmt)}</td>
+      <td style="text-align:center">${parseFloat(it.gst_rate || 0)}%</td>
+      <td style="text-align:right">${fmtInr(it.tax_amount)}</td>
+      <td style="text-align:right">${fmtInr(it.total_price || lineAmt)}</td>
+    </tr>`;
+  }).join('');
+  const subtotal = poTotal(items);
+  const supplyLabel = po.supply_type === 'intra' ? 'Intra-State' : po.supply_type === 'inter' ? 'Inter-State' : '';
   const win = window.open('', '_blank');
   win.document.write(`<!DOCTYPE html><html><head>
     <title>Purchase Order — ${po.po_no}</title>
@@ -98,15 +108,23 @@ const printPO = (po, items) => {
       th { background: #1d4ed8; color: white; padding: 8px 10px; text-align: left; font-size: 11px; }
       td { padding: 7px 10px; border-bottom: 1px solid #e5e7eb; }
       tr:nth-child(even) td { background: #f9fafb; }
+      .summary-row td { text-align: right; padding: 5px 10px; }
       .total-row { font-weight: bold; background: #f0fdf4; }
       .total-row td { border-top: 2px solid #16a34a; font-size: 13px; }
       .footer { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
       .sig-box { border-top: 1px solid #ccc; padding-top: 8px; font-size: 11px; color: #555; }
+      .supply-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+      .supply-intra { background: #e0f2fe; color: #0369a1; }
+      .supply-inter { background: #ede9fe; color: #6d28d9; }
       @media print { button { display: none; } }
     </style>
   </head><body>
     <div class="header">
-      <div><h1>Purchase Order</h1><h2>${po.po_no}</h2></div>
+      <div>
+        <h1>Purchase Order</h1>
+        <h2>${po.po_no}</h2>
+        ${supplyLabel ? `<span class="supply-tag ${po.supply_type === 'intra' ? 'supply-intra' : 'supply-inter'}">${supplyLabel}</span>` : ''}
+      </div>
       <div style="text-align:right">
         <div style="font-size:11px;color:#888">Order Date</div>
         <div>${po.order_date ? dayjs(po.order_date).format('DD MMM YYYY') : '—'}</div>
@@ -117,17 +135,35 @@ const printPO = (po, items) => {
     <div class="meta">
       <div><div class="meta-label">Vendor</div><strong>${po.Vendor?.name || '—'}</strong></div>
       <div><div class="meta-label">Partner Code</div>${po.Vendor?.partner_code || '—'}</div>
-      <div><div class="meta-label">GSTIN</div>${po.Vendor?.gstin || '—'}</div>
+      <div><div class="meta-label">Vendor GSTIN</div>${po.Vendor?.gstin || '—'}</div>
       <div><div class="meta-label">Address</div>${[po.Vendor?.address, po.Vendor?.city, po.Vendor?.state].filter(Boolean).join(', ') || '—'}</div>
+      ${po.e_way_bill_no ? `<div><div class="meta-label">E-Way Bill No.</div><strong>${po.e_way_bill_no}</strong></div>` : ''}
     </div>
     ${po.notes ? `<div style="background:#fffbeb;border:1px solid #fef08a;padding:8px 12px;border-radius:4px;margin-bottom:16px;font-size:11px;"><strong>Notes:</strong> ${po.notes}</div>` : ''}
     <table>
-      <thead><tr><th>#</th><th>Description</th><th style="text-align:right">Qty</th><th>Unit</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Amount</th></tr></thead>
+      <thead><tr><th>#</th><th>Description</th><th>HSN</th><th style="text-align:right">Qty</th><th>Unit</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Amount</th><th style="text-align:center">GST %</th><th style="text-align:right">Tax</th><th style="text-align:right">Total</th></tr></thead>
       <tbody>${lines}</tbody>
       <tfoot>
+        <tr class="summary-row">
+          <td colspan="9">Subtotal</td>
+          <td>${fmtInr(subtotal)}</td>
+        </tr>
+        ${po.supply_type === 'intra' ? `
+        <tr class="summary-row">
+          <td colspan="9">CGST</td>
+          <td>${fmtInr(po.cgst_amount)}</td>
+        </tr>
+        <tr class="summary-row">
+          <td colspan="9">SGST</td>
+          <td>${fmtInr(po.sgst_amount)}</td>
+        </tr>` : po.supply_type === 'inter' ? `
+        <tr class="summary-row">
+          <td colspan="9">IGST</td>
+          <td>${fmtInr(po.igst_amount)}</td>
+        </tr>` : ''}
         <tr class="total-row">
-          <td colspan="5" style="text-align:right">Total Order Value</td>
-          <td style="text-align:right">₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td colspan="9" style="text-align:right">Grand Total</td>
+          <td style="text-align:right">${fmtInr(po.total_amount || subtotal)}</td>
         </tr>
       </tfoot>
     </table>
@@ -258,10 +294,11 @@ export default function PurchaseOrdersPage() {
   const openEdit = (record) => {
     setEditing(record);
     form.setFieldsValue({
-      vendor_id:     record.vendor_id,
-      order_date:    record.order_date    ? dayjs(record.order_date)    : null,
-      expected_date: record.expected_date ? dayjs(record.expected_date) : null,
-      notes:         record.notes,
+      vendor_id:      record.vendor_id,
+      order_date:     record.order_date    ? dayjs(record.order_date)    : null,
+      expected_date:  record.expected_date ? dayjs(record.expected_date) : null,
+      e_way_bill_no:  record.e_way_bill_no || null,
+      notes:          record.notes,
     });
     const lines = (record.Items || []).map((it) => ({
       _key:        it.id || Date.now() + Math.random(),
@@ -269,6 +306,7 @@ export default function PurchaseOrdersPage() {
       qty_ordered: parseFloat(it.qty_ordered) || null,
       unit_price:  parseFloat(it.unit_price)  || null,
       unit:        it.unit || 'pcs',
+      gst_rate:    parseFloat(it.gst_rate) || 0,
     }));
     setLineItems(lines.length ? lines : [emptyLine()]);
     setDrawerOpen(true);
@@ -280,11 +318,12 @@ export default function PurchaseOrdersPage() {
       if (!lineItems.length) { message.error('Add at least one item'); return; }
       setSaving(true);
       const payload = {
-        vendor_id:     vals.vendor_id,
-        order_date:    vals.order_date?.format('YYYY-MM-DD'),
-        expected_date: vals.expected_date?.format('YYYY-MM-DD') || null,
-        notes:         vals.notes || '',
-        items:         lineItems.map(({ _key, ...it }) => it),
+        vendor_id:      vals.vendor_id,
+        order_date:     vals.order_date?.format('YYYY-MM-DD'),
+        expected_date:  vals.expected_date?.format('YYYY-MM-DD') || null,
+        e_way_bill_no:  vals.e_way_bill_no || null,
+        notes:          vals.notes || '',
+        items:          lineItems.map(({ _key, ...it }) => it),
       };
       if (editing) {
         await purchaseOrderApi.update(editing.id, payload);
@@ -684,6 +723,11 @@ export default function PurchaseOrdersPage() {
           <Space>
             <Text strong>{detailRecord?.po_no}</Text>
             {detailRecord && <Tag color={STATUS_CONFIG[detailRecord.status]?.color}>{STATUS_CONFIG[detailRecord.status]?.label}</Tag>}
+            {detailRecord?.supply_type && (
+              <Tag color={detailRecord.supply_type === 'intra' ? 'cyan' : 'geekblue'}>
+                {detailRecord.supply_type === 'intra' ? 'Intra-State (CGST+SGST)' : 'Inter-State (IGST)'}
+              </Tag>
+            )}
             {detailRecord && APPROVAL_CONFIG[detailRecord.approval_status] && (
               <Tag color={APPROVAL_CONFIG[detailRecord.approval_status].color}>
                 {APPROVAL_CONFIG[detailRecord.approval_status].label}
@@ -777,13 +821,49 @@ export default function PurchaseOrdersPage() {
                 },
                 { title: 'Unit Price', dataIndex: 'unit_price', width: 90, align: 'right', render: (v) => fmtCcy(v) },
                 { title: 'Amount', width: 100, align: 'right', render: (_, r) => <Text strong>{fmtCcy(parseFloat(r.qty_ordered) * parseFloat(r.unit_price || 0))}</Text> },
+                { title: 'HSN', dataIndex: 'hsn_code', width: 80, render: (v) => v || '—' },
+                { title: 'GST %', dataIndex: 'gst_rate', width: 65, align: 'right', render: (v) => v ? `${v}%` : '—' },
+                { title: 'Tax', dataIndex: 'tax_amount', width: 90, align: 'right', render: (v) => fmtCcy(v) },
               ]}
-              summary={() => (
-                <Table.Summary.Row>
-                  <Table.Summary.Cell colSpan={6} style={{ textAlign: 'right', fontWeight: 700 }}>Total Order Value</Table.Summary.Cell>
-                  <Table.Summary.Cell style={{ textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>{fmtCcy(poTotal(detailRecord.Items || []))}</Table.Summary.Cell>
-                </Table.Summary.Row>
-              )}
+              summary={() => {
+                const sub = poTotal(detailRecord.Items || []);
+                return (
+                  <>
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell colSpan={8} style={{ textAlign: 'right', fontWeight: 600 }}>Subtotal</Table.Summary.Cell>
+                      <Table.Summary.Cell style={{ textAlign: 'right', fontWeight: 600 }}>{fmtCcy(sub)}</Table.Summary.Cell>
+                    </Table.Summary.Row>
+                    {detailRecord.supply_type === 'intra' ? (
+                      <>
+                        <Table.Summary.Row>
+                          <Table.Summary.Cell colSpan={8} style={{ textAlign: 'right', fontSize: 12 }}>CGST</Table.Summary.Cell>
+                          <Table.Summary.Cell style={{ textAlign: 'right', fontSize: 12 }}>{fmtCcy(detailRecord.cgst_amount)}</Table.Summary.Cell>
+                        </Table.Summary.Row>
+                        <Table.Summary.Row>
+                          <Table.Summary.Cell colSpan={8} style={{ textAlign: 'right', fontSize: 12 }}>SGST</Table.Summary.Cell>
+                          <Table.Summary.Cell style={{ textAlign: 'right', fontSize: 12 }}>{fmtCcy(detailRecord.sgst_amount)}</Table.Summary.Cell>
+                        </Table.Summary.Row>
+                      </>
+                    ) : detailRecord.supply_type === 'inter' ? (
+                      <Table.Summary.Row>
+                        <Table.Summary.Cell colSpan={8} style={{ textAlign: 'right', fontSize: 12 }}>IGST</Table.Summary.Cell>
+                        <Table.Summary.Cell style={{ textAlign: 'right', fontSize: 12 }}>{fmtCcy(detailRecord.igst_amount)}</Table.Summary.Cell>
+                      </Table.Summary.Row>
+                    ) : null}
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell colSpan={8} style={{ textAlign: 'right', fontWeight: 700 }}>Total</Table.Summary.Cell>
+                      <Table.Summary.Cell style={{ textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>{fmtCcy(detailRecord.total_amount || sub)}</Table.Summary.Cell>
+                    </Table.Summary.Row>
+                    {detailRecord.e_way_bill_no && (
+                      <Table.Summary.Row>
+                        <Table.Summary.Cell colSpan={9} style={{ fontSize: 11 }}>
+                          <Text type="secondary">E-Way Bill: </Text><Text strong>{detailRecord.e_way_bill_no}</Text>
+                        </Table.Summary.Cell>
+                      </Table.Summary.Row>
+                    )}
+                  </>
+                );
+              }}
             />
 
             {/* GRN History */}
@@ -866,6 +946,9 @@ export default function PurchaseOrdersPage() {
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item name="e_way_bill_no" label="E-Way Bill No.">
+            <Input placeholder="e.g. 1234567890" maxLength={20} />
+          </Form.Item>
           <Form.Item name="notes" label="Notes">
             <Input.TextArea rows={2} placeholder="Terms, notes…" />
           </Form.Item>
@@ -873,8 +956,8 @@ export default function PurchaseOrdersPage() {
           <Divider orientation="left" style={{ fontSize: 13, fontWeight: 600 }}>Line Items</Divider>
 
           <div className="res-line-items">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 60px 28px', gap: 6, marginBottom: 6 }}>
-            {['Item', 'Qty', 'Unit Price', 'Unit', ''].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 70px 60px 28px', gap: 6, marginBottom: 6 }}>
+            {['Item', 'Qty', 'Unit Price', 'GST %', 'Unit', ''].map((h) => (
               <Text key={h} style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>{h}</Text>
             ))}
           </div>
@@ -882,7 +965,7 @@ export default function PurchaseOrdersPage() {
           {lineItems.map((row) => (
             <div
               key={row._key}
-              style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 60px 28px', gap: 6, marginBottom: 8, alignItems: 'center' }}
+              style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 70px 60px 28px', gap: 6, marginBottom: 8, alignItems: 'center' }}
             >
               <Select
                 showSearch size="small" placeholder="Select item" optionFilterProp="label"
@@ -890,7 +973,7 @@ export default function PurchaseOrdersPage() {
                 onChange={(v) => {
                   const master = items.find((i) => i.id === v);
                   setLineItems((prev) => prev.map((r) =>
-                    r._key === row._key ? { ...r, item_id: v ?? null, unit: master?.unit || r.unit || 'pcs' } : r
+                    r._key === row._key ? { ...r, item_id: v ?? null, unit: master?.unit || r.unit || 'pcs', gst_rate: master?.gst_rate ?? r.gst_rate ?? 0 } : r
                   ));
                 }}
                 allowClear
@@ -898,6 +981,7 @@ export default function PurchaseOrdersPage() {
               />
               <InputNumber size="small" min={0} precision={0} value={row.qty_ordered} onChange={(v) => updateLine(row._key, 'qty_ordered', v)} style={{ width: '100%' }} />
               <InputNumber size="small" min={0} precision={2} placeholder="₹" value={row.unit_price} onChange={(v) => updateLine(row._key, 'unit_price', v)} style={{ width: '100%' }} />
+              <InputNumber size="small" min={0} max={28} precision={2} placeholder="%" value={row.gst_rate} onChange={(v) => updateLine(row._key, 'gst_rate', v)} style={{ width: '100%' }} />
               <Tooltip title={row.item_id && items.find((i) => i.id === row.item_id)?.unit ? 'Unit from item master' : null}>
                 <Input
                   size="small" placeholder="pcs" value={row.unit}

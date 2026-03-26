@@ -11,11 +11,16 @@ const BASE_URL   = import.meta.env.VITE_API_URL || '/api';
 // Only non-sensitive session metadata is persisted across page refreshes.
 const STORAGE_USER = 'dt_user';
 const STORAGE_TIME = 'dt_login_time';
+const STORAGE_SITE = 'dt_current_site';
 const SESSION_MS   = 8 * 60 * 60 * 1000; // 8 hours — SYS-004
 
 export const AuthProvider = ({ children }) => {
-  const [user,    setUser]    = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user,          setUser]          = useState(null);
+  const [loading,       setLoading]       = useState(true);
+  const [currentSiteId, setCurrentSiteId] = useState(() => {
+    const stored = localStorage.getItem(STORAGE_SITE);
+    return stored ? parseInt(stored, 10) : null; // null = "All Plants"
+  });
 
   // ─── Logout ──────────────────────────────────────────────────────────────────
   const logout = useCallback(async (callApi = true) => {
@@ -124,8 +129,18 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem(STORAGE_USER, JSON.stringify(updatedUser));
   };
 
+  // ─── Site/Plant switcher ────────────────────────────────────────────────────
+  const switchSite = (siteId) => {
+    setCurrentSiteId(siteId);
+    if (siteId) {
+      localStorage.setItem(STORAGE_SITE, siteId.toString());
+    } else {
+      localStorage.removeItem(STORAGE_SITE);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, currentSiteId, switchSite }}>
       {children}
     </AuthContext.Provider>
   );

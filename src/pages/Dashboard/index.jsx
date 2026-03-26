@@ -4,10 +4,10 @@ import AppLayout from '../../components/AppLayout';
 import RoleDashboard from './components/RoleDashboard';
 
 const DashboardPage = () => {
-  const { user } = useAuth();
+  const { user, currentSiteId } = useAuth();
   return (
     <AppLayout>
-      <RoleDashboard user={user} />
+      <RoleDashboard user={user} siteId={currentSiteId} />
     </AppLayout>
   );
 };

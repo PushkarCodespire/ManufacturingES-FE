@@ -115,6 +115,7 @@ const mastersTreeData = [
       leaf('production', 'Downtime',            stdPerms),
       leaf('production', 'Quality',             stdPerms),
       leaf('production', 'Production Forms',    stdPerms),
+      leaf('prod-process_recipes', 'Process Recipes', stdPerms),
       leaf('production', 'Work Centers',        stdPerms),
       leaf('production', 'Routings',            stdPerms),
       leaf('production', 'Time Standards',      stdPerms),
@@ -164,6 +165,7 @@ const qualityTreeData = [
       leaf('quality', 'CAPA',       stdPerms),
       leaf('quality', 'NCR',        stdPerms),
       leaf('quality', 'Complaints', stdPerms),
+      leaf('quality', 'SPC Control Charts', ['Read']),
     ],
   },
   {
@@ -391,6 +393,14 @@ const productionTreeData = [
     key: 'prod-cost_intelligence',
     children: [
       leaf('prod-cost_intelligence', 'Job Cost Sheet', stdPerms),
+    ],
+  },
+  {
+    title: 'Analytics & Reports',
+    key: 'prod-analytics',
+    children: [
+      leaf('prod-analytics', 'Production Analytics', stdPerms),
+      leaf('prod-analytics', 'Daily Production Report', stdPerms),
     ],
   },
 ];

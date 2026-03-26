@@ -202,3 +202,28 @@ export const jobCostApi = {
   upsertOverheadRate: (data)   => api.post('/job-cost-sheets/rate-cards/overhead', data),
   deleteOverheadRate: (id)     => api.delete(`/job-cost-sheets/rate-cards/overhead/${id}`),
 };
+
+export const processRecipeApi = {
+  getAll:           (params) => api.get('/process-recipes', { params }),
+  getByItemMachine: (itemId, machineId) => api.get(`/process-recipes/item/${itemId}/machine/${machineId}`),
+  create:           (data)   => api.post('/process-recipes', data),
+  update:           (id, d)  => api.patch(`/process-recipes/${id}`, d),
+  remove:           (id)     => api.delete(`/process-recipes/${id}`),
+  recordReading:    (data)   => api.post('/process-recipes/readings', data),
+  getReadings:      (jcId)   => api.get(`/process-recipes/readings/job-card/${jcId}`),
+  getDeviations:    (params) => api.get('/process-recipes/readings/deviations', { params }),
+};
+
+export const capacitySchedulerApi = {
+  getGantt:      (params) => api.get('/capacity-scheduler/gantt', { params }),
+  autoSchedule:  ()       => api.post('/capacity-scheduler/auto-schedule'),
+  reschedule:    (id, d)  => api.patch(`/capacity-scheduler/reschedule/${id}`, d),
+  getOverloads:  (params) => api.get('/capacity-scheduler/overloads', { params }),
+};
+
+export const wipApi = {
+  getBoard:   ()            => api.get('/wip/board'),
+  checkIn:    (data)        => api.post('/wip/check-in', data),
+  checkOut:   (data)        => api.post('/wip/check-out', data),
+  getHistory: (workOrderId) => api.get(`/wip/history/${workOrderId}`),
+};

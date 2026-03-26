@@ -12,6 +12,7 @@ import dayjs from 'dayjs';
 import { machineApi } from '../../../api/machine.api';
 import { productionParameterApi } from '../../../api/productionParameter.api';
 import { tagApi } from '../../../api/tag.api';
+import { siteApi } from '../../../api/site.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 
@@ -998,6 +999,11 @@ const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshP
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sites, setSites] = useState([]);
+
+  useEffect(() => {
+    siteApi.getAll().then((r) => setSites(r?.data ?? (Array.isArray(r) ? r : []))).catch(() => {});
+  }, []);
 
   // Build tag options from Tag Management
   const itemGroupTagOptions = useMemo(
@@ -1008,6 +1014,7 @@ const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshP
   useEffect(() => {
     if (machine) {
       form.setFieldsValue({
+        site_id:             machine.site_id || null,
         production_against:  machine.production_against || 'none',
         shift:               machine.shift || '',
         setup_time_hrs:      machine.setup_time_hrs || '',
@@ -1146,6 +1153,15 @@ const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshP
           <Text style={{ fontWeight: 600, fontSize: 15, color: '#111827', display: 'block', marginBottom: 16 }}>
             Planning
           </Text>
+
+            <Text style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 8 }}>Site / Plant</Text>
+            <Form.Item name="site_id" style={{ marginBottom: 16 }}>
+              <Select
+                showSearch optionFilterProp="label" placeholder="Select site..." allowClear
+                disabled={!editing}
+                options={sites.map((s) => ({ value: s.id, label: `${s.name} (${s.code})` }))}
+              />
+            </Form.Item>
 
             <Text style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 8 }}>Production Against</Text>
             <Form.Item name="production_against" style={{ marginBottom: 16 }}>

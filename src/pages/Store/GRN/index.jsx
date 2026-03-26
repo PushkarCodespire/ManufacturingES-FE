@@ -8,7 +8,7 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
   PlusCircleOutlined, MinusCircleOutlined, CheckCircleOutlined,
-  BulbOutlined, StopOutlined, ExclamationCircleOutlined,
+  BulbOutlined, StopOutlined, ExclamationCircleOutlined, QrcodeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout            from '../../../components/AppLayout';
@@ -22,6 +22,7 @@ import { purchaseOrderApi } from '../../../api/procurement.api';
 import aiApi                from '../../../api/ai.api';
 import useAiSuggestion      from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionCard';
+import QrLabelPrint         from '../../../components/common/QrLabelPrint';
 
 const parseInsight = (raw) => {
   if (!raw) return null;
@@ -83,6 +84,9 @@ export default function GRNPage() {
   const [search,       setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState(null);
 
+  // QR label state
+  const [qrRecord, setQrRecord] = useState(null);
+
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing,    setEditing]    = useState(null);
@@ -129,7 +133,7 @@ export default function GRNPage() {
       vendorApi.getAll({ type: 'vendor', limit: 500 }).catch(() => []),
       itemApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
       warehouseApi.getAll({ limit: 100 }).catch(() => []),
-      purchaseOrderApi.getAll({ status: 'sent' }).catch(() => ({ data: [] })),
+      purchaseOrderApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
     ]).then(([v, i, w, p]) => {
       setVendors(Array.isArray(v) ? v : (v?.data ?? []));
       setItems(Array.isArray(i) ? i : (i?.data ?? []));
@@ -347,6 +351,15 @@ export default function GRNPage() {
         </Tooltip>
       ),
     },
+    {
+      title: '', key: 'qr', width: 40,
+      render: (_, r) => (
+        <Tooltip title="QR Label">
+          <Button size="small" type="text" icon={<QrcodeOutlined />}
+            onClick={() => setQrRecord(r)} />
+        </Tooltip>
+      ),
+    },
     ...(canWrite ? [{
       title: 'Actions', key: 'actions', width: 120,
       render: (_, r) => (
@@ -558,7 +571,7 @@ export default function GRNPage() {
           <div className="res-line-items">
           {/* Header — drawer 760px - 48px padding = 712px content */}
           <div style={{ display: 'grid', gridTemplateColumns: '140px 70px 1fr 60px 45px 65px 50px 50px 80px 28px', gap: 6, marginBottom: 6 }}>
-            {['Item', 'Code', 'Description', 'Qty Rcvd', 'Unit', 'Unit Price', 'Disc %', 'GST %', 'Total (₹)', ''].map((h) => (
+            {['Item', 'Code', 'Lot No', 'Qty Rcvd', 'Unit', 'Unit Price', 'Disc %', 'GST %', 'Total (₹)', ''].map((h) => (
               <Text key={h} style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>{h}</Text>
             ))}
           </div>
@@ -594,9 +607,9 @@ export default function GRNPage() {
               />
               <Input
                 size="small"
-                placeholder="Description"
-                value={row.description}
-                onChange={(e) => updateLine(row._key, 'description', e.target.value)}
+                placeholder="Lot No"
+                value={row.lot_no}
+                onChange={(e) => updateLine(row._key, 'lot_no', e.target.value)}
               />
               <InputNumber
                 size="small"
@@ -801,6 +814,15 @@ export default function GRNPage() {
           </>
         )}
       </Drawer>
+
+      <QrLabelPrint
+        open={!!qrRecord}
+        onClose={() => setQrRecord(null)}
+        type="GRN"
+        identifier={qrRecord?.grn_no || ''}
+        title="Goods Receipt Note"
+        subtitle={qrRecord?.Vendor?.name || ''}
+      />
     </AppLayout>
   );
 }

@@ -417,6 +417,364 @@ const GoldenDashboard = ({ data, loading, onRefresh, user }) => {
   );
 };
 
+// ── Mini KPI strip for non-admin roles ───────────────────────────────────────
+const MiniKpiStrip = ({ kpis }) => {
+  if (!kpis) return null;
+  const items = [
+    { label: 'Open Orders',    value: kpis.open_orders ?? '—',         color: '#1d4ed8' },
+    { label: 'Complaints',     value: kpis.customer_complaints ?? '—', color: (kpis.customer_complaints || 0) === 0 ? '#16a34a' : '#dc2626' },
+    { label: 'OTD',            value: kpis.otd_pct != null ? `${kpis.otd_pct}%` : '—', color: '#0d9488' },
+    { label: 'FPY',            value: kpis.fpy_pct != null ? `${kpis.fpy_pct}%` : '—', color: '#16a34a' },
+    { label: 'COPQ',           value: kpis.copq_amount > 0 ? `₹${(kpis.copq_amount / 100000).toFixed(1)}L` : '₹0', color: '#d97706' },
+  ];
+  return (
+    <div style={{
+      display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16,
+      background: '#f8fafc', borderRadius: 10, padding: '10px 14px',
+      border: '1px solid #e8eaed',
+    }}>
+      <Text style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, alignSelf: 'center', marginRight: 4 }}>
+        PLANT KPIs:
+      </Text>
+      {items.map((item) => (
+        <div key={item.label} style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          background: '#fff', borderRadius: 8, padding: '4px 10px',
+          border: '1px solid #e8eaed',
+        }}>
+          <span style={{ fontSize: 11, color: '#6b7280' }}>{item.label}:</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCTION MANAGER DASHBOARD
+// ─────────────────────────────────────────────────────────────────────────────
+const ProductionManagerDashboard = ({ stats, kpis, loading, onRefresh, user }) => {
+  const s = stats || {};
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <Text style={{ color: '#9ca3af', fontSize: 12 }}>{user?.department?.name || 'Production'}</Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <ToolOutlined style={{ fontSize: 20, color: '#dc2626' }} />
+            <Title level={3} style={{ margin: 0 }}>Production Manager Dashboard</Title>
+          </div>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            Production Operations &nbsp;·&nbsp; {dayjs().format('D MMM YYYY')}
+          </Text>
+        </div>
+        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8, marginTop: 6 }}>Refresh</Button>
+      </div>
+
+      <Spin spinning={loading}>
+        <MiniKpiStrip kpis={kpis} />
+
+        {/* Work Order Status */}
+        <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+          <Col xs={12} sm={6}>
+            <KpiTile label="Active Work Orders"  value={s.active_wos}        unit="WOs"     icon={<FileTextOutlined />}    color="#1d4ed8" />
+          </Col>
+          <Col xs={12} sm={6}>
+            <KpiTile label="In Progress"         value={s.in_progress_wos}   unit="WOs"     icon={<ToolOutlined />}        color="#7c3aed" />
+          </Col>
+          <Col xs={12} sm={6}>
+            <KpiTile label="Delayed WOs"         value={s.delayed_wos}       unit="overdue" icon={<WarningOutlined />}     color={(s.delayed_wos || 0) > 0 ? '#dc2626' : '#16a34a'} />
+          </Col>
+          <Col xs={12} sm={6}>
+            <KpiTile label="WOs Closed Today"    value={s.completed_wos_today} unit="today" icon={<CheckCircleOutlined />} color="#16a34a" />
+          </Col>
+        </Row>
+
+        <Row gutter={[10, 10]} style={{ marginBottom: 10 }}>
+          {/* Floor Status */}
+          <Col xs={24} lg={12}>
+            <SectionCard
+              title="Floor Status"
+              icon={<ToolOutlined />}
+              color="#dc2626"
+              extra={
+                (s.fpi_waiting || 0) > 0
+                  ? <Tag color="orange">{s.fpi_waiting} FPI Waiting</Tag>
+                  : null
+              }
+            >
+              <StatGrid items={[
+                { label: 'Open Job Cards',    value: s.active_jobs,      color: '#1d4ed8' },
+                { label: 'Jobs Done Today',   value: s.completed_today,  color: '#16a34a' },
+                { label: 'Scrap Today',       value: s.scrap_today,      color: (s.scrap_today || 0) > 0 ? '#dc2626' : '#6b7280' },
+                { label: 'FPI Waiting',       value: s.fpi_waiting,      color: (s.fpi_waiting || 0) > 0 ? '#d97706' : '#16a34a' },
+              ]} />
+            </SectionCard>
+          </Col>
+
+          {/* Maintenance Snapshot */}
+          <Col xs={24} lg={12}>
+            <SectionCard title="Maintenance Snapshot" icon={<ThunderboltOutlined />} color="#b45309">
+              <StatGrid items={[
+                { label: 'Open Breakdowns', value: s.open_breakdowns, color: (s.open_breakdowns || 0) > 0 ? '#dc2626' : '#16a34a' },
+                { label: 'Open MWOs',       value: s.open_mwos,       color: (s.open_mwos || 0) > 5 ? '#d97706' : '#374151' },
+              ]} />
+              <div style={{ marginTop: 10 }}>
+                {(s.open_breakdowns || 0) === 0 && (s.open_mwos || 0) === 0
+                  ? <Tag color="green" style={{ borderRadius: 8, fontSize: 11 }}>✓ No active maintenance issues</Tag>
+                  : <Tag color="orange" style={{ borderRadius: 8, fontSize: 11 }}>{(s.open_breakdowns || 0) + (s.open_mwos || 0)} open maintenance items</Tag>
+                }
+              </div>
+            </SectionCard>
+          </Col>
+        </Row>
+
+        {/* Profile */}
+        <Card
+          style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+          bodyStyle={{ padding: '16px 20px' }}
+          title={<Text style={{ fontSize: 13, fontWeight: 700 }}>My Profile</Text>}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px 24px' }}>
+            {[
+              ['Employee ID', user?.employee_id], ['Full Name', user?.name],
+              ['Role', user?.role?.label], ['Department', user?.department?.name],
+            ].map(([label, value]) => (
+              <div key={label} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <Text style={{ fontSize: 12, color: '#9ca3af', minWidth: 100 }}>{label}</Text>
+                <Text style={{ fontSize: 12, color: '#111827', fontWeight: 500 }}>{value || '—'}</Text>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </Spin>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUALITY MANAGER DASHBOARD
+// ─────────────────────────────────────────────────────────────────────────────
+const QualityManagerDashboard = ({ stats, kpis, loading, onRefresh, user }) => {
+  const s = stats || {};
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <Text style={{ color: '#9ca3af', fontSize: 12 }}>{user?.department?.name || 'Quality'}</Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <SafetyOutlined style={{ fontSize: 20, color: '#16a34a' }} />
+            <Title level={3} style={{ margin: 0 }}>Quality Manager Dashboard</Title>
+          </div>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            Quality, NCRs, CAPAs, Compliance &nbsp;·&nbsp; {dayjs().format('D MMM YYYY')}
+          </Text>
+        </div>
+        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8, marginTop: 6 }}>Refresh</Button>
+      </div>
+
+      <Spin spinning={loading}>
+        <MiniKpiStrip kpis={kpis} />
+
+        {/* Quality Pipeline KPI tiles */}
+        <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+          <Col xs={12} sm={6}>
+            <KpiTile label="IQC Pending"     value={s.iqc_pending}       unit="lots"    icon={<ClockCircleOutlined />}    color={(s.iqc_pending || 0) > 0 ? '#d97706' : '#16a34a'} />
+          </Col>
+          <Col xs={12} sm={6}>
+            <KpiTile label="LQC Checks Today" value={s.lqc_checks_today} unit="done"    icon={<CheckCircleOutlined />}    color="#1d4ed8" />
+          </Col>
+          <Col xs={12} sm={6}>
+            <KpiTile label="PQC Pending"     value={s.pqc_pending}       unit="batches" icon={<ClockCircleOutlined />}    color={(s.pqc_pending || 0) > 0 ? '#d97706' : '#16a34a'} />
+          </Col>
+          <Col xs={12} sm={6}>
+            <KpiTile label="OQC Pending"     value={s.oqc_pending}       unit="lots"    icon={<ClockCircleOutlined />}    color={(s.oqc_pending || 0) > 0 ? '#d97706' : '#16a34a'} />
+          </Col>
+        </Row>
+
+        <Row gutter={[10, 10]} style={{ marginBottom: 10 }}>
+          {/* NCR / CAPA / Complaints */}
+          <Col xs={24} lg={12}>
+            <SectionCard
+              title="NCR / CAPA / Complaints"
+              icon={<WarningOutlined />}
+              color="#dc2626"
+              extra={
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(s.open_ncrs || 0) > 0 && <Tag color="red">{s.open_ncrs} NCRs</Tag>}
+                  {(s.open_capas || 0) > 0 && <Tag color="orange">{s.open_capas} CAPAs</Tag>}
+                </div>
+              }
+            >
+              <StatGrid items={[
+                { label: 'Open NCRs',         value: s.open_ncrs,        color: (s.open_ncrs || 0) > 0 ? '#dc2626' : '#16a34a' },
+                { label: 'Open CAPAs',        value: s.open_capas,       color: (s.open_capas || 0) > 0 ? '#d97706' : '#16a34a' },
+                { label: 'Complaints (month)', value: s.complaints_month, color: (s.complaints_month || 0) === 0 ? '#16a34a' : '#dc2626' },
+              ]} />
+            </SectionCard>
+          </Col>
+
+          {/* Calibration */}
+          <Col xs={24} lg={12}>
+            <SectionCard title="Instrument Calibration" icon={<ExperimentOutlined />} color="#7c3aed">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 0' }}>
+                <div style={{
+                  textAlign: 'center', padding: '10px 28px', borderRadius: 10,
+                  background: (s.instruments_due || 0) > 0 ? '#fef2f2' : '#f0fdf4',
+                  border: `1px solid ${(s.instruments_due || 0) > 0 ? '#fca5a5' : '#bbf7d0'}`,
+                }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: (s.instruments_due || 0) > 0 ? '#dc2626' : '#16a34a' }}>
+                    {s.instruments_due ?? '—'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#6b7280' }}>Instruments Overdue</div>
+                </div>
+                {(s.instruments_due || 0) === 0
+                  ? <Tag color="green" style={{ borderRadius: 8, fontSize: 12 }}>✓ All calibrations up to date</Tag>
+                  : <Tag color="red" style={{ borderRadius: 8, fontSize: 12 }}>{s.instruments_due} instruments need calibration now</Tag>
+                }
+              </div>
+            </SectionCard>
+          </Col>
+        </Row>
+
+        {/* Profile */}
+        <Card
+          style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+          bodyStyle={{ padding: '16px 20px' }}
+          title={<Text style={{ fontSize: 13, fontWeight: 700 }}>My Profile</Text>}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px 24px' }}>
+            {[
+              ['Employee ID', user?.employee_id], ['Full Name', user?.name],
+              ['Role', user?.role?.label], ['Department', user?.department?.name],
+            ].map(([label, value]) => (
+              <div key={label} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <Text style={{ fontSize: 12, color: '#9ca3af', minWidth: 100 }}>{label}</Text>
+                <Text style={{ fontSize: 12, color: '#111827', fontWeight: 500 }}>{value || '—'}</Text>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </Spin>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STORE MANAGER DASHBOARD
+// ─────────────────────────────────────────────────────────────────────────────
+const StoreManagerDashboard = ({ stats, kpis, loading, onRefresh, user }) => {
+  const s = stats || {};
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <Text style={{ color: '#9ca3af', fontSize: 12 }}>{user?.department?.name || 'Store'}</Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <DatabaseOutlined style={{ fontSize: 20, color: '#7c3aed' }} />
+            <Title level={3} style={{ margin: 0 }}>Store / Warehouse Dashboard</Title>
+          </div>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            Inventory Management &nbsp;·&nbsp; {dayjs().format('D MMM YYYY')}
+          </Text>
+        </div>
+        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8, marginTop: 6 }}>Refresh</Button>
+      </div>
+
+      <Spin spinning={loading}>
+        <MiniKpiStrip kpis={kpis} />
+
+        {/* Key metrics */}
+        <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+          <Col xs={12} sm={6}>
+            <KpiTile label="GRN Pending"       value={s.grn_pending}                unit="deliveries" icon={<ClockCircleOutlined />}  color={(s.grn_pending || 0) > 0 ? '#d97706' : '#16a34a'} />
+          </Col>
+          <Col xs={12} sm={6}>
+            <KpiTile label="Low Stock Alerts"  value={s.stock_alerts}               unit="items"      icon={<WarningOutlined />}       color={(s.stock_alerts || 0) > 0 ? '#dc2626' : '#16a34a'} />
+          </Col>
+          <Col xs={12} sm={6}>
+            <KpiTile label="Material Requests" value={s.pending_material_requests}  unit="pending"    icon={<FileTextOutlined />}      color={(s.pending_material_requests || 0) > 0 ? '#d97706' : '#16a34a'} />
+          </Col>
+          <Col xs={12} sm={6}>
+            <KpiTile label="Total SKUs"        value={s.total_skus}                 unit="active"     icon={<DatabaseOutlined />}      color="#1d4ed8" />
+          </Col>
+        </Row>
+
+        <Row gutter={[10, 10]} style={{ marginBottom: 10 }}>
+          {/* Pending Actions */}
+          <Col xs={24} lg={12}>
+            <SectionCard
+              title="Pending Actions"
+              icon={<ClockCircleOutlined />}
+              color="#d97706"
+              extra={
+                (s.grn_pending || 0) + (s.pending_material_requests || 0) > 0
+                  ? <Tag color="orange">{(s.grn_pending || 0) + (s.pending_material_requests || 0)} items need action</Tag>
+                  : <Tag color="green">All clear</Tag>
+              }
+            >
+              <StatGrid items={[
+                { label: 'GRN to Process',     value: s.grn_pending,               color: (s.grn_pending || 0) > 0 ? '#d97706' : '#16a34a', unit: 'deliveries' },
+                { label: 'Material Requests',  value: s.pending_material_requests,  color: (s.pending_material_requests || 0) > 0 ? '#d97706' : '#16a34a', unit: 'pending' },
+              ]} />
+            </SectionCard>
+          </Col>
+
+          {/* Today's Activity */}
+          <Col xs={24} lg={12}>
+            <SectionCard title="Today's Activity" icon={<CheckCircleOutlined />} color="#16a34a">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '8px 0' }}>
+                <div style={{ textAlign: 'center', padding: '10px 28px', borderRadius: 10, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: '#16a34a' }}>{s.issued_today ?? '—'}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280' }}>Job Cards Closed</div>
+                </div>
+                {(s.stock_alerts || 0) > 0
+                  ? <Tag color="red" style={{ borderRadius: 8, fontSize: 12 }}>{s.stock_alerts} items below reorder level</Tag>
+                  : <Tag color="green" style={{ borderRadius: 8, fontSize: 12 }}>✓ No stock alerts</Tag>
+                }
+              </div>
+            </SectionCard>
+          </Col>
+        </Row>
+
+        {/* Profile */}
+        <Card
+          style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+          bodyStyle={{ padding: '16px 20px' }}
+          title={<Text style={{ fontSize: 13, fontWeight: 700 }}>My Profile</Text>}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px 24px' }}>
+            {[
+              ['Employee ID', user?.employee_id], ['Full Name', user?.name],
+              ['Role', user?.role?.label], ['Department', user?.department?.name],
+            ].map(([label, value]) => (
+              <div key={label} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <Text style={{ fontSize: 12, color: '#9ca3af', minWidth: 100 }}>{label}</Text>
+                <Text style={{ fontSize: 12, color: '#111827', fontWeight: 500 }}>{value || '—'}</Text>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </Spin>
+    </div>
+  );
+};
+
+// Map of roles that get a rich dedicated dashboard
+const RICH_DASHBOARDS = {
+  production_manager: ProductionManagerDashboard,
+  quality_manager:    QualityManagerDashboard,
+  qa_manager:         QualityManagerDashboard,
+  store_manager:      StoreManagerDashboard,
+  store_incharge:     StoreManagerDashboard,
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ROLE STAT TEMPLATES (all other roles)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -536,43 +894,10 @@ const ROLE_LAYOUT = {
 const DEFAULT_LAYOUT = { title: 'Dashboard', subtitle: 'Dynatech ONE MES', icon: <SettingOutlined />, color: '#1d4ed8' };
 const GOLDEN_ROLES   = ['plant_head', 'it_admin'];
 
-// ── Mini KPI strip for non-admin roles ───────────────────────────────────────
-const MiniKpiStrip = ({ kpis }) => {
-  if (!kpis) return null;
-  const items = [
-    { label: 'Open Orders',    value: kpis.open_orders ?? '—',         color: '#1d4ed8' },
-    { label: 'Complaints',     value: kpis.customer_complaints ?? '—', color: (kpis.customer_complaints || 0) === 0 ? '#16a34a' : '#dc2626' },
-    { label: 'OTD',            value: kpis.otd_pct != null ? `${kpis.otd_pct}%` : '—', color: '#0d9488' },
-    { label: 'FPY',            value: kpis.fpy_pct != null ? `${kpis.fpy_pct}%` : '—', color: '#16a34a' },
-    { label: 'COPQ',           value: kpis.copq_amount > 0 ? `₹${(kpis.copq_amount / 100000).toFixed(1)}L` : '₹0', color: '#d97706' },
-  ];
-  return (
-    <div style={{
-      display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16,
-      background: '#f8fafc', borderRadius: 10, padding: '10px 14px',
-      border: '1px solid #e8eaed',
-    }}>
-      <Text style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, alignSelf: 'center', marginRight: 4 }}>
-        PLANT KPIs:
-      </Text>
-      {items.map((item) => (
-        <div key={item.label} style={{
-          display: 'flex', alignItems: 'center', gap: 5,
-          background: '#fff', borderRadius: 8, padding: '4px 10px',
-          border: '1px solid #e8eaed',
-        }}>
-          <span style={{ fontSize: 11, color: '#6b7280' }}>{item.label}:</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-const RoleDashboard = ({ user }) => {
+const RoleDashboard = ({ user, siteId }) => {
   const roleName  = user?.role?.name;
   const isGolden  = GOLDEN_ROLES.includes(roleName);
   const layout    = ROLE_LAYOUT[roleName] || DEFAULT_LAYOUT;
@@ -585,18 +910,15 @@ const RoleDashboard = ({ user }) => {
   const fetchData = useCallback(async () => {
     if (!roleName) { setLoading(false); return; }
     setLoading(true);
+    const params = siteId ? { site_id: siteId } : {};
     try {
       if (isGolden) {
-        // Full dashboard data in a single call
-        // Axios interceptor unwraps res.data, then .then(r => r.data) extracts the inner data
-        // so the result IS the data object directly (no .success wrapper)
-        const res = await dashboardApi.getFullDashboard();
+        const res = await dashboardApi.getFullDashboard(params);
         setFullData(res ?? null);
       } else {
-        // Role-specific stats + mini KPI strip
-        const promises = [dashboardApi.getKpis()];
+        const promises = [dashboardApi.getKpis(params)];
         if (STAT_TEMPLATES[roleName]) {
-          promises.push(dashboardApi.getRoleStats(roleName));
+          promises.push(dashboardApi.getRoleStats(roleName, params));
         }
         const [kpiRes, roleRes] = await Promise.all(promises);
         if (kpiRes)  setKpis(kpiRes);
@@ -607,7 +929,7 @@ const RoleDashboard = ({ user }) => {
     } finally {
       setLoading(false);
     }
-  }, [roleName, isGolden]);
+  }, [roleName, isGolden, siteId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -623,7 +945,21 @@ const RoleDashboard = ({ user }) => {
     );
   }
 
-  // ── Role Dashboard ────────────────────────────────────────────────────────
+  // ── Rich Role Dashboard (Production Mgr / Quality Mgr / Store Mgr) ────────
+  const RichDash = RICH_DASHBOARDS[roleName];
+  if (RichDash) {
+    return (
+      <RichDash
+        stats={roleStats}
+        kpis={kpis}
+        loading={loading}
+        onRefresh={fetchData}
+        user={user}
+      />
+    );
+  }
+
+  // ── Generic Role Dashboard ─────────────────────────────────────────────────
   const builder    = STAT_TEMPLATES[roleName];
   const statCards  = builder ? builder(roleStats) : [];
   const profileRows = [

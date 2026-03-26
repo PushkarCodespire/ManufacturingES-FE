@@ -10,7 +10,9 @@ import {
   InfoCircleOutlined,
   CheckOutlined,
   CheckCircleOutlined,
+  ArrowRightOutlined,
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { notificationApi } from '../../api/notification.api';
 
 const { Text } = Typography;
@@ -58,6 +60,7 @@ const fmtTime = (iso) => {
 
 // ─── Notification Panel (triggered by bell icon) ──────────────────────────────
 const NotificationPanel = () => {
+  const navigate      = useNavigate();
   const [open,        setOpen]        = useState(false);
   const [items,       setItems]       = useState([]);
   const [unread,      setUnread]      = useState(0);
@@ -182,7 +185,19 @@ const NotificationPanel = () => {
           },
         }}
         closeIcon={null}
-        footer={null}
+        footer={
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <Button
+              type="link"
+              size="small"
+              icon={<ArrowRightOutlined />}
+              onClick={() => { setOpen(false); navigate('/notifications'); }}
+              style={{ color: '#2563eb', fontSize: 13 }}
+            >
+              View all notifications
+            </Button>
+          </div>
+        }
       >
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>

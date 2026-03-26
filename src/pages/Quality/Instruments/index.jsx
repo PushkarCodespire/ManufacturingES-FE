@@ -8,7 +8,7 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined,
-  SafetyCertificateOutlined, BulbOutlined,
+  SafetyCertificateOutlined, BulbOutlined, QrcodeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
@@ -18,6 +18,7 @@ import useAiSuggestion     from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard    from '../../../components/AiSuggestion/AiSuggestionCard';
 import { instrumentApi, calibrationFailureApi } from '../../../api/quality.api';
 import aiApi               from '../../../api/ai.api';
+import QrLabelPrint        from '../../../components/common/QrLabelPrint';
 
 const { Title, Text } = Typography;
 
@@ -70,6 +71,9 @@ export default function InstrumentsPage() {
   const [statusFilter, setStatusFilter] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [activeTab,   setActiveTab]   = useState('list');
+
+  // QR label state
+  const [qrRecord, setQrRecord] = useState(null);
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -289,6 +293,15 @@ export default function InstrumentsPage() {
         const cfg = STATUS_CONFIG[s] || { color: 'default', label: s };
         return <Tag color={cfg.color}>{cfg.label}</Tag>;
       },
+    },
+    {
+      title: '', key: 'qr', width: 40,
+      render: (_, r) => (
+        <Tooltip title="QR Label">
+          <Button size="small" type="text" icon={<QrcodeOutlined />}
+            onClick={() => setQrRecord(r)} />
+        </Tooltip>
+      ),
     },
     ...(canWrite ? [{
       title: '', key: 'actions', width: 140, fixed: 'right',
@@ -806,6 +819,15 @@ export default function InstrumentsPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <QrLabelPrint
+        open={!!qrRecord}
+        onClose={() => setQrRecord(null)}
+        type="INST"
+        identifier={qrRecord?.instrument_code || ''}
+        title="Instrument"
+        subtitle={qrRecord?.name || ''}
+      />
     </AppLayout>
   );
 }
