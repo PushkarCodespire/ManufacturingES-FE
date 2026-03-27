@@ -357,7 +357,7 @@ const MoldDetailPage = () => {
             { title: 'File Name', dataIndex: 'file_name',     key: 'file_name', ellipsis: true },
             { title: 'Download',  dataIndex: 'file_url',      key: 'file_url',  width: 110,
               render: (v, r) => v
-                ? <a href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5000'}${v}`} target="_blank" rel="noreferrer">
+                ? <a href={v.startsWith('http') ? v : `${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5000'}${v}`} target="_blank" rel="noreferrer">
                     {r.file_name?.endsWith('.pdf') ? '📄' : r.file_name?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? '🖼️' : '📎'} Download
                   </a>
                 : '\u2014' },
