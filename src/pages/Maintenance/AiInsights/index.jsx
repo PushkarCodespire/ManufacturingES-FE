@@ -9,9 +9,10 @@ import {
   CheckCircleOutlined, WarningOutlined, ThunderboltOutlined,
   CalendarOutlined, ToolOutlined, RightOutlined, ArrowUpOutlined,
   ArrowDownOutlined, BarChartOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { maintenanceAiApi, equipmentApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 

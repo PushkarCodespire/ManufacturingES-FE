@@ -9,7 +9,7 @@ import {
   CloseCircleOutlined, WarningOutlined,
   ExportOutlined, ImportOutlined, HistoryOutlined,
   BulbOutlined, CameraOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { moldIssueReturnApi, moldMasterApi, moldStoreApi } from '../../../api/mold.api';
 import { machineApi } from '../../../api/machine.api';
@@ -17,6 +17,7 @@ import { workOrderApi } from '../../../api/production.api';
 import aiApi from '../../../api/ai.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;

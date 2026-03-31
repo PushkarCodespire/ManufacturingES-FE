@@ -9,7 +9,7 @@ import {
   EditOutlined, DeleteOutlined, RightOutlined,
   DownOutlined, BulbOutlined, ThunderboltOutlined,
   ApartmentOutlined, BranchesOutlined, QrcodeOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
 import ResponsiveTable     from '../../../components/ResponsiveTable';
@@ -24,6 +24,7 @@ import { routingApi }      from '../../../api/routing.api';
 import api                 from '../../../api/axios';
 import aiApi               from '../../../api/ai.api';
 import QrLabelPrint        from '../../../components/common/QrLabelPrint';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -585,7 +586,8 @@ export default function WorkOrdersPage() {
             style={{ width: 150 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('work-orders.csv', workOrders, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
               New Work Order

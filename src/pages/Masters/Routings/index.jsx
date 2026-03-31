@@ -8,11 +8,12 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   SearchOutlined, RightOutlined, PauseCircleOutlined, PlayCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { routingApi } from '../../../api/routing.api';
 import { workCenterApi } from '../../../api/workCenter.api';
 import api from '../../../api/axios';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -394,7 +395,8 @@ export default function RoutingsPage() {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchData}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('routings.csv', data, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
               New Routing

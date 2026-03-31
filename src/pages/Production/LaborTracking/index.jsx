@@ -7,12 +7,13 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ClockCircleOutlined,
   UserOutlined, BarChartOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
 import usePermissions from '../../../hooks/usePermissions';
 import api from '../../../api/axios';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option } = Select;

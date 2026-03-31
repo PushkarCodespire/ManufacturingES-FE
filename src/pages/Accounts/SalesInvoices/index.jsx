@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Button, Input, Table, Tag, Space, Drawer, Form, Select, DatePicker, InputNumber, Divider, message, Popconfirm, Row, Col } from 'antd';
-import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, RightOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, RightOutlined, DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import { salesInvoiceApi } from '../../../api/accounts.api';
 import { vendorApi } from '../../../api/vendor.api';
 import { customerOrderApi } from '../../../api/orders.api';
 import { dispatchOrderApi } from '../../../api/dispatchOrder.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -180,7 +181,8 @@ const SalesInvoicesPage = () => {
           <Input placeholder="Search invoice no..." prefix={<SearchOutlined />} value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 260, borderRadius: 8 }} allowClear />
           <Select placeholder="Status" allowClear value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} style={{ width: 140 }} />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('sales-invoices.csv', rows, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Invoice</Button>
         </div>
         <Table rowKey="id" loading={loading} columns={columns} dataSource={rows} size="small" scroll={{ x: 1200 }}

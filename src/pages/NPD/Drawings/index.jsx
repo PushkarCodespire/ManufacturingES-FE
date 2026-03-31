@@ -8,12 +8,13 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
   EditOutlined, DeleteOutlined, EyeOutlined, UploadOutlined,
   FilePdfOutlined, FileImageOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import AppLayout         from '../../../components/AppLayout';
 import ResponsiveTable   from '../../../components/ResponsiveTable';
 import usePermissions from '../../../hooks/usePermissions';
 import { drawingApi } from '../../../api/quality.api';
 import { uploadApi }  from '../../../api/orders.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -281,7 +282,8 @@ export default function DrawingsPage() {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('drawings.csv', filtered, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>Add Drawing</Button>
           )}

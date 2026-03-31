@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import {
   ReloadOutlined, RightOutlined, LineChartOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as ReTooltip, ResponsiveContainer, Legend, ComposedChart, Area,
@@ -13,6 +13,7 @@ import {
 import AppLayout           from '../../../components/AppLayout';
 import { demandForecastApi } from '../../../api/production.api';
 import api                   from '../../../api/axios';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -164,6 +165,7 @@ export default function DemandForecastPage() {
             { value: 12, label: 'Last 12 months' },
           ]}
         />
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('demand-forecast.csv', forecastData, forecastTableColumns)}>Export CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={loadForecast}>Refresh</Button>
       </div>
 

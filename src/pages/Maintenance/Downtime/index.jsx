@@ -8,9 +8,10 @@ import {
   PlusOutlined, ReloadOutlined, ClockCircleOutlined,
   BarChartOutlined, ExclamationCircleOutlined, BulbOutlined,
   FireOutlined, CalendarOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { downtimeApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -152,7 +153,8 @@ export default function DowntimePage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ClockCircleOutlined /> Downtime Log</Title>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={() => { loadLog(); loadPareto(); }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('downtime.csv', logs, logColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => { loadLog(); loadPareto(); }}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setLogModal(true)}>Log Downtime</Button>
         </Space>
       </div>

@@ -18,13 +18,14 @@ import {
   HistoryOutlined,
   EyeOutlined,
   CopyOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { stickerTemplateApi } from '../../../../api/stickerTemplate.api';
 import { machineApi }         from '../../../../api/machine.api';
 import { vendorApi }          from '../../../../api/vendor.api';
 import AppLayout              from '../../../../components/AppLayout';
 import usePermissions         from '../../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -1056,7 +1057,8 @@ const StickerTemplatesPage = () => {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchTemplates} style={{ borderRadius: 8 }}>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('sticker-templates.csv', templates, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchTemplates} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
           {canWrite && (

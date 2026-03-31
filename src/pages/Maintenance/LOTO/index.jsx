@@ -8,11 +8,12 @@ import {
   PlusOutlined, ReloadOutlined, LockOutlined, UnlockOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined, SafetyOutlined,
   BulbOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { lotoApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import { userApi } from '../../../api/user.api';
 import AppLayout from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -191,7 +192,8 @@ export default function LOTOPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><LockOutlined /> LOTO & Safety</Title>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={loadAll}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('l-o-t-o.csv', executions, execColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadAll}>Refresh</Button>
           <Button icon={<PlusOutlined />} onClick={() => setProcModal(true)}>New Procedure</Button>
           <Button icon={<PlusOutlined />} onClick={() => setPermitModal(true)}>Issue Permit</Button>
           <Button type="primary" danger icon={<LockOutlined />} onClick={() => setInitiateModal(true)}>Initiate LOTO</Button>

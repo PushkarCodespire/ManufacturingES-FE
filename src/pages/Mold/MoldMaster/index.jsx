@@ -6,13 +6,14 @@ import {
 import {
   PlusOutlined, ReloadOutlined, SearchOutlined, RightOutlined,
   ToolOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { moldMasterApi } from '../../../api/mold.api';
 import { vendorApi } from '../../../api/procurement.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -187,7 +188,8 @@ const MoldMasterPage = () => {
           <Select placeholder="Life Stage" value={lifeStageFilter} onChange={(v) => { setLifeStageFilter(v); setPage(1); }}
             options={LIFE_STAGE_OPTIONS} allowClear style={{ width: 170 }} />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchMolds} style={{ borderRadius: 8 }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('mold-master.csv', molds, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchMolds} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()} style={{ borderRadius: 8, fontWeight: 600 }}>Add Mold</Button>}
         </div>
         <Table rowKey="id" columns={columns} dataSource={molds} loading={loading}

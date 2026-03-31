@@ -7,11 +7,12 @@ import {
   ApartmentOutlined, PrinterOutlined, ArrowLeftOutlined,
   InboxOutlined, ShopOutlined, ToolOutlined, CarOutlined,
   ExperimentOutlined, BarcodeOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AppLayout from '../../../components/AppLayout';
 import { traceabilityApi } from '../../../api/traceability.api';
 import { printContent } from '../../../utils/printContent';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 

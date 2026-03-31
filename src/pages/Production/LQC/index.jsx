@@ -9,7 +9,7 @@ import {
   DeleteOutlined, RightOutlined, PlusCircleOutlined,
   MinusCircleOutlined, CheckOutlined, CloseOutlined,
   ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, WarningOutlined, BulbOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout          from '../../../components/AppLayout';
 import usePermissions     from '../../../hooks/usePermissions';
@@ -20,6 +20,7 @@ import { userApi }        from '../../../api/user.api';
 import aiApi              from '../../../api/ai.api';
 import useAiSuggestion    from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard   from '../../../components/AiSuggestion/AiSuggestionCard';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -444,7 +445,8 @@ export default function LQCPage() {
               style={{ width: 140 }}
             />
             <div style={{ flex: 1 }} />
-            <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('l-q-c.csv', inspections, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
             {canWrite && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
                 New Inspection

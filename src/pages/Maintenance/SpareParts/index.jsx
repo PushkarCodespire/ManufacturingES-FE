@@ -8,10 +8,11 @@ import {
   PlusOutlined, ReloadOutlined, ToolOutlined, ExclamationCircleOutlined,
   CheckCircleOutlined, MinusCircleOutlined, WarningOutlined, BulbOutlined,
   ArrowUpOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { sparePartsApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -208,7 +209,8 @@ export default function SparePartsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ToolOutlined /> Spare Parts & BOM</Title>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={loadParts}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('spare-parts.csv', parts, partColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadParts}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModal(true)}>Register Part</Button>
         </Space>
       </div>

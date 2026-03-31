@@ -9,7 +9,7 @@ import {
   EditOutlined, DeleteOutlined, RightOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined,
   SafetyCertificateOutlined, BulbOutlined, QrcodeOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
 import ResponsiveTable     from '../../../components/ResponsiveTable';
@@ -19,6 +19,7 @@ import AiSuggestionCard    from '../../../components/AiSuggestion/AiSuggestionCa
 import { instrumentApi, calibrationFailureApi } from '../../../api/quality.api';
 import aiApi               from '../../../api/ai.api';
 import QrLabelPrint        from '../../../components/common/QrLabelPrint';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -481,7 +482,8 @@ export default function InstrumentsPage() {
             style={{ width: 140 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('instruments.csv', instruments, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Instrument</Button>
           )}

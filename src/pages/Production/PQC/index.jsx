@@ -8,7 +8,7 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   DeleteOutlined, RightOutlined, PlusCircleOutlined,
   MinusCircleOutlined, CheckOutlined, CloseOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { BarChartOutlined } from '@ant-design/icons';
 import AppLayout      from '../../../components/AppLayout';
@@ -20,6 +20,7 @@ import { packageApi } from '../../../api/package.api';
 import aiApi          from '../../../api/ai.api';
 import useAiSuggestion from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard from '../../../components/AiSuggestion/AiSuggestionCard';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -394,7 +395,8 @@ export default function PQCPage() {
             />
             <div style={{ flex: 1 }} />
             <Button icon={<BarChartOutlined />} onClick={() => { setDefectVisible(true); aiDefects.fetch(); }}>Defect Analytics</Button>
-            <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('p-q-c.csv', inspections, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
             {canWrite && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New PQC Inspection</Button>
             )}

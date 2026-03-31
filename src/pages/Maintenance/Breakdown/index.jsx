@@ -8,10 +8,11 @@ import {
   PlusOutlined, ReloadOutlined, ToolOutlined, CheckCircleOutlined,
   ExclamationCircleOutlined, ThunderboltOutlined, ClockCircleOutlined,
   BulbOutlined, CheckOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { breakdownApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -242,7 +243,8 @@ export default function BreakdownPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <Title level={4} style={{ margin: 0 }}><ThunderboltOutlined /> Breakdown & Corrective Maintenance</Title>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={() => { loadBreakdowns(); loadWorkOrders(); }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('breakdown.csv', breakdowns, bdColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => { loadBreakdowns(); loadWorkOrders(); }}>Refresh</Button>
           <Button type="primary" danger icon={<ExclamationCircleOutlined />} onClick={() => setReportModal(true)}>
             🚨 Machine Down
           </Button>

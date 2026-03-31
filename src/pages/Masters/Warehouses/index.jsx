@@ -15,12 +15,13 @@ import {
   SearchOutlined,
   RightOutlined,
   SettingOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { warehouseApi } from '../../../api/warehouse.api';
 import { vendorApi }    from '../../../api/vendor.api';
 import AppLayout        from '../../../components/AppLayout';
 import usePermissions   from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -178,7 +179,8 @@ const ListView = ({ warehouses, loading, search, onSearchChange, onRefresh, onNe
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('warehouses.csv', warehouses, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
           {canWrite && (

@@ -7,11 +7,12 @@ import {
   ReloadOutlined, SearchOutlined, RightOutlined,
   ToolOutlined, DashboardOutlined, TableOutlined, AppstoreOutlined,
   SlidersOutlined, HistoryOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { moldShotCountApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 

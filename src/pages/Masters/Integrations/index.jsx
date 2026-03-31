@@ -16,12 +16,13 @@ import {
   ThunderboltOutlined,
   InfoCircleOutlined,
   LinkOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { integrationApi } from '../../../api/integration.api';
 import AppLayout          from '../../../components/AppLayout';
 import usePermissions     from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 dayjs.extend(relativeTime);
 
@@ -968,7 +969,8 @@ const IntegrationsPage = () => {
         {/* Toolbar */}
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchIntegrations} style={{ borderRadius: 8 }}>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('integrations.csv', logs, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchIntegrations} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
           <Button

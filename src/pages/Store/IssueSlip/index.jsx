@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Button, Input, Table, Tag, Space, Drawer,
   Form, Select, DatePicker, InputNumber, Divider, message, Tooltip,
-  Popconfirm, Badge, Row, Col,
+  Popconfirm, Badge, Row, Col, Modal,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   DeleteOutlined, RightOutlined,
   PlusCircleOutlined, MinusCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout             from '../../../components/AppLayout';
 import ResponsiveTable       from '../../../components/ResponsiveTable';
@@ -17,6 +17,7 @@ import { issueSlipApi, materialRequestApi } from '../../../api/store.api';
 import { itemApi }           from '../../../api/item.api';
 import { warehouseApi }      from '../../../api/warehouse.api';
 import { userApi }           from '../../../api/user.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -33,6 +34,7 @@ const emptyItem = () => ({
   description: '',
   qty:         1,
   unit:        'pcs',
+  lot_no:      '',
 });
 
 export default function IssueSlipPage() {
@@ -93,7 +95,7 @@ export default function IssueSlipPage() {
     setDrawerOpen(true);
   };
 
-  const onSave = async () => {
+  const onSave = async (fifoOverride = false, fifoReason = '') => {
     try {
       const vals = await form.validateFields();
       if (!lineItems.length) { message.error('Add at least one item'); return; }
@@ -105,6 +107,7 @@ export default function IssueSlipPage() {
         issued_to:           vals.issued_to            || null,
         notes:               vals.notes               || '',
         items:               lineItems.map(({ _key, ...it }) => it),
+        ...(fifoOverride ? { fifo_override: true, fifo_override_reason: fifoReason } : {}),
       };
       await issueSlipApi.create(payload);
       message.success('Issue slip created');
@@ -112,7 +115,31 @@ export default function IssueSlipPage() {
       load();
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.message || 'Save failed');
+      // FIFO violation — ask user for override reason
+      if (err?.message?.includes('FIFO violation') || err?.response?.data?.fifo_warnings) {
+        const warnings = err?.response?.data?.fifo_warnings || [];
+        Modal.confirm({
+          title: 'FIFO Violation Detected',
+          width: 520,
+          content: (
+            <div>
+              <p style={{ marginBottom: 8 }}>The following items are not being issued from the oldest batch:</p>
+              {warnings.map((w, i) => (
+                <div key={i} style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, padding: 8, marginBottom: 6, fontSize: 12 }}>
+                  <b>{w.item_name || w.item_code}</b> — Issued lot: <code>{w.issued_lot}</code>, Oldest: <code>{w.oldest_lot?.lot_no}</code>
+                </div>
+              ))}
+              <p style={{ marginTop: 8, color: '#6b7280', fontSize: 12 }}>Click <b>Override</b> to proceed anyway.</p>
+            </div>
+          ),
+          okText: 'Override & Issue',
+          okType: 'primary',
+          cancelText: 'Cancel',
+          onOk: () => onSave(true, 'Manager approved FIFO override'),
+        });
+        return;
+      }
+      message.error(err?.response?.data?.message || err?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -259,7 +286,8 @@ export default function IssueSlipPage() {
             style={{ width: 160 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('issue-slip.csv', slips, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Issue Slip</Button>
           )}
@@ -353,9 +381,9 @@ export default function IssueSlipPage() {
 
           <div className="res-line-items">
           {/* Header — drawer 760px - 48px padding = 712px content */}
-          {/* Grid: 160px 1fr 65px 50px 28px */}
-          <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 65px 50px 28px', gap: 6, marginBottom: 6 }}>
-            {['Item', 'Description', 'Qty', 'Unit', ''].map((h) => (
+          {/* Grid: 150px 1fr 60px 50px 90px 28px */}
+          <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr 60px 50px 90px 28px', gap: 6, marginBottom: 6 }}>
+            {['Item', 'Description', 'Qty', 'Unit', 'Lot No', ''].map((h) => (
               <Text key={h} style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>{h}</Text>
             ))}
           </div>
@@ -365,7 +393,7 @@ export default function IssueSlipPage() {
               key={row._key}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '160px 1fr 65px 50px 28px',
+                gridTemplateColumns: '150px 1fr 60px 50px 90px 28px',
                 gap: 6,
                 marginBottom: 8,
                 alignItems: 'center',
@@ -400,6 +428,12 @@ export default function IssueSlipPage() {
                 placeholder="unit"
                 value={row.unit}
                 onChange={(e) => updateLine(row._key, 'unit', e.target.value)}
+              />
+              <Input
+                size="small"
+                placeholder="Lot / Batch No"
+                value={row.lot_no}
+                onChange={(e) => updateLine(row._key, 'lot_no', e.target.value)}
               />
               <Button
                 size="small"

@@ -7,9 +7,10 @@ import {
   ReloadOutlined, ToolOutlined, CheckCircleOutlined,
   ExclamationCircleOutlined, DollarOutlined, ClockCircleOutlined,
   BarChartOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { maintenanceKpiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -152,7 +153,8 @@ export default function KpiDashboardPage() {
         <Title level={4} style={{ margin: 0 }}><BarChartOutlined /> Maintenance KPI Dashboard</Title>
         <Space wrap>
           <RangePicker onChange={(dates) => setDateRange(dates || [])} />
-          <Button icon={<ReloadOutlined />} onClick={loadAll} loading={loading}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('kpi-dashboard.csv', mtbf, mtbfColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadAll} loading={loading}>Refresh</Button>
         </Space>
       </div>
 

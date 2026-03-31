@@ -14,11 +14,12 @@ import {
   UpCircleOutlined,
   DownCircleOutlined,
   FormOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { customFieldApi } from '../../../../api/customField.api';
 import AppLayout           from '../../../../components/AppLayout';
 import usePermissions      from '../../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -506,6 +507,7 @@ const ListView = ({ groups, loading, search, onSearchChange, onRefresh, onNew, o
           allowClear
         />
         <div style={{ flex: 1 }} />
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('custom-fields.csv', groups, columns)}>Export CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
           Refresh
         </Button>

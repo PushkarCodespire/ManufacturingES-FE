@@ -18,11 +18,12 @@ import {
   TeamOutlined,
   IdcardOutlined,
   ClockCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { auditApi } from '../../api/audit.api';
 import AppLayout from '../../components/AppLayout';
+import { exportTableToCsv } from '../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -425,7 +426,8 @@ const ProfilePage = () => {
                       <Option key={key} value={key}>{cfg.label}</Option>
                     ))}
                   </Select>
-                  <Button
+                  <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('profile.csv', logs, columns)}>Export CSV</Button>
+        <Button
                     size="small"
                     icon={<ReloadOutlined />}
                     onClick={() => fetchLogs(1, actionFilter)}

@@ -9,10 +9,11 @@ import {
   ClockCircleOutlined, PlayCircleOutlined, ThunderboltOutlined,
   BulbOutlined, WarningOutlined, ArrowUpOutlined, ArrowDownOutlined,
   UserOutlined, RiseOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { maintenancePmApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -298,7 +299,8 @@ export default function PMSchedulePage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ClockCircleOutlined /> PM Schedule & Execution</Title>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={loadAll}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('p-m-schedule.csv', workOrders, woColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadAll}>Refresh</Button>
           <Button icon={<ThunderboltOutlined />} onClick={autoGenerate} loading={generating}>Auto-Generate WOs</Button>
           <Button icon={<PlusOutlined />} onClick={() => setSchedModal(true)}>New Schedule</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setTmplModal(true)}>New Template</Button>

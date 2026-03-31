@@ -8,11 +8,12 @@ import {
   PlayCircleOutlined, RightOutlined, WarningOutlined,
   CheckCircleOutlined, ShoppingCartOutlined, InfoCircleOutlined,
   ReloadOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import api            from '../../../api/axios';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -248,7 +249,8 @@ export default function MrpPlanningPage() {
           </Col>
           {hasRun && (
             <Col style={{ marginTop: 20 }}>
-              <Button icon={<ReloadOutlined />} onClick={handleRunMrp} loading={running}>
+              <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('mrp-planning.csv', requirements, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={handleRunMrp} loading={running}>
                 Re-run
               </Button>
             </Col>

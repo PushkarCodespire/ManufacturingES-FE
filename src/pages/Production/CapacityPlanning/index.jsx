@@ -8,9 +8,10 @@ import {
   ReloadOutlined, RightOutlined, WarningOutlined,
   CheckCircleOutlined, FireOutlined, ThunderboltOutlined,
   CalendarOutlined, BarChartOutlined, LeftOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import AppLayout from '../../../components/AppLayout';
 import { jobCardApi, capacitySchedulerApi } from '../../../api/production.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -105,6 +106,7 @@ function GanttViewTab() {
           <Tag color="red" icon={<WarningOutlined />}>{overloads.length} Overloaded</Tag>
         )}
         <Tag color="blue">Scheduled: {schedules.length}</Tag>
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('capacity-planning.csv', data, columns)}>Export CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button>
         <Popconfirm title="Auto-schedule all unscheduled WOs using Earliest Due Date algorithm?" onConfirm={handleAutoSchedule} okText="Schedule">
           <Button type="primary" icon={<ThunderboltOutlined />} loading={scheduling}>

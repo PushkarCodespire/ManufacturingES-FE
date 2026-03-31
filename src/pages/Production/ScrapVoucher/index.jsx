@@ -8,13 +8,14 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
   CheckOutlined, CloseOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout       from '../../../components/AppLayout';
 import usePermissions  from '../../../hooks/usePermissions';
 import { scrapApi, workOrderApi } from '../../../api/production.api';
 import { itemApi }     from '../../../api/item.api';
 import { machineApi }  from '../../../api/machine.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -358,7 +359,8 @@ export default function ScrapVoucherPage() {
             style={{ width: 150 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('scrap-voucher.csv', vouchers, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
               New Scrap Entry

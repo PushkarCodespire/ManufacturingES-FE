@@ -6,12 +6,13 @@ import {
 import {
   PlusOutlined, ReloadOutlined, RightOutlined,
   DeleteOutlined, UserAddOutlined, CalendarOutlined, EditOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
 import api            from '../../../api/axios';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -225,7 +226,8 @@ export default function ShiftPlanningPage() {
           />
           <Tag color="blue">{assignments.length} Assignment{assignments.length !== 1 ? 's' : ''}</Tag>
           <Tag color="green">{crew.length} Crew Member{crew.length !== 1 ? 's' : ''}</Tag>
-          <Button icon={<ReloadOutlined />} onClick={load} style={{ marginLeft: 'auto' }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('shift-planning.csv', assignments, assignCols)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load} style={{ marginLeft: 'auto' }}>Refresh</Button>
         </div>
 
         {/* Assignments card */}

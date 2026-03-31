@@ -8,7 +8,7 @@ import {
   ShoppingCartOutlined, ClockCircleOutlined,
   ExclamationCircleOutlined, CheckCircleOutlined,
   AuditOutlined, FileDoneOutlined, TrophyOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   ResponsiveContainer, Cell, Legend,
@@ -19,6 +19,7 @@ import {
 import dayjs from 'dayjs';
 import AppLayout                  from '../../../components/AppLayout';
 import { procurementAnalyticsApi } from '../../../api/procurement.api';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;

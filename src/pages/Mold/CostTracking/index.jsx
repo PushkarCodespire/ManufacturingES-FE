@@ -7,9 +7,10 @@ import {
 import {
   PlusOutlined, ReloadOutlined, DollarOutlined, BarChartOutlined,
   ExclamationCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { moldCostApi, moldMasterApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -155,7 +156,8 @@ export default function CostTrackingPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><DollarOutlined /> Cost Tracking</Title>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={loadDashboard}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('cost-tracking.csv', summaryData, summaryColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadDashboard}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModal(true)}>Add Cost Entry</Button>
         </Space>
       </div>

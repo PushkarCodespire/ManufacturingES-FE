@@ -6,10 +6,11 @@ import {
 import {
   PlusOutlined, ReloadOutlined, SearchOutlined, RightOutlined,
   StopOutlined, CheckCircleOutlined, AppstoreOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { moldMasterApi, moldCavityApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -144,7 +145,10 @@ const CavityTrackingPage = () => {
           <Select placeholder="Choose a mold..." value={selectedMoldId} onChange={setSelectedMoldId}
             showSearch optionFilterProp="label" style={{ width: 320 }}
             options={molds.map((m) => ({ label: `${m.mold_code} - ${m.name}`, value: m.id }))} allowClear />
-          {selectedMoldId && <Button icon={<ReloadOutlined />} onClick={fetchCavityData} style={{ borderRadius: 8 }}>Refresh</Button>}
+          {selectedMoldId && <>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('cavity-tracking.csv', cavities, cavityColumns)}>Export CSV</Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchCavityData} style={{ borderRadius: 8 }}>Refresh</Button>
+          </>}
           {selectedMoldId && canWrite && <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalOpen(true)} style={{ borderRadius: 8 }}>Add Cavity</Button>}
         </div>
       </Card>

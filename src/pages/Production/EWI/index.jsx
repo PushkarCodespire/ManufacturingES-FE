@@ -8,10 +8,11 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined,
   CheckCircleOutlined, StopOutlined, FileTextOutlined,
   WarningOutlined, SearchOutlined, ReloadOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import AppLayout from '../../../components/AppLayout';
 import { ewiApi } from '../../../api/ewi.api';
 import { useAuth } from '../../../context/AuthContext';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -338,7 +339,8 @@ export default function EWIPage() {
               <Option value="active">Active</Option>
               <Option value="obsolete">Obsolete</Option>
             </Select>
-            <Button icon={<ReloadOutlined />} onClick={fetchList}>Refresh</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('e-w-i.csv', data, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchList}>Refresh</Button>
           </Space>
         </Card>
 

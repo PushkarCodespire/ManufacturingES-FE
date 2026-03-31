@@ -7,12 +7,13 @@ import {
 import {
   PlusOutlined, ReloadOutlined, RightOutlined, ToolOutlined,
   DeleteOutlined, HistoryOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { toolLogApi } from '../../../api/production.api';
 import api            from '../../../api/axios';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -203,7 +204,8 @@ export default function ToolManagementPage() {
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab="Tool Summary" key="summary">
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-              <Button icon={<ReloadOutlined />} onClick={loadSummary}>Refresh</Button>
+              <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('tool-management.csv', summary, summaryColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadSummary}>Refresh</Button>
             </div>
             <Table
               columns={summaryColumns}

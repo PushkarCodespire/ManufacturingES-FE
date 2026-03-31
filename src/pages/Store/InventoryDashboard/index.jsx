@@ -6,13 +6,14 @@ import {
 import {
   ReloadOutlined, RightOutlined, WarningOutlined,
   ClockCircleOutlined, InboxOutlined, BarChartOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
 import usePermissions from '../../../hooks/usePermissions';
 import { inventoryApi }  from '../../../api/store.api';
 import { warehouseApi }  from '../../../api/warehouse.api';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 

@@ -9,7 +9,7 @@ import {
   DeleteOutlined, RightOutlined, EyeOutlined,
   PlusCircleOutlined, MinusCircleOutlined,
   StopOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout       from '../../../components/AppLayout';
 import usePermissions  from '../../../hooks/usePermissions';
@@ -17,6 +17,7 @@ import { subcontractApi }  from '../../../api/subcontracting.api';
 import { vendorApi }       from '../../../api/vendor.api';
 import { itemApi }         from '../../../api/item.api';
 import { workOrderApi }    from '../../../api/production.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -308,7 +309,8 @@ export default function InwardChallanPage() {
             style={{ width: 150 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('inward-challan.csv', challans, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
               New Inward Challan

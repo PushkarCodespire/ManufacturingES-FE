@@ -9,11 +9,12 @@ import {
   CheckCircleOutlined, WarningOutlined, ExclamationCircleOutlined,
   ClockCircleOutlined, ThunderboltOutlined, StopOutlined,
   PlusOutlined, SettingOutlined, SafetyCertificateOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { moldLifeApi, moldMasterApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -242,7 +243,8 @@ export default function MoldLifeManagementPage() {
           <Input placeholder="Search molds..." prefix={<SearchOutlined />} value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 240, borderRadius: 8 }} allowClear />
           <Select placeholder="Life Stage" value={stageFilter} onChange={setStageFilter} allowClear style={{ width: 200 }} options={[{ label: "Normal", value: "normal" }, { label: "Plan Replacement", value: "plan_replacement" }, { label: "Urgent Replacement", value: "urgent_replacement" }, { label: "Critical", value: "critical" }, { label: "End of Life", value: "end_of_life" }, { label: "Extended Life", value: "extended_life" }]} />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={() => { loadDashboard(); loadAlerts(); }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('life-management.csv', alerts, alertColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => { loadDashboard(); loadAlerts(); }}>Refresh</Button>
           {canWrite && (<Button type="primary" icon={<PlusOutlined />} onClick={() => setExtensionModalOpen(true)}>Request Extension</Button>)}
         </div>
 

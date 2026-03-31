@@ -8,9 +8,10 @@ import {
   PlusOutlined, ReloadOutlined, CheckCircleOutlined,
   ClockCircleOutlined, ExclamationCircleOutlined, ExperimentOutlined,
   EyeOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { moldTrialApi, moldMasterApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -179,7 +180,8 @@ export default function TrialsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ExperimentOutlined /> Mold Trials</Title>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={loadTrials}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('trials.csv', trials, trialColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadTrials}>Refresh</Button>
           <Button onClick={() => setProtocolModal(true)}>New Protocol</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setStartModal(true)}>Start Trial</Button>
         </Space>

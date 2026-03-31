@@ -8,7 +8,7 @@ import {
   PlusOutlined, ReloadOutlined, SearchOutlined, RightOutlined,
   SendOutlined, CheckOutlined, LockOutlined, DeleteOutlined,
   EyeOutlined, EditOutlined, MinusCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
@@ -16,6 +16,7 @@ import usePermissions from '../../../hooks/usePermissions';
 import { purchaseReturnApi } from '../../../api/procurement.api';
 import { purchaseOrderApi } from '../../../api/procurement.api';
 import { vendorApi } from '../../../api/procurement.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -299,7 +300,8 @@ export default function PurchaseReturnsPage() {
             ))}
           </Select>
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('purchase-returns.csv', rows, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditRec(null); form.resetFields(); setGrnItems([]); setPoItems([]); setCreateOpen(true); }}>
               Create Return

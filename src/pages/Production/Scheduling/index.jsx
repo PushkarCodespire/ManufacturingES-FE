@@ -8,7 +8,7 @@ import {
   PlusOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
   CheckCircleOutlined, BulbOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout            from '../../../components/AppLayout';
 import ResponsiveTable      from '../../../components/ResponsiveTable';
@@ -20,6 +20,7 @@ import { scheduleApi, workOrderApi } from '../../../api/production.api';
 import { itemApi }     from '../../../api/item.api';
 import { machineApi }  from '../../../api/machine.api';
 import { shiftApi }    from '../../../api/shift.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -477,7 +478,8 @@ export default function SchedulingPage() {
               Bottleneck
             </Button>
           </Tooltip>
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('scheduling.csv', schedules, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
               New Schedule

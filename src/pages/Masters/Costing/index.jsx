@@ -15,13 +15,14 @@ import {
   AppstoreOutlined,
   MinusCircleOutlined,
   TagOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { costingApi } from '../../../api/costing.api';
 import { vendorApi }  from '../../../api/vendor.api';
 import { itemApi }    from '../../../api/item.api';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -700,7 +701,8 @@ const CostingPage = () => {
 
             <div style={{ flex: 1 }} />
 
-            <Button icon={<ReloadOutlined />} onClick={fetchCostings} style={{ borderRadius: 8 }}>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('costing.csv', displayData, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchCostings} style={{ borderRadius: 8 }}>
               Refresh
             </Button>
 

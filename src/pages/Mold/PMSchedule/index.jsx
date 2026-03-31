@@ -8,9 +8,10 @@ import {
   PlusOutlined, ToolOutlined, CheckCircleOutlined, ClockCircleOutlined,
   ExclamationCircleOutlined, ReloadOutlined, CheckOutlined, SettingOutlined,
   CalendarOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { moldPmApi, moldMasterApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -208,7 +209,8 @@ export default function PMSchedulePage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ToolOutlined /> PM Schedule</Title>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={loadSchedules}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('p-m-schedule.csv', schedules, scheduleColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadSchedules}>Refresh</Button>
           <Button icon={<PlusOutlined />} onClick={() => setTmplDrawer(true)}>New Template</Button>
           <Button type="primary" icon={<CalendarOutlined />} onClick={openScheduleModal}>Schedule PM</Button>
         </Space>

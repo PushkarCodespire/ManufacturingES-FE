@@ -8,13 +8,14 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   RightOutlined, SearchOutlined,
   PlusCircleOutlined, MinusCircleOutlined, InboxOutlined, FileTextOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { dispatchOrderApi } from '../../../api/dispatchOrder.api';
 import { transporterApi }   from '../../../api/transporter.api';
 import AppLayout            from '../../../components/AppLayout';
 import usePermissions       from '../../../hooks/usePermissions';
 import api                  from '../../../api/axios';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -46,7 +47,7 @@ const DispatchOrdersPage = () => {
   const [saving,       setSaving]       = useState(false);
   const [drawerOpen,   setDrawerOpen]   = useState(false);
   const [editing,      setEditing]      = useState(null);
-  const [orderItems,   setOrderItems]   = useState([{ item_id: null, quantity: 1, unit: '', weight: null, notes: '' }]);
+  const [orderItems,   setOrderItems]   = useState([{ item_id: null, quantity: 1, unit: '', weight: null, lot_no: '', notes: '' }]);
   const [filterStatus, setFilterStatus] = useState(null);
   const [search,       setSearch]       = useState('');
   const [form] = Form.useForm();
@@ -91,17 +92,17 @@ const DispatchOrdersPage = () => {
         expected_delivery_date: record.expected_delivery_date ? dayjs(record.expected_delivery_date) : null,
         actual_delivery_date:   record.actual_delivery_date   ? dayjs(record.actual_delivery_date)   : null,
       });
-      setOrderItems(record.Items?.length > 0 ? record.Items : [{ item_id: null, quantity: 1, unit: '', weight: null, notes: '' }]);
+      setOrderItems(record.Items?.length > 0 ? record.Items : [{ item_id: null, quantity: 1, unit: '', weight: null, lot_no: '', notes: '' }]);
     } else {
       form.setFieldsValue({ status: 'draft' });
-      setOrderItems([{ item_id: null, quantity: 1, unit: '', weight: null, notes: '' }]);
+      setOrderItems([{ item_id: null, quantity: 1, unit: '', weight: null, lot_no: '', notes: '' }]);
     }
     setDrawerOpen(true);
   };
 
   const closeDrawer = () => { setDrawerOpen(false); setEditing(null); form.resetFields(); };
 
-  const addItem    = () => setOrderItems((prev) => [...prev, { item_id: null, quantity: 1, unit: '', weight: null, notes: '' }]);
+  const addItem    = () => setOrderItems((prev) => [...prev, { item_id: null, quantity: 1, unit: '', weight: null, lot_no: '', notes: '' }]);
   const removeItem = (idx) => setOrderItems((prev) => prev.filter((_, i) => i !== idx));
   const updateItem = (idx, field, value) => setOrderItems((prev) => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));
 
@@ -116,9 +117,9 @@ const DispatchOrdersPage = () => {
         actual_delivery_date:   values.actual_delivery_date?.format('YYYY-MM-DD') || null,
         items: orderItems
           .filter((it) => it.item_id)
-          .map(({ id, item_id, quantity, unit, weight, notes }) => ({
+          .map(({ id, item_id, quantity, unit, weight, lot_no, notes }) => ({
             ...(id ? { id } : {}),
-            item_id, quantity, unit: unit || null, weight: weight || null, notes: notes || null,
+            item_id, quantity, unit: unit || null, weight: weight || null, lot_no: lot_no || null, notes: notes || null,
           })),
       };
       if (editing) {
@@ -247,7 +248,8 @@ const DispatchOrdersPage = () => {
             options={STATUS_OPTIONS} value={filterStatus} onChange={setFilterStatus}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('dispatch-orders.csv', filtered, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>
               New Order
@@ -355,19 +357,20 @@ const DispatchOrdersPage = () => {
 
           <Text strong style={{ fontSize: 13, color: '#374151' }}>Items / Products</Text>
           <Divider style={{ margin: '10px 0 16px' }} />
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 2fr 40px', gap: 8, marginBottom: 6 }}>
-            {['Item', 'Qty', 'Unit', 'Weight (kg)', 'Notes', ''].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 2fr 40px', gap: 8, marginBottom: 6 }}>
+            {['Item', 'Qty', 'Unit', 'Lot No', 'Weight (kg)', 'Notes', ''].map((h) => (
               <Text key={h} style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>{h}</Text>
             ))}
           </div>
           {orderItems.map((it, idx) => (
-            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 2fr 40px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 2fr 40px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
               <Select showSearch allowClear placeholder="Select item" value={it.item_id} onChange={(v) => updateItem(idx, 'item_id', v)}
                 filterOption={(input, opt) => opt.label.toLowerCase().includes(input.toLowerCase())}
                 options={items.map((i) => ({ value: i.id, label: `${i.name}${i.code ? ` (${i.code})` : ''}` }))}
                 disabled={!canWrite} size="middle" />
               <InputNumber placeholder="Qty" value={it.quantity} min={0.001} step={0.001} style={{ width: '100%' }} onChange={(v) => updateItem(idx, 'quantity', v)} disabled={!canWrite} size="middle" />
               <Input placeholder="Unit" value={it.unit} onChange={(e) => updateItem(idx, 'unit', e.target.value)} disabled={!canWrite} size="middle" />
+              <Input placeholder="Lot / Batch" value={it.lot_no} onChange={(e) => updateItem(idx, 'lot_no', e.target.value)} disabled={!canWrite} size="middle" />
               <InputNumber placeholder="0.000" value={it.weight} min={0} step={0.001} style={{ width: '100%' }} onChange={(v) => updateItem(idx, 'weight', v)} disabled={!canWrite} size="middle" />
               <Input placeholder="Notes" value={it.notes} onChange={(e) => updateItem(idx, 'notes', e.target.value)} disabled={!canWrite} size="middle" />
               {canWrite && orderItems.length > 1

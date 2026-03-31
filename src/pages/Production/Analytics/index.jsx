@@ -6,13 +6,14 @@ import {
 import {
   ReloadOutlined, RightOutlined, BarChartOutlined, LineChartOutlined,
   RiseOutlined, FallOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as ReTooltip, ResponsiveContainer, Legend, Cell,
 } from 'recharts';
 import AppLayout       from '../../../components/AppLayout';
 import api             from '../../../api/axios';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -134,7 +135,8 @@ export default function ProductionAnalyticsPage() {
               options={RANGE_OPTIONS}
               style={{ width: 150 }}
             />
-            <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading}>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('analytics.csv', machines, machCols)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading}>
               Refresh
             </Button>
           </div>

@@ -8,7 +8,7 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
   PlusCircleOutlined, MinusCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout        from '../../../components/AppLayout';
 import usePermissions   from '../../../hooks/usePermissions';
@@ -18,6 +18,7 @@ import { itemApi }      from '../../../api/item.api';
 import aiApi            from '../../../api/ai.api';
 import useAiSuggestion  from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard from '../../../components/AiSuggestion/AiSuggestionCard';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -354,7 +355,8 @@ export default function QuotationPage() {
             style={{ width: 160 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('quotation.csv', quotations, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Quotation</Button>
           )}

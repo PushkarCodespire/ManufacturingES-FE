@@ -5,9 +5,10 @@ import {
 } from 'antd';
 import {
   RightOutlined, ReloadOutlined, SearchOutlined, EyeOutlined, NodeIndexOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { dispatchOrderApi } from '../../../api/dispatchOrder.api';
 import AppLayout from '../../../components/AppLayout';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -137,7 +138,8 @@ const ShipmentTrackingPage = () => {
             value={filterStatus} onChange={setFilterStatus}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchAll} style={{ borderRadius: 8 }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('shipment-tracking.csv', records, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchAll} style={{ borderRadius: 8 }}>Refresh</Button>
         </div>
         <Table
           rowKey="id" dataSource={records} columns={columns} loading={loading}

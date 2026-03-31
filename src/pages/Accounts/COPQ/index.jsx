@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Button, Input, Table, Tag, Space, Drawer, Form, Select, DatePicker, InputNumber, message, Popconfirm, Row, Col, Statistic, Divider } from 'antd';
-import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, RightOutlined, WarningOutlined, DollarOutlined, BulbOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, RightOutlined, WarningOutlined, DollarOutlined, BulbOutlined, DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import { copqEntryApi } from '../../../api/accounts.api';
@@ -9,6 +9,7 @@ import { userApi } from '../../../api/user.api';
 import aiApi from '../../../api/ai.api';
 import useAiSuggestion from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard from '../../../components/AiSuggestion/AiSuggestionCard';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const parseInsight = (raw) => {
   if (!raw) return null;
@@ -259,7 +260,8 @@ const COPQPage = () => {
           <Select placeholder="Category" allowClear value={catFilter} onChange={setCatFilter}
             options={CATEGORIES.map((c) => ({ value: c.value, label: c.label }))} style={{ width: 160 }} />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={() => { load(); loadSummary(); }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('c-o-p-q.csv', rows, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => { load(); loadSummary(); }}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Entry</Button>
         </div>
 

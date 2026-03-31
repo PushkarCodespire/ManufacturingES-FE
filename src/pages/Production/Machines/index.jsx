@@ -7,7 +7,7 @@ import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, ArrowLeftOutlined,
   SettingOutlined, SearchOutlined, RightOutlined, ToolOutlined,
   CheckCircleOutlined, InfoCircleOutlined, CloseOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { machineApi } from '../../../api/machine.api';
 import { productionParameterApi } from '../../../api/productionParameter.api';
@@ -15,6 +15,7 @@ import { tagApi } from '../../../api/tag.api';
 import { siteApi } from '../../../api/site.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -178,7 +179,8 @@ const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew,
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('machines.csv', treeData, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
               NEW

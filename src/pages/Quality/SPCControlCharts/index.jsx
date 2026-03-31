@@ -7,7 +7,7 @@ import {
 import {
   PlusOutlined, ReloadOutlined, RightOutlined, BarChartOutlined,
   DeleteOutlined, ThunderboltOutlined, ExclamationCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   Legend, ResponsiveContainer, ReferenceLine,
@@ -16,6 +16,7 @@ import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { spcApi } from '../../../api/quality.api';
 import { itemApi } from '../../../api/item.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -203,7 +204,8 @@ export default function SPCControlChartsPage() {
         bodyStyle={{ padding: '16px 20px' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={loadConfigs}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('s-p-c-control-charts.csv', configs, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadConfigs}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerOpen(true)}>
             Add SPC Chart
           </Button>

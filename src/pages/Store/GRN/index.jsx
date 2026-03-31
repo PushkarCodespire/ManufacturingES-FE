@@ -9,7 +9,7 @@ import {
   EditOutlined, DeleteOutlined, RightOutlined,
   PlusCircleOutlined, MinusCircleOutlined, CheckCircleOutlined,
   BulbOutlined, StopOutlined, ExclamationCircleOutlined, QrcodeOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout            from '../../../components/AppLayout';
 import ResponsiveTable      from '../../../components/ResponsiveTable';
@@ -23,6 +23,7 @@ import aiApi                from '../../../api/ai.api';
 import useAiSuggestion      from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionCard';
 import QrLabelPrint         from '../../../components/common/QrLabelPrint';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const parseInsight = (raw) => {
   if (!raw) return null;
@@ -438,7 +439,8 @@ export default function GRNPage() {
             style={{ width: 160 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('g-r-n.csv', grns, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New GRN</Button>
           )}

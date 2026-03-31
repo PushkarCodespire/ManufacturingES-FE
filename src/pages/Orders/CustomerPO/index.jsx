@@ -8,7 +8,7 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined, EyeOutlined,
   PlusCircleOutlined, MinusCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { UploadOutlined } from '@ant-design/icons';
@@ -21,6 +21,7 @@ import { itemApi }          from '../../../api/item.api';
 import aiApi                from '../../../api/ai.api';
 import useAiSuggestion      from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionCard';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -406,7 +407,8 @@ export default function CustomerPOPage() {
             style={{ width: 160 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('customer-p-o.csv', orders, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>Receive PO</Button>
           )}

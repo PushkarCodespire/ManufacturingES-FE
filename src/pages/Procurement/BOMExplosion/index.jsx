@@ -7,11 +7,12 @@ import {
   RightOutlined, CheckCircleOutlined, WarningOutlined,
   PlusOutlined, DeleteOutlined, FileAddOutlined, ThunderboltOutlined,
   AppstoreOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import AppLayout  from '../../../components/AppLayout';
 import { bomApi } from '../../../api/bom.api';
 import { itemApi } from '../../../api/item.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -118,6 +119,7 @@ const ResultCard = ({ result, navigate }) => {
         <Tag color="blue">Planned: {d.planned_qty}</Tag>
         <Tag color={d.bom_status === 'finalized' ? 'green' : 'orange'}>BOM: {d.bom_status}</Tag>
         <div style={{ flex: 1 }} />
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('b-o-m-explosion.csv', d.explosion || [], COMP_COLS)}>Export CSV</Button>
         {d.has_shortage
           ? <Tag color="red"   icon={<WarningOutlined />}     style={{ fontWeight: 600 }}>Has Shortage</Tag>
           : <Tag color="green" icon={<CheckCircleOutlined />} style={{ fontWeight: 600 }}>All Stocked</Tag>}

@@ -12,7 +12,7 @@ import {
   SendOutlined, CheckCircleOutlined, CloseCircleOutlined,
   EyeOutlined, ShoppingCartOutlined, AuditOutlined,
   TrophyOutlined, LockOutlined, UnorderedListOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout        from '../../../components/AppLayout';
 import ResponsiveTable  from '../../../components/ResponsiveTable';
@@ -20,6 +20,7 @@ import usePermissions   from '../../../hooks/usePermissions';
 import { vendorRfqApi } from '../../../api/procurement.api';
 import { itemApi }      from '../../../api/item.api';
 import { vendorApi }    from '../../../api/vendor.api';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 

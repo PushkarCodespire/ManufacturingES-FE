@@ -11,12 +11,13 @@ import {
   ArrowLeftOutlined,
   RightOutlined,
   InboxOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { packageApi } from '../../../../api/package.api';
 import { tagApi }     from '../../../../api/tag.api';
 import AppLayout      from '../../../../components/AppLayout';
 import usePermissions from '../../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -692,6 +693,7 @@ const PackagesList = ({
           allowClear
         />
         <div style={{ flex: 1 }} />
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('packages.csv', packingSizes, psColumns)}>Export CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
           Refresh
         </Button>

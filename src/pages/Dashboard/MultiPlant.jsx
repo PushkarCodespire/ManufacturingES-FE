@@ -6,11 +6,12 @@ import {
 import {
   RightOutlined, ReloadOutlined, BankOutlined,
   ToolOutlined, WarningOutlined, CheckCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
+import { exportTableToCsv } from '../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -104,6 +105,7 @@ export default function MultiPlantDashboard() {
       </Text>
 
       <div style={{ marginTop: 16, marginBottom: 16 }}>
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('multi-plant.csv', plants, columns)}>Export CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={load} loading={loading} style={{ float: 'right' }}>Refresh</Button>
       </div>
 

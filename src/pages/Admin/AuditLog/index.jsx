@@ -7,10 +7,11 @@ import {
   ReloadOutlined, RightOutlined, SafetyOutlined,
   LoginOutlined, LogoutOutlined, KeyOutlined,
   LockOutlined, ExclamationCircleOutlined, UserOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout  from '../../../components/AppLayout';
 import { auditApi } from '../../../api/audit.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -256,7 +257,8 @@ export default function AuditLogPage() {
             <Tag style={{ borderRadius: 20, fontSize: 12 }}>
               {total.toLocaleString()} total events
             </Tag>
-            <Button icon={<ReloadOutlined />} onClick={() => load()}>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('audit-log.csv', logs, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => load()}>
               Refresh
             </Button>
           </div>

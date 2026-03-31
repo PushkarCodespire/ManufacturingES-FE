@@ -5,11 +5,12 @@ import {
 } from 'antd';
 import {
   ReloadOutlined, RightOutlined, SearchOutlined, DashboardOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import api            from '../../../api/axios';
 import { warehouseApi } from '../../../api/warehouse.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -296,7 +297,8 @@ export default function StockOverviewPage() {
 
           <div style={{ flex: 1 }} />
 
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('stock-overview.csv', items, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={handleRefresh}>Refresh</Button>
         </div>
 
         {/* Table */}

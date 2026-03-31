@@ -5,11 +5,12 @@ import {
 } from 'antd';
 import {
   SearchOutlined, ReloadOutlined, RightOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import AppLayout         from '../../../components/AppLayout';
 import ResponsiveTable   from '../../../components/ResponsiveTable';
 import api               from '../../../api/axios';
 import usePermissions    from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -205,7 +206,8 @@ export default function TimeStandardsPage() {
               {workCenters.map(w => <Option key={w.id} value={w.id}>{w.name}</Option>)}
             </Select>
             <div style={{ flex: 1 }} />
-            <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('time-standards.csv', displayed, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           </div>
         </Card>
 

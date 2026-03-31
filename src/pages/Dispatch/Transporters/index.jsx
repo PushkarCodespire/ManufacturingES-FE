@@ -6,10 +6,11 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   CarOutlined, RightOutlined, SearchOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { transporterApi } from '../../../api/transporter.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -163,7 +164,8 @@ const TransportersPage = () => {
             style={{ width: 240, borderRadius: 8 }} allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('transporters.csv', filtered, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>
               Add Transporter

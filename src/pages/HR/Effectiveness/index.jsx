@@ -5,11 +5,12 @@ import {
 } from 'antd';
 import {
   ReloadOutlined, RightOutlined, CheckCircleOutlined, ClockCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { trainingEffectivenessApi } from '../../../api/trainingEffectiveness.api';
 import AppLayout                    from '../../../components/AppLayout';
 import usePermissions               from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -249,6 +250,7 @@ const PendingTab = ({ canWrite }) => {
         <Tag>Pending: {items.length}</Tag>
         <Tag color="red">Overdue: {items.filter((i) => dayjs(i.scheduled_date).isBefore(dayjs(), 'day')).length}</Tag>
         <div style={{ flex: 1 }} />
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('effectiveness.csv', items, columns)}>Export CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={fetchPending}>Refresh</Button>
       </div>
 

@@ -6,10 +6,11 @@ import {
 import {
   PrinterOutlined, ReloadOutlined, RightOutlined, CalendarOutlined,
   CheckCircleOutlined, WarningOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import api       from '../../../api/axios';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -150,7 +151,8 @@ export default function DPRPage() {
               suffixIcon={<CalendarOutlined />}
               allowClear={false}
             />
-            <Button icon={<ReloadOutlined />} onClick={() => load()}>Refresh</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('d-p-r.csv', dpr.by_machine, machineSumCols)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => load()}>Refresh</Button>
             {dpr?.total_jobs > 0 && (
               <Button icon={<PrinterOutlined />} type="primary" onClick={handlePrint}>
                 Print / Export

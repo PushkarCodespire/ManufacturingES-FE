@@ -7,12 +7,13 @@ import {
 import {
   PlusOutlined, ReloadOutlined, RightOutlined, EditOutlined,
   CheckOutlined, DeleteOutlined, PlayCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { reworkApi }  from '../../../api/production.api';
 import api            from '../../../api/axios';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -235,7 +236,8 @@ export default function ReworkTrackingPage() {
             ]}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('rework-tracking.csv', vouchers, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
               New Rework Voucher

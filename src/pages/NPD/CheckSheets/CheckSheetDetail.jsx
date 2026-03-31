@@ -7,13 +7,14 @@ import {
 import {
   ArrowLeftOutlined, RightOutlined, PlusOutlined, DeleteOutlined, SaveOutlined,
   BulbOutlined, UploadOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import AppLayout         from '../../../components/AppLayout';
 import usePermissions    from '../../../hooks/usePermissions';
 import { checkSheetApi } from '../../../api/quality.api';
 import useAiSuggestion  from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard  from '../../../components/AiSuggestion/AiSuggestionCard';
 import aiApi              from '../../../api/ai.api';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 

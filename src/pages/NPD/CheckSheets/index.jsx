@@ -8,11 +8,12 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
   EditOutlined, DeleteOutlined, CheckCircleOutlined,
   EyeOutlined, FilePdfOutlined, FileImageOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import AppLayout         from '../../../components/AppLayout';
 import usePermissions    from '../../../hooks/usePermissions';
 import { checkSheetApi, drawingApi } from '../../../api/quality.api';
 import { itemApi }                   from '../../../api/item.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -273,7 +274,8 @@ export default function CheckSheetsPage() {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('check-sheets.csv', filtered, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Template</Button>
           )}

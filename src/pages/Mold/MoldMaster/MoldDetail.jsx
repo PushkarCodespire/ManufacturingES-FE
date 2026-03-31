@@ -8,7 +8,7 @@ import {
   ArrowLeftOutlined, PlusOutlined, ReloadOutlined, RightOutlined,
   DeleteOutlined, UploadOutlined, QrcodeOutlined, ToolOutlined,
   CheckCircleOutlined, StopOutlined, SwapOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { moldMasterApi, moldCavityApi, moldShotCountApi, moldLifeApi } from '../../../api/mold.api';
@@ -16,6 +16,7 @@ import { itemApi } from '../../../api/item.api';
 import { machineApi } from '../../../api/machine.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 

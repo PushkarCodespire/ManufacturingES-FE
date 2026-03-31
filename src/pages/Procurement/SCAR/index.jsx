@@ -9,7 +9,7 @@ import {
   DeleteOutlined, RightOutlined, EditOutlined,
   CheckCircleOutlined, SendOutlined, WarningOutlined,
   BulbOutlined, ExclamationCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout          from '../../../components/AppLayout';
 import usePermissions     from '../../../hooks/usePermissions';
@@ -17,6 +17,7 @@ import { scarApi, vendorApi } from '../../../api/procurement.api';
 import aiApi              from '../../../api/ai.api';
 import useAiSuggestion    from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard   from '../../../components/AiSuggestion/AiSuggestionCard';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 // Strip markdown code fences and parse JSON
 const parseInsight = (raw) => {
@@ -433,7 +434,8 @@ export default function SCARPage() {
             style={{ width: 120 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('s-c-a-r.csv', scars, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
               Raise SCAR

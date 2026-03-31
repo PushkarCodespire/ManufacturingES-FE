@@ -6,7 +6,7 @@ import {
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, DeleteOutlined,
   RightOutlined, FolderOpenOutlined, WarningOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate }  from 'react-router-dom';
 import AppLayout        from '../../../components/AppLayout';
@@ -16,6 +16,7 @@ import { itemApi }      from '../../../api/item.api';
 import { userApi }      from '../../../api/user.api';
 import { vendorApi }    from '../../../api/vendor.api';
 import { grnApi }       from '../../../api/store.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -294,7 +295,8 @@ export default function IQCPage() {
             style={{ width: 140 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('i-q-c.csv', inspections, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New IQC Inspection</Button>
           )}

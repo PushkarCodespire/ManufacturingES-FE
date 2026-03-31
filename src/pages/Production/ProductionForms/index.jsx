@@ -11,11 +11,12 @@ import {
   ArrowLeftOutlined,
   RightOutlined,
   FormOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { productionFormApi } from '../../../api/productionForm.api';
 import AppLayout        from '../../../components/AppLayout';
 import usePermissions   from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -518,6 +519,7 @@ const ProductionFormsList = ({
           allowClear
         />
         <div style={{ flex: 1 }} />
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('production-forms.csv', fields, columns)}>Export CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
           Refresh
         </Button>

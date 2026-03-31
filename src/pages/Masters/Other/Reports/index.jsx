@@ -11,11 +11,12 @@ import {
   ArrowLeftOutlined,
   RightOutlined,
   FileTextOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { reportApi } from '../../../../api/report.api';
 import AppLayout      from '../../../../components/AppLayout';
 import usePermissions from '../../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -430,6 +431,7 @@ const ReportsList = ({
           allowClear
         />
         <div style={{ flex: 1 }} />
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('reports.csv', filtered, columns)}>Export CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
           Refresh
         </Button>

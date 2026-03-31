@@ -7,7 +7,7 @@ import {
   SettingOutlined, RightOutlined, ReloadOutlined,
   SearchOutlined, SaveOutlined, RobotOutlined,
   FilterOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
   moduleToggleApi,
@@ -20,6 +20,7 @@ import {
 } from '../../../api/admin.api';
 import AppLayout    from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -99,6 +100,7 @@ const ModuleTogglesTab = () => {
         <Text style={{ color: '#6b7280', fontSize: 13 }}>
           Enable or disable entire modules across the platform.
         </Text>
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('control-room.csv', data, columns)}>Export CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={fetch} style={{ borderRadius: 8 }}>
           Refresh
         </Button>

@@ -3,10 +3,11 @@ import {
   Table, Button, Tag, Drawer, Form, DatePicker, Input, Collapse, Checkbox, Space,
   Typography, message, Modal, Divider,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, RightOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, RightOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import { shiftHandoverApi } from '../../../api/production.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -168,7 +169,8 @@ export default function ShiftHandoverPage() {
             <Text type="secondary" style={{ fontSize: 13 }}>Manage shift handover records with auto-populated checklists</Text>
           </div>
           <Space wrap>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>Refresh</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('shift-handover.csv', data, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>Refresh</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>New Handover</Button>
           </Space>
         </div>

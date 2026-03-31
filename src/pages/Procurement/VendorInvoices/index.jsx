@@ -10,13 +10,14 @@ import {
   CheckCircleOutlined, CloseCircleOutlined, EyeOutlined,
   ExclamationCircleOutlined, SyncOutlined, DollarOutlined,
   FileTextOutlined, StopOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
 import ResponsiveTable     from '../../../components/ResponsiveTable';
 import usePermissions      from '../../../hooks/usePermissions';
 import { vendorInvoiceApi } from '../../../api/procurement.api';
 import { purchaseOrderApi } from '../../../api/procurement.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -390,7 +391,8 @@ export default function VendorInvoicesPage() {
               options={Object.entries(MATCH_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))}
             />
             <div style={{ flex: 1 }} />
-            <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('vendor-invoices.csv', detailRec.Items || [], matchColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
             {canWrite && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                 New Invoice

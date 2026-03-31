@@ -9,13 +9,14 @@ import {
   WarningOutlined, CloseCircleOutlined, RightOutlined, LockOutlined,
   UnlockOutlined, ExperimentOutlined, BarsOutlined, RobotOutlined, SearchOutlined,
   TrophyOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { moldAiApi }   from '../../../api/mold.api';
 import { itemApi }     from '../../../api/item.api';
 import { workOrderApi } from '../../../api/production.api';
 import AppLayout        from '../../../components/AppLayout';
 import usePermissions   from '../../../hooks/usePermissions';
 import dayjs from 'dayjs';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -648,7 +649,8 @@ export default function MoldSelectionPage() {
             style={{ width: 220, borderRadius: 8 }}
             allowClear
           />
-          <Button icon={<ReloadOutlined />} onClick={fetchReservations} loading={resLoading}>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('mold-selection.csv', options, optionColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchReservations} loading={resLoading}>
             Refresh
           </Button>
         </div>

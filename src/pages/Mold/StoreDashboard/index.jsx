@@ -9,11 +9,12 @@ import {
   InboxOutlined, ToolOutlined, SwapOutlined, EditOutlined,
   CalendarOutlined, DatabaseOutlined, PlusOutlined, DeleteOutlined,
   SettingOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { moldStoreApi, moldMasterApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -268,7 +269,8 @@ export default function MoldStoreDashboardPage() {
           <Input placeholder="Search molds..." prefix={<SearchOutlined />} value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 240, borderRadius: 8 }} allowClear />
           <Select placeholder="Status" value={statusFilter} onChange={setStatusFilter} allowClear style={{ width: 160 }} options={[{ label: "In Production", value: "in_production" }, { label: "In Storage", value: "in_storage" }, { label: "In Repair", value: "in_repair" }, { label: "End of Life", value: "end_of_life" }]} />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={() => { loadDashboard(); loadRackMap(); loadForecast(); }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('store-dashboard.csv', filteredInventory, inventoryColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => { loadDashboard(); loadRackMap(); loadForecast(); }}>Refresh</Button>
         </div>
         <Table dataSource={filteredInventory} columns={inventoryColumns} rowKey="id" size="small" loading={loading} pagination={{ pageSize: 15, showSizeChanger: true, showTotal: (t) => t + " molds" }} scroll={{ x: 900 }} />
       </Card>

@@ -6,7 +6,7 @@ import {
 import {
   ReloadOutlined, RightOutlined, LineChartOutlined, DashboardOutlined,
   ClockCircleOutlined, UserOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as ReTooltip, ResponsiveContainer, Legend,
@@ -14,6 +14,7 @@ import {
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import api       from '../../../api/axios';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -184,6 +185,7 @@ function HistoricalTab() {
     <>
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <RangePicker value={dateRange} onChange={setDateRange} allowClear={false} style={{ width: 280 }} />
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('oee-dashboard.csv', machines, columns)}>Export CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button>
       </div>
 

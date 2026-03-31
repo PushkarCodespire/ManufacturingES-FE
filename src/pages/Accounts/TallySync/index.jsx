@@ -10,10 +10,11 @@ import {
   ApiOutlined,
   CodeOutlined,
   RetweetOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import { tallySyncApi } from '../../../api/accounts.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -282,7 +283,8 @@ const TallySyncPage = () => {
               Retry Failed ({totals.error})
             </Button>
           )}
-          <Button
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('tally-sync.csv', logs, logColumns)}>Export CSV</Button>
+        <Button
             icon={<ReloadOutlined spin={loading} />}
             onClick={() => { setLoading(true); fetchDashboard(); fetchLogs(1, logPageSize, logFilter); }}
             size="small"

@@ -8,7 +8,7 @@ import {
   ReloadOutlined, RightOutlined, CalculatorOutlined,
   PlusOutlined, DeleteOutlined, EditOutlined, BarChartOutlined,
   FileTextOutlined, SettingOutlined, CheckCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip,
@@ -18,6 +18,7 @@ import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { jobCostApi, workOrderApi } from '../../../api/production.api';
 import { machineApi } from '../../../api/machine.api';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 

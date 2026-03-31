@@ -9,7 +9,7 @@ import {
   EditOutlined, RightOutlined, QrcodeOutlined,
   BulbOutlined, ClockCircleOutlined, CheckCircleFilled, CloseCircleFilled,
   CheckOutlined, StopOutlined, DeleteOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
 import ResponsiveTable     from '../../../components/ResponsiveTable';
@@ -22,6 +22,7 @@ import { shiftApi }     from '../../../api/shift.api';
 import { userApi }      from '../../../api/user.api';
 import aiApi            from '../../../api/ai.api';
 import QrLabelPrint     from '../../../components/common/QrLabelPrint';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -550,7 +551,8 @@ export default function JobCardsPage() {
             style={{ width: 140 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('job-cards.csv', jobCards, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
               New Job Card

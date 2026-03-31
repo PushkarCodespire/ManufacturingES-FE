@@ -9,11 +9,12 @@ import {
   ThunderboltOutlined, CheckCircleOutlined, WarningOutlined,
   ExclamationCircleOutlined, InfoCircleOutlined, LikeOutlined,
   DislikeOutlined, ClockCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { moldAiApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -331,7 +332,8 @@ export default function AiInsightsPage() {
             ]}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={loadDashboard}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('ai-insights.csv', filtered, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadDashboard}>Refresh</Button>
         </div>
 
         <Table

@@ -6,12 +6,13 @@ import {
 import {
   RightOutlined, ReloadOutlined, TrophyOutlined, SearchOutlined,
   BarChartOutlined, UnorderedListOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import AppLayout        from '../../../components/AppLayout';
 import { vendorApi }    from '../../../api/procurement.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -139,6 +140,7 @@ function AvlTab({ onViewVendor }) {
         <Tag color="blue">Total: {avl.length}</Tag>
         <Tag color="green">A-Rated: {avl.filter((v) => v.rating === 'A').length}</Tag>
         <Tag color="red">D-Rated: {avl.filter((v) => v.rating === 'D').length}</Tag>
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('supplier-scorecard.csv', filtered, columns)}>Export CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
       </div>
       <Table

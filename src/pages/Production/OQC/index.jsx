@@ -9,7 +9,7 @@ import {
   DeleteOutlined, RightOutlined, PlusCircleOutlined,
   MinusCircleOutlined, CheckOutlined, CloseOutlined,
   FileDoneOutlined, SafetyCertificateOutlined, PrinterOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useReactToPrint } from 'react-to-print';
 import AppLayout      from '../../../components/AppLayout';
@@ -24,6 +24,7 @@ import AiSuggestionCard from '../../../components/AiSuggestion/AiSuggestionCard'
 import OqcTestCertTemplate from './templates/OqcTestCertTemplate';
 import OqcCOCTemplate      from './templates/OqcCOCTemplate';
 import '../../../pages/Dispatch/DispatchDocuments/printStyles.css';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -418,7 +419,8 @@ export default function OQCPage() {
             style={{ width: 140 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('o-q-c.csv', inspections, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New OQC Inspection</Button>
           )}

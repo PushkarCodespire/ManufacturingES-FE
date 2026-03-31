@@ -7,7 +7,7 @@ import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, EditOutlined,
   SearchOutlined, RightOutlined, FileTextOutlined,
   BulbOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { trainingRecordApi }  from '../../../api/trainingRecord.api';
 import AppLayout              from '../../../components/AppLayout';
@@ -16,6 +16,7 @@ import api                    from '../../../api/axios';
 import aiApi                  from '../../../api/ai.api';
 import useAiSuggestion        from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard       from '../../../components/AiSuggestion/AiSuggestionCard';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -368,7 +369,8 @@ const TrainingRecordsPage = () => {
               AI Skill Gap
             </Button>
           )}
-          <Button icon={<ReloadOutlined />} onClick={fetchRecords}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('training-records.csv', filtered, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchRecords}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>Add Record</Button>
           )}

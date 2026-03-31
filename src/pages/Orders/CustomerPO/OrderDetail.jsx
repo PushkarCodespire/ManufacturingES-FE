@@ -5,7 +5,7 @@ import {
 import {
   ArrowLeftOutlined, RightOutlined, CheckCircleFilled, ClockCircleFilled,
   CloseCircleFilled, MinusCircleFilled, ReloadOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
@@ -13,6 +13,7 @@ import { customerOrderApi } from '../../../api/orders.api';
 import aiApi              from '../../../api/ai.api';
 import useAiSuggestion    from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard   from '../../../components/AiSuggestion/AiSuggestionCard';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 

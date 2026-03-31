@@ -6,12 +6,13 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   RightOutlined, SearchOutlined, FileTextOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { deliveryChallanApi } from '../../../api/deliveryChallan.api';
 import { dispatchOrderApi }   from '../../../api/dispatchOrder.api';
 import AppLayout              from '../../../components/AppLayout';
 import usePermissions         from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -201,7 +202,8 @@ const DeliveryChallansPage = () => {
             options={STATUS_OPTIONS} value={filterStatus} onChange={setFilterStatus}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('delivery-challans.csv', filtered, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>
               New Challan

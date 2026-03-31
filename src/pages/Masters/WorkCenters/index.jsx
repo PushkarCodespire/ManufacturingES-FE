@@ -8,8 +8,9 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   SearchOutlined, RightOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { workCenterApi } from '../../../api/workCenter.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -212,7 +213,8 @@ export default function WorkCentersPage() {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchData}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('work-centers.csv', data, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
               Add Work Center

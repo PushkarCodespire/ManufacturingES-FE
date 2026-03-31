@@ -9,12 +9,13 @@ import {
   EditOutlined, DeleteOutlined, RightOutlined,
   LockOutlined, EyeOutlined, ExclamationCircleOutlined,
   DollarOutlined, CheckCircleOutlined, WarningOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout       from '../../../components/AppLayout';
 import usePermissions  from '../../../hooks/usePermissions';
 import { budgetApi }   from '../../../api/procurement.api';
 import { userApi }     from '../../../api/user.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -368,7 +369,8 @@ export default function BudgetManagementPage() {
               options={[{ value: 'active', label: 'Active' }, { value: 'closed', label: 'Closed' }]}
             />
             <div style={{ flex: 1 }} />
-            <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('budget-management.csv', filtered, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
             {canWrite && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                 New Budget

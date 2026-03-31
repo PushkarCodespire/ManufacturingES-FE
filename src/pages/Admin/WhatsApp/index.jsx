@@ -7,11 +7,12 @@ import {
   RightOutlined, SendOutlined, ReloadOutlined,
   CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined,
   WhatsAppOutlined, UserOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import { whatsappApi } from '../../../api/admin.api';
 import { userApi } from '../../../api/user.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -186,7 +187,8 @@ export default function WhatsAppPage() {
               Critical alerts sent via WhatsApp using Twilio. Configure credentials in server <code>.env</code> file.
             </Text>
           </div>
-          <Button icon={<ReloadOutlined />} onClick={() => { loadStatus(); loadLogs(); }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('whats-app.csv', logs, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => { loadStatus(); loadLogs(); }}>Refresh</Button>
         </div>
 
         <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>

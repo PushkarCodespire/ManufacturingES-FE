@@ -6,11 +6,12 @@ import {
 import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, EditOutlined,
   SearchOutlined, RightOutlined, BookOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { trainingTopicApi } from '../../../api/trainingTopic.api';
 import AppLayout            from '../../../components/AppLayout';
 import usePermissions       from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -139,7 +140,8 @@ const TrainingTopicsPage = () => {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
           <Input placeholder="Search topics…" prefix={<SearchOutlined />} value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 240, borderRadius: 8 }} allowClear />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchTopics}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('training-topics.csv', filtered, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchTopics}>Refresh</Button>
           {canWrite && <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>Add Topic</Button>}
         </div>
         <Table rowKey="id" columns={columns} dataSource={filtered} loading={loading}

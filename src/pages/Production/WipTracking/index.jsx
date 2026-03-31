@@ -7,12 +7,13 @@ import {
   ReloadOutlined, RightOutlined, TableOutlined, AppstoreOutlined,
   ClockCircleOutlined, UserOutlined, LoginOutlined, LogoutOutlined,
   EnvironmentOutlined, SwapOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import api from '../../../api/axios';
 import { wipApi, workOrderApi } from '../../../api/production.api';
 import { workCenterApi } from '../../../api/workCenter.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -128,6 +129,7 @@ function WipBoardTab() {
         <Tag color="green">At Work Centers: {totalInWc}</Tag>
         <Tag color="default">Unassigned: {unassigned.length}</Tag>
         <div style={{ flex: 1 }} />
+        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('wip-tracking.csv', live, tableColumns)}>Export CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button>
       </div>
 

@@ -6,13 +6,14 @@ import {
 import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, ArrowLeftOutlined,
   RightOutlined, PlusCircleOutlined, ToolOutlined, HistoryOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { cycleTimeRuleApi } from '../../../api/cycleTimeRule.api';
 import { tagApi }           from '../../../api/tag.api';
 import { machineApi }       from '../../../api/machine.api';
 import AppLayout            from '../../../components/AppLayout';
 import usePermissions       from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -298,7 +299,8 @@ const CycleTimeRulesPage = () => {
       <Card style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '16px 20px' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={fetchRules} style={{ borderRadius: 8 }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('cycle-time-rules.csv', rules, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchRules} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenAdd} style={{ borderRadius: 8, fontWeight: 600 }}>
               NEW

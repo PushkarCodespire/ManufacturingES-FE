@@ -5,12 +5,13 @@ import {
 import {
   PlusOutlined, ReloadOutlined, ArrowLeftOutlined, InfoCircleOutlined,
   SearchOutlined, RightOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { tagApi } from '../../../api/tag.api';
 import { siteApi } from '../../../api/site.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -211,7 +212,8 @@ const ListView = ({ tags, loading, search, onSearchChange, onRefresh, onNew, onD
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('tag-management.csv', tags, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
           {canWrite && (

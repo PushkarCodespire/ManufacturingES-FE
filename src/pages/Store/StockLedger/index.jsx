@@ -6,12 +6,13 @@ import {
 import {
   SearchOutlined, ReloadOutlined, RightOutlined,
   ArrowUpOutlined, ArrowDownOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout        from '../../../components/AppLayout';
 import ResponsiveTable  from '../../../components/ResponsiveTable';
 import { inventoryApi } from '../../../api/store.api';
 import { warehouseApi } from '../../../api/warehouse.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
@@ -200,7 +201,8 @@ export default function StockLedgerPage() {
             style={{ width: 200 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={refreshFn} loading={loading}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('stock-ledger.csv', stock, stockColumns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={refreshFn} loading={loading}>Refresh</Button>
         </div>
 
         <Tabs

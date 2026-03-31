@@ -13,7 +13,7 @@ import {
   WarningOutlined, CheckCircleOutlined, CloseCircleOutlined,
   FilePdfOutlined, EyeOutlined, StopOutlined, AuditOutlined,
   ClockCircleOutlined, ExclamationCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout            from '../../../components/AppLayout';
 import ResponsiveTable      from '../../../components/ResponsiveTable';
@@ -24,6 +24,7 @@ import { itemApi }          from '../../../api/item.api';
 import aiApi                from '../../../api/ai.api';
 import useAiSuggestion      from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionCard';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const parseInsight = (raw) => {
   if (!raw) return null;
@@ -699,7 +700,8 @@ export default function PurchaseOrdersPage() {
             style={{ width: 150 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('purchase-orders.csv', pos, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New PO</Button>
           )}

@@ -7,13 +7,14 @@ import {
 import {
   PlusOutlined, ReloadOutlined, RightOutlined, DeleteOutlined,
   ExperimentOutlined, WarningOutlined, EditOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { processRecipeApi } from '../../../api/production.api';
 import { itemApi } from '../../../api/item.api';
 import { machineApi } from '../../../api/machine.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -157,7 +158,8 @@ function RecipeTab() {
             options={machines.map((m) => ({ value: m.id, label: `${m.code} — ${m.name}` }))} style={{ width: 220 }} allowClear />
           <div style={{ flex: 1 }} />
           <Tag color="blue">Total: {recipes.length}</Tag>
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('process-recipes.csv', recipes, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>Add Recipe</Button>}
         </div>
         <Table rowKey="id" dataSource={recipes} columns={columns} size="small" loading={loading}

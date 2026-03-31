@@ -8,9 +8,10 @@ import {
   PlusOutlined, ToolOutlined, CheckCircleOutlined, ClockCircleOutlined,
   ExclamationCircleOutlined, SendOutlined, ReloadOutlined, DollarOutlined,
   SettingOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import { moldRepairApi, moldMasterApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -177,7 +178,8 @@ export default function RepairPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ToolOutlined /> Mold Repair</Title>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={loadRequests}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('repair.csv', requests, columns)}>Export CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadRequests}>Refresh</Button>
           <Button icon={<SettingOutlined />} onClick={() => setTypesDrawer(true)}>Manage Types</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModal(true)}>Request Repair</Button>
         </Space>

@@ -7,12 +7,13 @@ import {
 import {
   ArrowLeftOutlined, RightOutlined, UploadOutlined,
   CheckOutlined, StopOutlined, ExclamationCircleOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { drawingApi } from '../../../api/quality.api';
 import { uploadApi }  from '../../../api/orders.api';
+import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -281,7 +282,8 @@ export default function DrawingDetailPage() {
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
-            <Button type="primary" loading={saving} onClick={onUploadRevision}>Upload Revision</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('drawing-detail.csv', versions, versionCols)}>Export CSV</Button>
+        <Button type="primary" loading={saving} onClick={onUploadRevision}>Upload Revision</Button>
           </div>
         }
       >

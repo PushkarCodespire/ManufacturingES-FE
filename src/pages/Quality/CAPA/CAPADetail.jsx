@@ -8,7 +8,7 @@ import {
 import {
   ArrowLeftOutlined, RightOutlined, PlusOutlined, DeleteOutlined,
   SaveOutlined, CheckCircleOutlined, EditOutlined, BulbOutlined,
-} from '@ant-design/icons';
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout    from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
@@ -17,6 +17,7 @@ import { userApi }  from '../../../api/user.api';
 import useAiSuggestion  from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard  from '../../../components/AiSuggestion/AiSuggestionCard';
 import aiApi              from '../../../api/ai.api';
+import { exportToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea }               = Input;
