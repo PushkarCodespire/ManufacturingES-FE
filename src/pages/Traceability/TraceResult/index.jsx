@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card, Button, Typography, Space, Tag, Descriptions, Spin, Alert,
   Timeline, Table, Badge, Empty,
@@ -11,6 +11,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import AppLayout from '../../../components/AppLayout';
 import { traceabilityApi } from '../../../api/traceability.api';
+import { printContent } from '../../../utils/printContent';
 
 const { Title, Text } = Typography;
 
@@ -258,6 +259,7 @@ export default function TraceResult() {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(null);
   const [data, setData]       = useState(null);
+  const printRef    = useRef(null);
 
   useEffect(() => {
     if (!state) return;
@@ -305,6 +307,13 @@ export default function TraceResult() {
     }
   }
 
+  const handlePrint = useCallback(() => {
+    printContent(printRef.current, {
+      title: `Trace: ${state?.label || 'Traceability'}`,
+      header: `<h2>Trace: ${state?.label || ''}</h2><p>${state?.sub || ''}</p>`,
+    });
+  }, [state]);
+
   if (!state) {
     return (
       <div style={{ padding: 24 }}>
@@ -322,68 +331,65 @@ export default function TraceResult() {
         {/* Toolbar */}
         <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/traceability')}>Back</Button>
-          <Button icon={<PrinterOutlined />} onClick={() => window.print()}>Print / Save PDF</Button>
+          <Button icon={<PrinterOutlined />} onClick={handlePrint}>Print / Save PDF</Button>
         </div>
 
-        {/* Title */}
-        <div>
-          <Title level={4} style={{ margin: 0 }}>
-            <ApartmentOutlined style={{ marginRight: 8, color: '#1677ff' }} />
-            Trace: {state.label}
-          </Title>
-          {state.sub && <Text type="secondary">{state.sub}</Text>}
-        </div>
+        {/* Printable content area */}
+        <div ref={printRef}>
+          {/* Title */}
+          <div style={{ marginBottom: 16 }}>
+            <Title level={4} style={{ margin: 0 }}>
+              <ApartmentOutlined style={{ marginRight: 8, color: '#1677ff' }} />
+              Trace: {state.label}
+            </Title>
+            {state.sub && <Text type="secondary">{state.sub}</Text>}
+          </div>
 
-        {loading && <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>}
+          {loading && <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>}
 
-        {error && <Alert type="error" message={error} showIcon />}
+          {error && <Alert type="error" message={error} showIcon />}
 
-        {data && !loading && (
-          <>
-            {/* Forward (lot) trace */}
-            {data._view === 'forward' && (
-              <>
-                <div>
-                  <Tag color="blue" icon={<BarcodeOutlined />}>Lot: {data.lot_no}</Tag>
-                  <Text type="secondary" style={{ marginLeft: 8 }}>{data.stages?.length} stage(s) traced</Text>
-                </div>
-                {data.stages?.length === 0
-                  ? <Empty description="No trace chain found for this lot" />
-                  : (
-                    <Timeline
-                      items={(data.stages || []).map(stage => {
-                        const meta = STAGE_META[stage.stage] || { icon: <ExperimentOutlined />, color: '#8c8c8c' };
-                        return {
-                          dot: React.cloneElement(meta.icon, { style: { fontSize: 18, color: meta.color } }),
-                          children: (
-                            <div>
-                              <Text strong style={{ color: meta.color }}>{stage.label}</Text>
-                              <div style={{ marginTop: 8 }}>
-                                <StageCard stage={stage} />
+          {data && !loading && (
+            <>
+              {/* Forward (lot) trace */}
+              {data._view === 'forward' && (
+                <>
+                  <div>
+                    <Tag color="blue" icon={<BarcodeOutlined />}>Lot: {data.lot_no}</Tag>
+                    <Text type="secondary" style={{ marginLeft: 8 }}>{data.stages?.length} stage(s) traced</Text>
+                  </div>
+                  {data.stages?.length === 0
+                    ? <Empty description="No trace chain found for this lot" />
+                    : (
+                      <Timeline
+                        items={(data.stages || []).map(stage => {
+                          const meta = STAGE_META[stage.stage] || { icon: <ExperimentOutlined />, color: '#8c8c8c' };
+                          return {
+                            dot: React.cloneElement(meta.icon, { style: { fontSize: 18, color: meta.color } }),
+                            children: (
+                              <div>
+                                <Text strong style={{ color: meta.color }}>{stage.label}</Text>
+                                <div style={{ marginTop: 8 }}>
+                                  <StageCard stage={stage} />
+                                </div>
                               </div>
-                            </div>
-                          ),
-                        };
-                      })}
-                    />
-                  )}
-              </>
-            )}
+                            ),
+                          };
+                        })}
+                      />
+                    )}
+                </>
+              )}
 
-            {data._view === 'grn'      && <GrnView data={data} />}
-            {data._view === 'wo'       && <WoView data={data} />}
-            {data._view === 'dispatch' && <DispatchView data={data} />}
-          </>
-        )}
+              {data._view === 'grn'      && <GrnView data={data} />}
+              {data._view === 'wo'       && <WoView data={data} />}
+              {data._view === 'dispatch' && <DispatchView data={data} />}
+            </>
+          )}
+        </div>
 
       </Space>
 
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          body { background: white; }
-        }
-      `}</style>
     </div>
     </AppLayout>
   );

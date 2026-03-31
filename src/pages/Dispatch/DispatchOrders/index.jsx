@@ -310,6 +310,15 @@ const DispatchOrdersPage = () => {
             </Form.Item>
             <Form.Item name="transporter_id" label="Transporter">
               <Select allowClear placeholder="Select transporter"
+                onChange={(transporterId) => {
+                  const t = transporters.find((tr) => tr.id === transporterId);
+                  if (t) {
+                    form.setFieldsValue({
+                      driver_name:  t.contact_person || undefined,
+                      driver_phone: t.phone || undefined,
+                    });
+                  }
+                }}
                 options={transporters.map((t) => ({ value: t.id, label: t.name }))} />
             </Form.Item>
             <Form.Item name="vehicle_number" label="Vehicle Number">

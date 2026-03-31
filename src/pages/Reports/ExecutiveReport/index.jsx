@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { useReactToPrint } from 'react-to-print';
+import { printContent } from '../../../utils/printContent';
 import {
   Button, Spin, Row, Col, Tag, Typography, Select,
 } from 'antd';
@@ -106,11 +106,11 @@ export default function ExecutiveReportPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `Dynatech ONE — Executive Report ${reportMonth}`,
-    pageStyle: PRINT_STYLES,
-  });
+  const handlePrint = useCallback(() => {
+    printContent(printRef.current, {
+      title: `Dynatech ONE — Executive Report ${reportMonth}`,
+    });
+  }, [reportMonth]);
 
   const k   = data?.kpis       || {};
   const p   = data?.production || {};

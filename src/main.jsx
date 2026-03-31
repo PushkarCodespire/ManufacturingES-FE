@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import './styles/print.css';
 
 // Security fix #2 — one-time migration: evict any access token that was
 // previously stored in localStorage (old behaviour). After this runs once,

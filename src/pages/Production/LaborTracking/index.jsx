@@ -75,7 +75,7 @@ export default function LaborTrackingPage() {
   useEffect(() => {
     Promise.all([
       api.get('/job-cards'),
-      api.get('/users'),
+      api.get('/users', { params: { roles: 'operator' } }),
     ]).then(([jcRes, usrRes]) => {
       setJobCards(jcRes.data || []);
       setOperators(usrRes.data || []);

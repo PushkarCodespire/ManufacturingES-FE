@@ -64,6 +64,9 @@ export default function IQCDetail() {
   const [dispForm]         = Form.useForm();
   const [cascadeLoading,   setCascadeLoading]   = useState(false);
 
+  // ── BUG-010: Purchase Return (RTV) info after IQC fail ──────────────────────
+  const [purchaseReturn, setPurchaseReturn] = useState(null);
+
   // ── AI Photo Analysis (Part 4) ─────────────────────────────────────────────
   const [photoLoading,  setPhotoLoading]  = useState(false);
   const [photoResult,   setPhotoResult]   = useState(null);
@@ -189,8 +192,14 @@ export default function IQCDetail() {
   // ── Set verdict (IQC-004) ─────────────────────────────────────────────────
   const setVerdict = async (result) => {
     try {
-      await iqcApi.updateResult(id, result);
+      const res = await iqcApi.updateResult(id, result);
       message.success(`Verdict set to ${RESULT_CONFIG[result]?.label}`);
+      // BUG-010: Capture auto-created Purchase Return info
+      const prInfo = res?.purchase_return || res?.data?.purchase_return;
+      if (prInfo) {
+        setPurchaseReturn(prInfo);
+        message.info(`Purchase Return ${prInfo.return_no} auto-created (Draft)`);
+      }
       load();
     } catch (err) { message.error(err?.message || 'Failed'); }
   };
@@ -430,6 +439,29 @@ export default function IQCDetail() {
             </Button>
           </Space>
         </>
+      )}
+
+      {/* BUG-010: RTV alert when IQC failed and Purchase Return was auto-created */}
+      {result === 'fail' && purchaseReturn && (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<WarningOutlined />}
+          style={{ marginTop: 16, borderRadius: 8, borderColor: '#f59e0b', background: '#fffbeb' }}
+          message={
+            <span>
+              Return to Vendor: <Text strong>{purchaseReturn.return_no}</Text>{' '}
+              <Tag color="orange" style={{ marginLeft: 4 }}>Draft</Tag>
+            </span>
+          }
+          description="A Purchase Return has been auto-created for this IQC rejection."
+          action={
+            <Button size="small" type="primary" ghost
+              onClick={() => navigate('/procurement/purchase-returns')}>
+              View Purchase Returns
+            </Button>
+          }
+        />
       )}
     </div>
   );

@@ -43,6 +43,14 @@ export default function TraceabilitySearch() {
     if (!q) return;
     setLoading(true);
     try {
+      // If on a specific tab, try direct trace first
+      if (activeTab !== 'lot' && q.length >= 3) {
+        const item = { type: activeTab, ref: q, label: `${activeTab.toUpperCase()}: ${q}`, sub: '' };
+        saveRecent(item);
+        setRecent(getRecent());
+        navigate('/traceability/result', { state: item });
+        return;
+      }
       const data = await traceabilityApi.search(q);
       setResults(data.results || []);
     } catch (err) {
@@ -50,7 +58,7 @@ export default function TraceabilitySearch() {
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, activeTab, navigate]);
 
   const handleOpen = useCallback((item) => {
     saveRecent(item);

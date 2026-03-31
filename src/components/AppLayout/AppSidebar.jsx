@@ -267,6 +267,7 @@ const NAV_ITEMS_DEF = [
         label: 'Inventory',
         children: [
           { key: 's-inventory-dashboard', label: 'Dashboard',        permission: 'store-inventory-dashboard-read'       },
+          { key: 's-stock-overview',      label: 'Stock Overview',   permission: 'store-inventory-dashboard-read'       },
           { key: 's-stock-ledger',        label: 'Stock Ledger',     permission: 'store-inventory-stock_ledger-read'     },
           { key: 's-stock-adjustment',    label: 'Stock Adjustment', permission: 'store-inventory-stock_adjustment-read' },
         ],
@@ -492,6 +493,14 @@ const NAV_ITEMS_DEF = [
     permission: null,   // all authenticated users
   },
 
+  // ── Reports ─────────────────────────────────────────────────────────────────
+  {
+    key:        'reports-hub',
+    label:      'Reports',
+    icon:       <FileTextOutlined />,
+    permission: null,   // all authenticated users
+  },
+
   // ── Admin ────────────────────────────────────────────────────────────────────
   {
     key:   'admin',
@@ -545,6 +554,7 @@ const KEY_TO_PATH = {
   's-issue-slip':         '/store/issue-slip',
   's-material-request':   '/store/material-request',
   's-inventory-dashboard':'/store/inventory-dashboard',
+  's-stock-overview':     '/store/stock-overview',
   's-stock-ledger':       '/store/stock-ledger',
   's-stock-adjustment':   '/store/stock-adjustment',
   // Production module
@@ -620,6 +630,8 @@ const KEY_TO_PATH = {
   'dispatch-reports':      '/dispatch/reports',
   // Traceability
   'traceability': '/traceability',
+  // Reports
+  'reports-hub': '/reports',
   // Admin
   'admin-control-room':    '/admin/control-room',
   'admin-audit-log':       '/admin/audit-log',
@@ -704,6 +716,7 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/store/issue-slip'))         return { selected: 's-issue-slip',        open: ['store', 'grp-store-transactions'] };
   if (pathname.startsWith('/store/material-request'))   return { selected: 's-material-request',  open: ['store', 'grp-store-requests']     };
   if (pathname.startsWith('/store/inventory-dashboard')) return { selected: 's-inventory-dashboard',open: ['store', 'grp-store-inventory']    };
+  if (pathname.startsWith('/store/stock-overview'))     return { selected: 's-stock-overview',    open: ['store', 'grp-store-inventory']    };
   if (pathname.startsWith('/store/stock-ledger'))       return { selected: 's-stock-ledger',      open: ['store', 'grp-store-inventory']    };
   if (pathname.startsWith('/store/stock-adjustment'))   return { selected: 's-stock-adjustment',  open: ['store', 'grp-store-inventory']    };
   // Production — Planning sub-group
@@ -740,6 +753,7 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/production/analytics'))        return { selected: 'production-analytics', open: ['production', 'grp-prod-analytics'] };
   if (pathname.startsWith('/production/dpr'))              return { selected: 'production-dpr',       open: ['production', 'grp-prod-analytics'] };
   if (pathname.startsWith('/reports/executive'))          return { selected: 'executive-report',     open: ['production', 'grp-prod-analytics'] };
+  if (pathname.startsWith('/reports'))                    return { selected: 'reports-hub',           open: [] };
   // Procurement — Purchasing sub-group
   if (pathname.startsWith('/procurement/purchase-requisitions')) return { selected: 'purchase-requisitions', open: ['procurement', 'grp-proc-purchasing'] };
   if (pathname.startsWith('/procurement/vendor-rfq'))            return { selected: 'vendor-rfq',            open: ['procurement', 'grp-proc-purchasing'] };

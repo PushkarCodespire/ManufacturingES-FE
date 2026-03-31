@@ -20,6 +20,7 @@ import { workOrderApi }    from '../../../api/production.api';
 import { itemApi }         from '../../../api/item.api';
 import { machineApi }      from '../../../api/machine.api';
 import { shiftApi }        from '../../../api/shift.api';
+import { routingApi }      from '../../../api/routing.api';
 import api                 from '../../../api/axios';
 import aiApi               from '../../../api/ai.api';
 import QrLabelPrint        from '../../../components/common/QrLabelPrint';
@@ -88,6 +89,7 @@ export default function WorkOrdersPage() {
   const [items,         setItems]         = useState([]);
   const [machines,      setMachines]      = useState([]);
   const [shifts,        setShifts]        = useState([]);
+  const [routings,      setRoutings]      = useState([]);
   const [customerOrders,setCustomerOrders]= useState([]);
   const [loading,       setLoading]       = useState(false);
   const [search,        setSearch]        = useState('');
@@ -147,12 +149,14 @@ export default function WorkOrdersPage() {
       machineApi.getAll({ limit: 500 }).catch(() => []),
       shiftApi.getAll().catch(() => []),
       api.get('/customer-orders', { params: { limit: 500 } }).catch(() => ({ data: [] })),
-    ]).then(([i, m, s, co]) => {
+      routingApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
+    ]).then(([i, m, s, co, rt]) => {
       setItems(Array.isArray(i) ? i : (i?.data ?? []));
       setMachines(Array.isArray(m) ? m : (m?.data ?? []));
       setShifts(Array.isArray(s) ? s : (s?.data ?? []));
       const coData = Array.isArray(co) ? co : (co?.data ?? []);
       setCustomerOrders(coData);
+      setRoutings(Array.isArray(rt) ? rt : (rt?.data ?? []));
     });
   }, []);
 
@@ -177,6 +181,7 @@ export default function WorkOrdersPage() {
     setEditing(record);
     form.setFieldsValue({
       item_id:           record.item_id,
+      routing_id:        record.routing_id || null,
       machine_id:        record.machine_id,
       shift_id:          record.shift_id,
       customer_order_id: record.customer_order_id,
@@ -195,6 +200,7 @@ export default function WorkOrdersPage() {
       setSaving(true);
       const payload = {
         item_id:           vals.item_id,
+        routing_id:        vals.routing_id        || null,
         machine_id:        vals.machine_id        || null,
         shift_id:          vals.shift_id          || null,
         customer_order_id: vals.customer_order_id || null,
@@ -221,8 +227,14 @@ export default function WorkOrdersPage() {
 
   const onStatusChange = async (id, status) => {
     try {
-      await workOrderApi.updateStatus(id, status);
+      const res = await workOrderApi.updateStatus(id, status);
       message.success(`Status updated to ${STATUS_CONFIG[status]?.label || status}`);
+      if (res?.stock_receipt) {
+        message.success(`WO completed — ${res.stock_receipt.qty} units added to ${res.stock_receipt.warehouse}`);
+      }
+      if (res?.oqc_created) {
+        message.info(`OQC inspection ${res.oqc_created.inspection_no} auto-created`);
+      }
       load();
     } catch (err) { message.error(err?.message || 'Status update failed'); }
   };
@@ -340,6 +352,16 @@ export default function WorkOrdersPage() {
       ) : <Text type="secondary">—</Text>,
     },
     {
+      title: 'Routing', key: 'routing', width: 160,
+      render: (_, r) => r.Routing ? (
+        <div>
+          <Text style={{ fontWeight: 500, fontSize: 13 }}>{r.Routing.code}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 11 }}>{r.Routing.name}</Text>
+        </div>
+      ) : <Text type="secondary">—</Text>,
+    },
+    {
       title: 'Machine', key: 'machine', width: 130,
       render: (_, r) => <Text style={{ fontSize: 13 }}>{r.Machine?.name || '—'}</Text>,
     },
@@ -394,6 +416,17 @@ export default function WorkOrdersPage() {
         if (!s || s === 'not_required') return <Text type="secondary" style={{ fontSize: 11 }}>—</Text>;
         const cfg = FPI_STATUS_CONFIG[s] || { color: 'default', label: s };
         return <Tag color={cfg.color}>{cfg.label}</Tag>;
+      },
+    },
+    {
+      title: 'OQC', key: 'oqc', width: 100,
+      render: (_, r) => {
+        if (r.status !== 'completed') return <Text type="secondary" style={{ fontSize: 11 }}>—</Text>;
+        const oqc = r.OqcInspection;
+        if (!oqc) return <Text type="secondary" style={{ fontSize: 11 }}>—</Text>;
+        if (oqc.result === 'pass') return <Tag color="green">OQC ✓</Tag>;
+        if (oqc.result === 'fail') return <Tag color="red">OQC ✗</Tag>;
+        return <Tag color="orange">OQC ⏳</Tag>;
       },
     },
     {
@@ -723,6 +756,11 @@ export default function WorkOrdersPage() {
                     label: `${i.name}${i.code ? ` (${i.code})` : ''}`,
                   }))}
                   allowClear
+                  onChange={(itemId) => {
+                    // Auto-select first active routing for selected item
+                    const activeRoutings = routings.filter(r => r.item_id === itemId && r.status === 'active');
+                    form.setFieldValue('routing_id', activeRoutings.length > 0 ? activeRoutings[0].id : null);
+                  }}
                 />
               </Form.Item>
             </Col>
@@ -732,6 +770,38 @@ export default function WorkOrdersPage() {
               </Form.Item>
             </Col>
           </Row>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, cur) => prev.item_id !== cur.item_id}
+          >
+            {({ getFieldValue }) => {
+              const selectedItemId = getFieldValue('item_id');
+              const itemRoutings = routings.filter(r => r.item_id === selectedItemId);
+              if (!selectedItemId || itemRoutings.length === 0) return null;
+              return (
+                <Form.Item name="routing_id" label="Routing">
+                  <Select
+                    placeholder="Select routing"
+                    allowClear
+                    options={itemRoutings.map((r) => ({
+                      value: r.id,
+                      label: `${r.code} — ${r.name}`,
+                    }))}
+                    optionRender={(option) => {
+                      const rt = itemRoutings.find(r => r.id === option.value);
+                      return (
+                        <Space>
+                          <span>{option.label}</span>
+                          {rt && <Tag color={rt.status === 'active' ? 'green' : 'default'} style={{ fontSize: 10 }}>{rt.status}</Tag>}
+                        </Space>
+                      );
+                    }}
+                  />
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
 
           <Row gutter={16}>
             <Col xs={24} sm={12}>

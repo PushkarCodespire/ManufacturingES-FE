@@ -1,0 +1,147 @@
+/* ===== GLOBAL PRINT STYLES ===== */
+/* Imported in main.jsx — applies to ALL pages when printing */
+
+@media print {
+  /*
+   * Ant Design v5 Layout renders:
+   *   Layout  → <div class="ant-layout ...">
+   *   Header  → <header class="ant-layout-header ...">
+   *   Sider   → <aside class="ant-layout-sider ...">
+   *   Content → <main class="ant-layout-content ...">
+   */
+
+  /* ── 1. Reset html/body ─────────────────────────────────────────────────── */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* ── 2. Hide: header, sidebar, chatbot, no-print ────────────────────────── */
+
+  header {
+    display: none !important;
+    height: 0 !important;
+  }
+
+  aside {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    flex: 0 0 0px !important;
+    overflow: hidden !important;
+  }
+
+  [data-print="hide"] {
+    display: none !important;
+  }
+
+  .madad-chat-widget,
+  [class*="madad-chat"],
+  [class*="chat-widget"] {
+    display: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* ── 3. Reset Ant Layout wrapper <div> elements ─────────────────────────── */
+  /*    Layout is a <div>, so we must target by class, not tag.               */
+  div[class*="ant-layout"] {
+    margin: 0 !important;
+    margin-top: 0 !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    background: white !important;
+    display: block !important;
+    overflow: visible !important;
+    width: auto !important;
+    max-width: 100% !important;
+    flex: none !important;
+  }
+
+  /* ── 4. Reset <main> / Layout.Content ───────────────────────────────────── */
+  main {
+    margin: 0 !important;
+    margin-left: 0 !important;
+    padding: 16px !important;
+    min-height: auto !important;
+    height: auto !important;
+    background: white !important;
+    overflow: visible !important;
+    width: auto !important;
+    max-width: 100% !important;
+    flex: none !important;
+    transition: none !important;
+  }
+
+  /* ── 5. Inline style overrides (sidebar/header offsets) ─────────────────── */
+
+  [style*="margin-left: 248"],
+  [style*="margin-left: 64"],
+  [style*="margin-left:248"],
+  [style*="margin-left:64"] {
+    margin-left: 0 !important;
+  }
+
+  [style*="margin-top: 52"],
+  [style*="margin-top:52"] {
+    margin-top: 0 !important;
+  }
+
+  [style*="position: fixed"],
+  [style*="position:fixed"] {
+    position: static !important;
+  }
+
+  /* ── 6. Reset <section> too (some pages may use it) ─────────────────────── */
+  section {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    background: white !important;
+    overflow: visible !important;
+  }
+
+  /* ── 7. Print-friendly Ant components ───────────────────────────────────── */
+
+  .ant-card,
+  [class*="ant-card"] {
+    break-inside: avoid;
+    box-shadow: none !important;
+    margin-bottom: 8px !important;
+  }
+
+  .ant-tag,
+  [class*="ant-tag"] {
+    border: 1px solid #ccc !important;
+  }
+
+  .ant-table,
+  [class*="ant-table"] {
+    font-size: 11px !important;
+  }
+
+  .ant-descriptions,
+  [class*="ant-descriptions"] {
+    break-inside: avoid;
+  }
+
+  .ant-timeline,
+  [class*="ant-timeline"] {
+    break-inside: avoid;
+  }
+
+  /* ── 8. Force color preservation ────────────────────────────────────────── */
+  * {
+    color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

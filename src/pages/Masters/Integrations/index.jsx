@@ -267,6 +267,15 @@ const INTEGRATION_META = {
         placeholder: '30',
         help:        'How often to run automatic sync. Recommended: 30 min.',
       },
+
+      // ── Testing & Debug ────────────────────────────────
+      {
+        section:  'Testing & Debug',
+        name:     'mock_mode',
+        label:    'Mock / Simulation Mode',
+        type:     'switch',
+        help:     'When enabled, sync operations return simulated success without contacting Tally. Turn off for production use.',
+      },
     ],
   },
 

@@ -132,11 +132,16 @@ export default function IssueSlipPage() {
 
   const onItemSelect = (key, itemId) => {
     const found = items.find((i) => i.id === itemId);
-    if (found) {
-      updateLine(key, 'description', found.name || '');
-      updateLine(key, 'unit',        found.unit || 'pcs');
-    }
-    updateLine(key, 'item_id', itemId);
+    setLineItems((prev) => prev.map((r) =>
+      r._key === key
+        ? {
+            ...r,
+            item_id:     itemId,
+            description: found?.name || r.description || '',
+            unit:        found?.unit || r.unit || 'pcs',
+          }
+        : r
+    ));
   };
 
   // ── Stats ──────────────────────────────────────────────────────────────────

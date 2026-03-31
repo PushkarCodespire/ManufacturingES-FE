@@ -149,7 +149,7 @@ export default function LQCPage() {
       workOrderApi.getAll({ limit: 500 }).catch(() => []),
       itemApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
       machineApi.getAll({ limit: 500 }).catch(() => []),
-      userApi.getAll({ limit: 500 }).catch(() => []),
+      userApi.getAll({ limit: 500, roles: 'lqc_inspector,qa_manager' }).catch(() => []),
     ]).then(([wo, i, m, u]) => {
       setWorkOrders(Array.isArray(wo) ? wo : (wo?.data ?? []));
       setItems(Array.isArray(i) ? i : (i?.data ?? []));

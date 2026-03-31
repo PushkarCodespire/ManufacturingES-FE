@@ -36,7 +36,11 @@ export const copqEntryApi = {
 };
 
 export const tallySyncApi = {
-  getDashboard: ()              => api.get('/tally-sync/dashboard').then((r) => r.data),
-  getLogs:      (params = {})   => api.get('/tally-sync/logs', { params }).then((r) => r.data),
-  triggerSync:  (sync_type)     => api.post('/tally-sync/trigger', { sync_type }).then((r) => r.data),
+  getDashboard:   ()              => api.get('/tally-sync/dashboard').then((r) => r.data),
+  getLogs:        (params = {})   => api.get('/tally-sync/logs', { params }).then((r) => r.data),
+  triggerSync:    (sync_type)     => api.post('/tally-sync/trigger', { sync_type }).then((r) => r.data),
+  testConnection: ()             => api.post('/tally-sync/test-connection').then((r) => r.data),
+  previewXml:    (sync_type)     => api.post('/tally-sync/preview', { sync_type }).then((r) => r.data),
+  retryFailed:   (sync_type)     => api.post('/tally-sync/retry', { sync_type }).then((r) => r.data),
+  getFailedRecords: ()           => api.get('/tally-sync/failed').then((r) => r.data),
 };

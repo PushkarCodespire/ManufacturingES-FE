@@ -42,7 +42,7 @@ const emptyItem = () => ({
   _key:         Date.now() + Math.random(),
   item_id:      null,
   qty_required: null,
-  unit:         'pcs',
+  unit:         '',
   notes:        '',
 });
 
@@ -154,7 +154,7 @@ export default function VendorRFQPage() {
         _key:         it.id,
         item_id:      it.item_id,
         qty_required: parseFloat(it.qty_required),
-        unit:         it.unit || 'pcs',
+        unit:         it.unit || '',
         notes:        it.notes || '',
       }))
     );
@@ -177,7 +177,7 @@ export default function VendorRFQPage() {
         item_name:      it.Item?.name || `Item #${it.item_id}`,
         item_code:      it.Item?.code || '',
         qty_required:   parseFloat(it.qty_required),
-        unit:           it.unit || 'pcs',
+        unit:           it.unit || '',
         unit_price:     existingQuote?.unit_price ? parseFloat(existingQuote.unit_price) : null,
         lead_time_days: existingQuote?.lead_time_days || null,
         notes:          existingQuote?.notes || '',
@@ -210,7 +210,7 @@ export default function VendorRFQPage() {
       items: validLines.map(l => ({
         item_id:      l.item_id,
         qty_required: l.qty_required,
-        unit:         l.unit || 'pcs',
+        unit:         l.unit || '',
         notes:        l.notes || null,
       })),
     };
@@ -642,7 +642,14 @@ export default function VendorRFQPage() {
                   showSearch
                   placeholder="Item"
                   value={line.item_id || undefined}
-                  onChange={v => updateLine(line._key, 'item_id', v)}
+                  onChange={v => {
+                    const master = items.find(i => i.id === v);
+                    setLineItems(prev => prev.map(r =>
+                      r._key === line._key
+                        ? { ...r, item_id: v ?? null, unit: master?.unit || r.unit || '' }
+                        : r
+                    ));
+                  }}
                   options={items.map(it => ({ value: it.id, label: `${it.name} (${it.code || it.id})` }))}
                   filterOption={(input, opt) => opt.label.toLowerCase().includes(input.toLowerCase())}
                   style={{ width: '100%' }}
@@ -655,10 +662,10 @@ export default function VendorRFQPage() {
                 min={0.001}
                 style={{ width: 90 }}
               />
-              <Select
-                value={line.unit}
-                onChange={v => updateLine(line._key, 'unit', v)}
-                options={['pcs','kg','ltr','mtr','box','set'].map(u => ({ value: u, label: u }))}
+              <Input
+                value={line.unit || ''}
+                placeholder="Unit"
+                disabled
                 style={{ width: 80 }}
               />
               <Input
@@ -775,7 +782,7 @@ export default function VendorRFQPage() {
                   item_name:      it.Item?.name || `Item #${it.item_id}`,
                   item_code:      it.Item?.code || '',
                   qty_required:   parseFloat(it.qty_required),
-                  unit:           it.unit || 'pcs',
+                  unit:           it.unit || '',
                   unit_price:     existingQuote?.unit_price ? parseFloat(existingQuote.unit_price) : null,
                   lead_time_days: existingQuote?.lead_time_days || null,
                   notes:          existingQuote?.notes || '',

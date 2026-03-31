@@ -21,6 +21,9 @@ export const jobCardApi = {
   cancel:          (id)     => api.patch(`/job-cards/${id}/cancel`),
   delete:          (id)     => api.delete(`/job-cards/${id}`),
   getCapacityPlan: ()       => api.get('/job-cards/capacity-plan'),
+  getQaTemplate:   (id)     => api.get(`/job-cards/${id}/qa-template`),
+  getQaResults:    (id)     => api.get(`/job-cards/${id}/qa-results`),
+  saveQaResults:   (id, d)  => api.post(`/job-cards/${id}/qa-results`, d),
 };
 
 export const iqcApi = {

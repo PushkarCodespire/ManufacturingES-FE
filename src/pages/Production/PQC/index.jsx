@@ -98,7 +98,7 @@ export default function PQCPage() {
     Promise.all([
       workOrderApi.getAll({ limit: 500 }).catch(() => []),
       itemApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
-      userApi.getAll({ limit: 500 }).catch(() => []),
+      userApi.getAll({ limit: 500, roles: 'pqc_inspector,qa_manager' }).catch(() => []),
       packageApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
     ]).then(([wo, i, u, pkg]) => {
       setWorkOrders(Array.isArray(wo) ? wo : (wo?.data ?? []));

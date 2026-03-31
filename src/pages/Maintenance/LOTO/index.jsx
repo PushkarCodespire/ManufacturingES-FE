@@ -63,7 +63,7 @@ export default function LOTOPage() {
     equipmentApi.getAll()
       .then((r) => setEquipment(Array.isArray(r) ? r : (r?.data ?? [])))
       .catch((err) => message.error(err?.message ?? 'Failed to load equipment'));
-    userApi.getAll()
+    userApi.getAll({ roles: 'production_supervisor,qa_manager,plant_head' })
       .then((r) => setUsers(Array.isArray(r) ? r : (r?.data ?? [])))
       .catch(() => {});
   }, [loadAll]);

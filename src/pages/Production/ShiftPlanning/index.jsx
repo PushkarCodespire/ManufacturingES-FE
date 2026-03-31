@@ -51,8 +51,8 @@ export default function ShiftPlanningPage() {
       .then(d => setMachines(d?.data || [])).catch(() => {});
     api.get('/work-centers', { params: { limit: 200 } })
       .then(d => setWorkCenters(d?.data || [])).catch(() => {});
-    // Fetch all users for crew selection
-    api.get('/users',        { params: { limit: 300 } })
+    // Fetch operators for crew selection (BUG-012: filter by role)
+    api.get('/users',        { params: { limit: 300, roles: 'operator' } })
       .then(d => setOperators(d?.data || d?.rows || [])).catch(() => {});
   }, []);
 

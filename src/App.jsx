@@ -64,6 +64,7 @@ import NotificationsPage       from './pages/Notifications';
 import AuditLogPage            from './pages/Admin/AuditLog';
 import WhatsAppPage            from './pages/Admin/WhatsApp';
 import ExecutiveReportPage    from './pages/Reports/ExecutiveReport';
+import ReportsHub             from './pages/Reports';
 import TraceabilitySearchPage from './pages/Traceability';
 import TraceResultPage        from './pages/Traceability/TraceResult';
 import ScannerPage            from './pages/Scanner';
@@ -126,6 +127,7 @@ import PaymentsPage         from './pages/Accounts/Payments';
 import COPQPage             from './pages/Accounts/COPQ';
 import InstrumentsPage         from './pages/Quality/Instruments';
 import InventoryDashboardPage  from './pages/Store/InventoryDashboard';
+import StockOverviewPage       from './pages/Store/StockOverview';
 
 // Mold Management — Sprint 3
 import MoldMasterPage      from './pages/Mold/MoldMaster';
@@ -295,6 +297,14 @@ function App() {
                 element={
                   <ProtectedRoute roles={['it_admin', 'plant_head']}>
                     <WhatsAppPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute>
+                    <ReportsHub />
                   </ProtectedRoute>
                 }
               />
@@ -693,6 +703,7 @@ function App() {
 
               {/* ── Store — Inventory Dashboard ────────────────────────────────── */}
               <Route path="/store/inventory-dashboard" element={<ProtectedRoute permission="store-inventory-dashboard-read"><InventoryDashboardPage /></ProtectedRoute>} />
+              <Route path="/store/stock-overview" element={<ProtectedRoute permission="store-inventory-dashboard-read"><StockOverviewPage /></ProtectedRoute>} />
 
               {/* ── Quality & NPD Module ──────────────────────────────────────── */}
               <Route path="/quality/capa"           element={<ProtectedRoute permission="quality-capa-read">         <CAPAPage />           </ProtectedRoute>} />

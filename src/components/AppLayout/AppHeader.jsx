@@ -30,6 +30,7 @@ const AppHeader = ({ onMenuOpen }) => {
 
   return (
     <Header
+      data-print="hide"
       style={{
         background:     '#ffffff',
         borderBottom:   '1px solid #e8eaed',

@@ -1254,6 +1254,7 @@ const EditViewPage = ({ item, onBack, onRefresh, canWrite }) => {
         loading={qualityLoading}
         pagination={false}
         size="small"
+        scroll={{ x: 1000 }}
         locale={{ emptyText: (
           <div style={{ padding: 24, textAlign: 'center' }}>
             <CheckCircleOutlined style={{ fontSize: 28, color: '#d1d5db', display: 'block', marginBottom: 8 }} />
@@ -1275,21 +1276,93 @@ const EditViewPage = ({ item, onBack, onRefresh, canWrite }) => {
               : <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
           },
           {
-            title: 'Min', dataIndex: 'min_value', key: 'min_value', width: 80,
+            title: 'Min', dataIndex: 'min_value', key: 'min_value', width: 120,
             render: (v, record) => editing
-              ? <InputNumber size="small" value={v} onChange={(val) => updateQP(record._key ?? record.id, 'min_value', val)} style={{ width: '100%' }} placeholder="Min" />
+              ? <InputNumber value={v} onChange={(val) => updateQP(record._key ?? record.id, 'min_value', val)} style={{ width: '100%' }} placeholder="Min" />
               : <Text style={{ fontSize: 12 }}>{v != null ? v : '—'}</Text>,
           },
           {
-            title: 'Max', dataIndex: 'max_value', key: 'max_value', width: 80,
+            title: 'Max', dataIndex: 'max_value', key: 'max_value', width: 120,
             render: (v, record) => editing
-              ? <InputNumber size="small" value={v} onChange={(val) => updateQP(record._key ?? record.id, 'max_value', val)} style={{ width: '100%' }} placeholder="Max" />
+              ? <InputNumber value={v} onChange={(val) => updateQP(record._key ?? record.id, 'max_value', val)} style={{ width: '100%' }} placeholder="Max" />
               : <Text style={{ fontSize: 12 }}>{v != null ? v : '—'}</Text>,
           },
           {
-            title: 'Unit', dataIndex: 'unit', key: 'unit', width: 80,
+            title: 'Unit', dataIndex: 'unit', key: 'unit', width: 120,
             render: (v, record) => editing
-              ? <Input size="small" value={v || ''} onChange={(e) => updateQP(record._key ?? record.id, 'unit', e.target.value)} placeholder="mm" />
+              ? <Select
+                  showSearch
+                  allowClear
+                  value={v || undefined}
+                  onChange={(val) => updateQP(record._key ?? record.id, 'unit', val)}
+                  placeholder="Select unit"
+                  style={{ width: '100%' }}
+                  options={[
+                    { label: 'Length', options: [
+                      { value: 'mm', label: 'mm' },
+                      { value: 'cm', label: 'cm' },
+                      { value: 'm', label: 'm' },
+                      { value: 'in', label: 'in (inch)' },
+                      { value: 'ft', label: 'ft (feet)' },
+                      { value: 'µm', label: 'µm (micron)' },
+                    ]},
+                    { label: 'Weight', options: [
+                      { value: 'g', label: 'g' },
+                      { value: 'kg', label: 'kg' },
+                      { value: 'mg', label: 'mg' },
+                      { value: 'ton', label: 'ton' },
+                      { value: 'lb', label: 'lb' },
+                      { value: 'oz', label: 'oz' },
+                    ]},
+                    { label: 'Volume', options: [
+                      { value: 'ml', label: 'ml' },
+                      { value: 'L', label: 'L (litre)' },
+                      { value: 'cc', label: 'cc' },
+                    ]},
+                    { label: 'Temperature', options: [
+                      { value: '°C', label: '°C' },
+                      { value: '°F', label: '°F' },
+                      { value: 'K', label: 'K' },
+                    ]},
+                    { label: 'Pressure', options: [
+                      { value: 'bar', label: 'bar' },
+                      { value: 'psi', label: 'psi' },
+                      { value: 'MPa', label: 'MPa' },
+                      { value: 'kgf/cm²', label: 'kgf/cm²' },
+                    ]},
+                    { label: 'Percentage / Count', options: [
+                      { value: '%', label: '%' },
+                      { value: 'pcs', label: 'pcs' },
+                      { value: 'ppm', label: 'ppm' },
+                    ]},
+                    { label: 'Electrical', options: [
+                      { value: 'V', label: 'V (volt)' },
+                      { value: 'A', label: 'A (amp)' },
+                      { value: 'Ω', label: 'Ω (ohm)' },
+                      { value: 'W', label: 'W (watt)' },
+                    ]},
+                    { label: 'Time', options: [
+                      { value: 'sec', label: 'sec' },
+                      { value: 'min', label: 'min' },
+                      { value: 'hr', label: 'hr' },
+                    ]},
+                    { label: 'Force / Torque', options: [
+                      { value: 'N', label: 'N (newton)' },
+                      { value: 'kN', label: 'kN' },
+                      { value: 'Nm', label: 'Nm' },
+                    ]},
+                    { label: 'Other', options: [
+                      { value: 'Ra', label: 'Ra (roughness)' },
+                      { value: 'HRC', label: 'HRC (hardness)' },
+                      { value: 'HRB', label: 'HRB' },
+                      { value: 'Shore A', label: 'Shore A' },
+                      { value: 'pH', label: 'pH' },
+                      { value: 'dB', label: 'dB' },
+                      { value: 'RPM', label: 'RPM' },
+                      { value: 'GSM', label: 'GSM' },
+                    ]},
+                  ]}
+                />
               : <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
           },
           {

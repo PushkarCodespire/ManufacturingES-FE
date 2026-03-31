@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Typography, Card, Button, Input, Table, Tag, Space, Drawer,
+  Typography, Card, Button, Input, InputNumber, Table, Tag, Space, Drawer,
   Form, Select, DatePicker, message, Tooltip, Popconfirm, Row, Col, Statistic,
 } from 'antd';
 import {
@@ -78,7 +78,7 @@ export default function IQCPage() {
   useEffect(() => {
     Promise.all([
       itemApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
-      userApi.getAll({ limit: 500 }).catch(() => []),
+      userApi.getAll({ limit: 500, roles: 'iqc_inspector,qa_manager' }).catch(() => []),
       vendorApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
       grnApi.getAll({ limit: 200, status: 'approved' }).catch(() => ({ data: [] })),
     ]).then(([i, u, v, g]) => {
@@ -116,6 +116,7 @@ export default function IQCPage() {
         batch_no:        vals.batch_no        || null,
         qty_received:    vals.qty_received    ?? 0,
         qty_inspected:   vals.qty_inspected   ?? 0,
+        qty_rejected:    vals.qty_rejected    ?? 0,
         inspector_id:    vals.inspector_id    || null,
         inspection_date: vals.inspection_date.format('YYYY-MM-DD'),
         notes:           vals.notes           || null,
@@ -172,10 +173,19 @@ export default function IQCPage() {
       render: (v) => v > 0 ? <Text style={{ color: '#dc2626', fontWeight: 600 }}>{v}</Text> : (v ?? '—'),
     },
     {
-      title: 'Result', dataIndex: 'result', key: 'result', width: 110,
-      render: (res) => {
+      title: 'Result', dataIndex: 'result', key: 'result', width: 130,
+      render: (res, row) => {
         const cfg = RESULT_CONFIG[res] || { color: 'default', label: res };
-        return <Tag color={cfg.color}>{cfg.label}</Tag>;
+        return (
+          <Space size={4}>
+            <Tag color={cfg.color}>{cfg.label}</Tag>
+            {res === 'fail' && row.grn_id && (
+              <Tooltip title="Purchase Return auto-created (RTV)">
+                <Tag color="orange" style={{ fontSize: 10, padding: '0 4px', lineHeight: '18px' }}>RTV</Tag>
+              </Tooltip>
+            )}
+          </Space>
+        );
       },
     },
     {
@@ -369,14 +379,19 @@ export default function IQCPage() {
           </Row>
 
           <Row gutter={16}>
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item name="qty_received" label="Qty Received">
-                <Input type="number" min={0} />
+                <InputNumber min={0} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col span={12}>
-              <Form.Item name="qty_inspected" label="Qty to Inspect">
-                <Input type="number" min={0} />
+            <Col span={8}>
+              <Form.Item name="qty_inspected" label="Qty Inspected">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="qty_rejected" label="Qty Rejected">
+                <InputNumber min={0} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>

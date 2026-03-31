@@ -40,7 +40,7 @@ const INDIA_STATES = [
 ];
 
 // ── Address card sub-component ────────────────────────────────────────────────
-const AddressCard = ({ title, prefix, form, canWrite }) => {
+const AddressCard = ({ title, prefix, form, canWrite, onCopyInvoice }) => {
   const [expanded, setExpanded] = useState(false);
 
   // Auto-expand if existing data
@@ -65,6 +65,17 @@ const AddressCard = ({ title, prefix, form, canWrite }) => {
           {expanded ? 'Collapse' : '+ Add New'}
         </Button>
       </div>
+
+      {onCopyInvoice && canWrite && expanded && (
+        <Button
+          size="small"
+          type="dashed"
+          style={{ fontSize: 12, borderRadius: 6, marginBottom: 12 }}
+          onClick={() => { onCopyInvoice(); }}
+        >
+          Same as Invoice Address
+        </Button>
+      )}
 
       {expanded && (
         <div style={{ paddingTop: 4 }}>
@@ -423,7 +434,18 @@ const AddEditView = ({ customer, onBack, onSaved, canWrite }) => {
             <Form form={form} layout="vertical" requiredMark={false}>
               <AddressCard title="Invoice Address" prefix=""          form={form} canWrite={canWrite} />
               <Divider style={{ margin: '12px 0' }} />
-              <AddressCard title="Shipping Address" prefix="shipping_" form={form} canWrite={canWrite} />
+              <AddressCard title="Shipping Address" prefix="shipping_" form={form} canWrite={canWrite}
+                onCopyInvoice={() => {
+                  const inv = form.getFieldsValue(['address', 'city', 'pincode', 'state', 'country']);
+                  form.setFieldsValue({
+                    shipping_address: inv.address,
+                    shipping_city: inv.city,
+                    shipping_pincode: inv.pincode,
+                    shipping_state: inv.state,
+                    shipping_country: inv.country,
+                  });
+                }}
+              />
             </Form>
           </Card>
         </div>

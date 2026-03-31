@@ -147,7 +147,7 @@ export default function OQCPage() {
     Promise.all([
       workOrderApi.getAll({ limit: 500 }).catch(() => []),
       itemApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
-      userApi.getAll({ limit: 500 }).catch(() => []),
+      userApi.getAll({ limit: 500, roles: 'oqc_inspector,qa_manager' }).catch(() => []),
       vendorApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
     ]).then(([wo, i, u, v]) => {
       setWorkOrders(Array.isArray(wo) ? wo : (wo?.data ?? []));
