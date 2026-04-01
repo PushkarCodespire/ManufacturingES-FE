@@ -667,7 +667,17 @@ export default function JobCardsPage() {
           <Form.Item name="work_order_id" label="Work Order" rules={[{ required: true, message: 'Select a work order' }]}>
             <Select
               showSearch placeholder="Select work order" optionFilterProp="label"
-              onChange={(v) => loadRoutingSteps(v)}
+              onChange={(woId) => {
+                loadRoutingSteps(woId);
+                if (woId) {
+                  try {
+                    const woData = workOrders.find(w => w.id === woId);
+                    if (woData?.machine_id) {
+                      form.setFieldsValue({ machine_id: woData.machine_id });
+                    }
+                  } catch (e) {}
+                }
+              }}
               options={workOrders.map((wo) => ({
                 value: wo.id,
                 label: `${wo.wo_no}${wo.fpi_status === 'pending' ? ' (FPI Pending)' : wo.fpi_status === 'fail' ? ' (FPI Failed)' : ''}`,

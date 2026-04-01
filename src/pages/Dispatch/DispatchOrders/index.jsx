@@ -10,8 +10,9 @@ import {
   PlusCircleOutlined, MinusCircleOutlined, InboxOutlined, FileTextOutlined,
 DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { dispatchOrderApi } from '../../../api/dispatchOrder.api';
-import { transporterApi }   from '../../../api/transporter.api';
+import { dispatchOrderApi }  from '../../../api/dispatchOrder.api';
+import { transporterApi }    from '../../../api/transporter.api';
+import { customerOrderApi }  from '../../../api/orders.api';
 import AppLayout            from '../../../components/AppLayout';
 import usePermissions       from '../../../hooks/usePermissions';
 import api                  from '../../../api/axios';
@@ -292,9 +293,28 @@ const DispatchOrdersPage = () => {
             <Form.Item name="customer_order_id" label="Customer Order">
               <Select showSearch allowClear placeholder="Link to Customer Order"
                 filterOption={(input, opt) => opt.label.toLowerCase().includes(input.toLowerCase())}
-                onChange={(coId) => {
+                onChange={async (coId) => {
                   const co = customerOrders.find(o => o.id === coId);
                   if (co) form.setFieldsValue({ customer_id: co.customer_id || co.Customer?.id });
+                  if (!coId) return;
+                  try {
+                    const coDetail = await customerOrderApi.getById(coId);
+                    const coData = coDetail?.data ?? coDetail;
+                    const coItems = coData?.Items || coData?.items || [];
+                    if (coItems.length > 0) {
+                      setOrderItems(coItems.map((it, idx) => ({
+                        item_id: it.item_id,
+                        quantity: parseFloat(it.qty_ordered || it.quantity || 0),
+                        unit: it.unit || '',
+                        weight: null,
+                        lot_no: '',
+                        notes: '',
+                      })));
+                      message.success(`${coItems.length} item(s) loaded from customer order`);
+                    }
+                  } catch (e) {
+                    console.warn('Failed to load CO details:', e);
+                  }
                 }}
                 options={customerOrders.map((co) => ({ value: co.id, label: `${co.order_no} — ${co.Customer?.name || ''}` }))} />
             </Form.Item>

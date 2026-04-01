@@ -21,6 +21,7 @@ import { itemApi }         from '../../../api/item.api';
 import { machineApi }      from '../../../api/machine.api';
 import { shiftApi }        from '../../../api/shift.api';
 import { routingApi }      from '../../../api/routing.api';
+import { customerOrderApi } from '../../../api/orders.api';
 import api                 from '../../../api/axios';
 import aiApi               from '../../../api/ai.api';
 import QrLabelPrint        from '../../../components/common/QrLabelPrint';
@@ -743,6 +744,52 @@ export default function WorkOrdersPage() {
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item name="customer_order_id" label="Customer Order">
+                <Select
+                  showSearch
+                  placeholder="Select customer order"
+                  optionFilterProp="label"
+                  options={customerOrders.map((co) => ({
+                    value: co.id,
+                    label: co.order_no || co.po_no || `Order #${co.id}`,
+                  }))}
+                  allowClear
+                  onChange={async (coId) => {
+                    if (!coId) return;
+                    try {
+                      const co = await customerOrderApi.getById(coId);
+                      const coData = co?.data ?? co;
+                      const coItems = coData?.Items || coData?.items || [];
+                      if (coItems.length > 0) {
+                        const firstItem = coItems[0];
+                        const itemId = firstItem.item_id;
+                        form.setFieldsValue({
+                          item_id: itemId,
+                          planned_qty: parseFloat(firstItem.qty_ordered || firstItem.quantity || 0),
+                        });
+                        // Trigger routing auto-select for the item
+                        const activeRoutings = routings.filter(r => r.item_id === itemId && r.status === 'active');
+                        if (activeRoutings.length > 0) {
+                          form.setFieldValue('routing_id', activeRoutings[0].id);
+                        }
+                        message.success('Item and quantity loaded from customer order');
+                      }
+                    } catch (e) {
+                      console.warn('Failed to load CO details:', e);
+                    }
+                  }}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item name="priority" label="Priority">
+                <Select options={PRIORITY_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
             <Col xs={24} sm={16}>
               <Form.Item
                 name="item_id"
@@ -767,8 +814,8 @@ export default function WorkOrdersPage() {
               </Form.Item>
             </Col>
             <Col xs={24} sm={8}>
-              <Form.Item name="priority" label="Priority">
-                <Select options={PRIORITY_OPTIONS} />
+              <Form.Item name="planned_qty" label="Planned Quantity" rules={[{ required: true, message: 'Enter planned quantity' }]}>
+                <InputNumber min={1} precision={0} style={{ width: '100%' }} placeholder="0" />
               </Form.Item>
             </Col>
           </Row>
@@ -830,31 +877,6 @@ export default function WorkOrdersPage() {
             </Col>
           </Row>
 
-          <Row gutter={16}>
-            <Col xs={24} sm={12}>
-              <Form.Item name="customer_order_id" label="Customer Order">
-                <Select
-                  showSearch
-                  placeholder="Select customer order"
-                  optionFilterProp="label"
-                  options={customerOrders.map((co) => ({
-                    value: co.id,
-                    label: co.order_no || co.po_no || `Order #${co.id}`,
-                  }))}
-                  allowClear
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                name="planned_qty"
-                label="Planned Quantity"
-                rules={[{ required: true, message: 'Enter planned quantity' }]}
-              >
-                <InputNumber min={1} precision={0} style={{ width: '100%' }} placeholder="0" />
-              </Form.Item>
-            </Col>
-          </Row>
 
           <Row gutter={16}>
             <Col xs={24} sm={12}>

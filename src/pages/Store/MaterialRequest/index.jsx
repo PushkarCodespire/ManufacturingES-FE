@@ -16,6 +16,8 @@ import usePermissions        from '../../../hooks/usePermissions';
 import { materialRequestApi } from '../../../api/store.api';
 import { itemApi }           from '../../../api/item.api';
 import { warehouseApi }      from '../../../api/warehouse.api';
+import { workOrderApi }      from '../../../api/production.api';
+import { bomApi }            from '../../../api/bom.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
@@ -53,6 +55,7 @@ export default function MaterialRequestPage() {
 
   const [requests,     setRequests]     = useState([]);
   const [warehouses,   setWarehouses]   = useState([]);
+  const [workOrders,   setWorkOrders]   = useState([]);
   const [items,        setItems]        = useState([]);
   const [loading,      setLoading]      = useState(false);
   const [search,       setSearch]       = useState('');
@@ -86,9 +89,12 @@ export default function MaterialRequestPage() {
     Promise.all([
       itemApi.getAll({ limit: 500 }).catch(() => ({ data: [] })),
       warehouseApi.getAll({ limit: 100 }).catch(() => []),
-    ]).then(([i, w]) => {
+      workOrderApi.getAll({ limit: 500 }).then(r => r?.data ?? r).catch(() => []),
+    ]).then(([i, w, wo]) => {
       setItems(Array.isArray(i) ? i : (i?.data ?? []));
       setWarehouses(Array.isArray(w) ? w : (w?.data ?? []));
+      const woArr = Array.isArray(wo) ? wo : (wo?.data ?? []);
+      setWorkOrders(woArr);
     });
   }, []);
 
@@ -104,11 +110,12 @@ export default function MaterialRequestPage() {
   const openEdit = (record) => {
     setEditing(record);
     form.setFieldsValue({
-      warehouse_id:  record.warehouse_id,
-      required_date: dayjs(record.required_date),
-      priority:      record.priority || 'normal',
-      notes:         record.notes,
-      status:        record.status,
+      warehouse_id:   record.warehouse_id,
+      work_order_id:  record.work_order_id || undefined,
+      required_date:  dayjs(record.required_date),
+      priority:       record.priority || 'normal',
+      notes:          record.notes,
+      status:         record.status,
     });
     setLineItems((record.Items || []).map((it) => ({
       _key:        it.id,
@@ -129,6 +136,7 @@ export default function MaterialRequestPage() {
         warehouse_id:  vals.warehouse_id,
         required_date: vals.required_date.format('YYYY-MM-DD'),
         priority:      vals.priority || 'normal',
+        work_order_id: vals.work_order_id || null,
         notes:         vals.notes    || '',
         ...(editing && { status: vals.status }),
         items: lineItems.map(({ _key, ...it }) => it),
@@ -357,6 +365,48 @@ export default function MaterialRequestPage() {
 
           <Form.Item name="priority" label="Priority">
             <Select options={PRIORITY_OPTIONS} />
+          </Form.Item>
+
+          <Form.Item name="work_order_id" label="Work Order (optional)">
+            <Select
+              showSearch
+              placeholder="Link to a work order (auto-fills BOM items)"
+              optionFilterProp="label"
+              allowClear
+              onChange={async (woId) => {
+                if (!woId) return;
+                try {
+                  const woRes = await workOrderApi.getById(woId);
+                  const woData = woRes?.data ?? woRes;
+                  const itemId = woData.item_id;
+                  const plannedQty = parseFloat(woData.planned_qty || 1);
+
+                  if (itemId) {
+                    const bomRes = await bomApi.getByItemId(itemId);
+                    const bomData = bomRes?.data ?? bomRes;
+                    const lines = bomData?.Lines || bomData?.lines || [];
+                    if (lines.length > 0) {
+                      setLineItems(lines.map((bl, idx) => ({
+                        _key: Date.now() + idx,
+                        item_id: bl.component_item_id,
+                        description: bl.Item?.name || bl.ComponentItem?.name || '',
+                        qty: parseFloat((parseFloat(bl.quantity) * plannedQty).toFixed(3)),
+                        unit: bl.unit || bl.Item?.unit || bl.ComponentItem?.unit || 'pcs',
+                      })));
+                      message.success(`${lines.length} BOM component(s) loaded — quantities calculated for ${plannedQty} units`);
+                    } else {
+                      message.info('No BOM found for this item');
+                    }
+                  }
+                } catch (e) {
+                  console.warn('Failed to load BOM:', e);
+                }
+              }}
+              options={workOrders.map((wo) => ({
+                value: wo.id,
+                label: `${wo.wo_number || wo.order_no || wo.id} — ${wo.Item?.name || ''}`,
+              }))}
+            />
           </Form.Item>
 
           {editing && (

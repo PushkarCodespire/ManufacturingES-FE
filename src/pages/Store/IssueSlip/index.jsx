@@ -348,6 +348,30 @@ export default function IssueSlipPage() {
                   placeholder="Link to a material request"
                   optionFilterProp="label"
                   allowClear
+                  onChange={async (mrId) => {
+                    if (!mrId) return;
+                    try {
+                      const mr = await materialRequestApi.getById(mrId);
+                      const mrData = mr?.data ?? mr;
+                      if (mrData.warehouse_id) {
+                        form.setFieldsValue({ warehouse_id: mrData.warehouse_id });
+                      }
+                      const mrItems = mrData.Items || mrData.items || [];
+                      if (mrItems.length > 0) {
+                        setLineItems(mrItems.map((it, idx) => ({
+                          _key: Date.now() + idx,
+                          item_id: it.item_id,
+                          description: it.Item?.name || it.description || '',
+                          qty: parseFloat(it.qty_requested || it.qty || 1),
+                          unit: it.unit || it.Item?.unit || 'pcs',
+                          lot_no: '',
+                        })));
+                        message.success(`${mrItems.length} item(s) loaded from material request`);
+                      }
+                    } catch (e) {
+                      console.warn('Failed to load MR details:', e);
+                    }
+                  }}
                   options={materialReqs.map((mr) => ({
                     value: mr.id,
                     label: `${mr.request_no} — ${mr.Warehouse?.name || ''}`,

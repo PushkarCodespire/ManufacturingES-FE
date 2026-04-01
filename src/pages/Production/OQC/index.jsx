@@ -488,6 +488,21 @@ export default function OQCPage() {
               <Form.Item name="work_order_id" label="Work Order">
                 <Select showSearch optionFilterProp="label" allowClear placeholder="Select WO"
                   options={workOrders.map((wo) => ({ value: wo.id, label: wo.wo_no }))}
+                  onChange={async (woId) => {
+                    if (!woId) return;
+                    try {
+                      const wo = workOrders.find(w => w.id === woId);
+                      if (wo) {
+                        form.setFieldsValue({
+                          item_id: wo.item_id,
+                          batch_no: wo.wo_no,
+                          qty_inspected: parseFloat(wo.produced_qty || 0),
+                        });
+                        // Trigger quality params load
+                        if (wo.item_id) onItemSelect(wo.item_id);
+                      }
+                    } catch (e) {}
+                  }}
                 />
               </Form.Item>
             </Col>
