@@ -8,12 +8,14 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
   EditOutlined, DeleteOutlined, CheckCircleOutlined,
   EyeOutlined, FilePdfOutlined, FileImageOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import AppLayout         from '../../../components/AppLayout';
 import usePermissions    from '../../../hooks/usePermissions';
 import { checkSheetApi, drawingApi } from '../../../api/quality.api';
 import { itemApi }                   from '../../../api/item.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -72,6 +74,15 @@ function FilePreviewModal({ open, url, name, onClose }) {
   );
 }
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const CS_CSV_HEADERS = ['Name', 'Drawing No', 'Item Name', 'Revision', 'Notes'];
+const CS_CSV_SAMPLE = [
+  { 'Name': 'Housing Dimensional Check', 'Drawing No': 'DWG-001', 'Item Name': 'Housing Cover', 'Revision': 'A', 'Notes': '' },
+];
+const CS_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
+
 export default function CheckSheetsPage() {
   const { can }  = usePermissions();
   const canWrite = can('npd-check_sheets-create_edit_delete');
@@ -87,6 +98,7 @@ export default function CheckSheetsPage() {
   const [saving,           setSaving]           = useState(false);
   const [previewLoadingId, setPreviewLoadingId] = useState(null);
   const [previewModal,     setPreviewModal]     = useState({ open: false, url: '', name: '' });
+  const [csvModalOpen,     setCsvModalOpen]     = useState(false);
   const [form]                                  = Form.useForm();
 
   const fetchAll = useCallback(async () => {
@@ -151,6 +163,31 @@ export default function CheckSheetsPage() {
       message.success('Template deleted');
       fetchAll();
     } catch (err) { message.error(err?.message || 'Delete failed'); }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const drawing = row['Drawing No'] ? drawings.find((d) => d.drawing_no?.toLowerCase() === row['Drawing No']?.toLowerCase()) : null;
+        const item = row['Item Name'] ? items.find((i) => i.name?.toLowerCase() === row['Item Name']?.toLowerCase()) : null;
+        await checkSheetApi.create({
+          name: row['Name'],
+          drawing_id: drawing?.id || null,
+          item_id: item?.id || null,
+          revision: row['Revision'] || null,
+          notes: row['Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchAll();
+    return { success, failed, errors };
   };
 
   // ── Preview drawing file ──────────────────────────────────────────────────
@@ -274,7 +311,15 @@ export default function CheckSheetsPage() {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('check-sheets.csv', filtered, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = filtered.map((r) => ({
+              'Name': r.name || '', 'Drawing No': r.Drawing?.drawing_no || '',
+              'Item Name': r.Item?.name || '', 'Revision': r.revision || '',
+              'Notes': r.notes || '',
+            }));
+            downloadSampleCsv('check-sheets.csv', CS_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Template</Button>
@@ -345,6 +390,17 @@ export default function CheckSheetsPage() {
         url={previewModal.url}
         name={previewModal.name}
         onClose={() => setPreviewModal((p) => ({ ...p, open: false }))}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Check Sheets"
+        entityName="Check Sheet"
+        sampleHeaders={CS_CSV_HEADERS}
+        sampleRows={CS_CSV_SAMPLE}
+        validationRules={CS_VALIDATION_RULES}
       />
     </AppLayout>
   );

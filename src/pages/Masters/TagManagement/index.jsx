@@ -5,13 +5,15 @@ import {
 import {
   PlusOutlined, ReloadOutlined, ArrowLeftOutlined, InfoCircleOutlined,
   SearchOutlined, RightOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { tagApi } from '../../../api/tag.api';
 import { siteApi } from '../../../api/site.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 
@@ -94,7 +96,7 @@ const TagInfoModal = ({ tag, open, onClose, onDeactivate }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 //  LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-const ListView = ({ tags, loading, search, onSearchChange, onRefresh, onNew, onDeactivate, canWrite }) => {
+const ListView = ({ tags, loading, search, onSearchChange, onRefresh, onNew, onDeactivate, canWrite, onUploadCsv }) => {
   const [infoTag, setInfoTag] = useState(null);
 
   const columns = [
@@ -212,8 +214,16 @@ const ListView = ({ tags, loading, search, onSearchChange, onRefresh, onNew, onD
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('tag-management.csv', tags, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = tags.map((t) => ({
+              'Name': t.name || '', 'Tag Type': t.tag_type || '',
+            }));
+            downloadSampleCsv('tag-management.csv', TAG_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && (
+            <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
           {canWrite && (
@@ -373,6 +383,18 @@ const AddTagForm = ({ sites, onDone, onCancel }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const TAG_CSV_HEADERS = ['Name', 'Tag Type'];
+
+const TAG_CSV_SAMPLE = [
+  { 'Name': 'Cutting Tools', 'Tag Type': 'Item Group' },
+  { 'Name': 'CNC Machines', 'Tag Type': 'Machine Group' },
+];
+
+const TAG_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
+
 const TagManagementPage = () => {
   const [view, setView]     = useState('list');
   const [tags, setTags]     = useState([]);
@@ -381,6 +403,7 @@ const TagManagementPage = () => {
   const [search, setSearch] = useState('');
   const { can }  = usePermissions();
   const canWrite = can('other-tag_management-create_edit_delete');
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const fetchTags = useCallback(async () => {
     setLoading(true);
@@ -405,6 +428,27 @@ const TagManagementPage = () => {
 
   useEffect(() => { fetchTags(); }, [fetchTags]);
   useEffect(() => { fetchSites(); }, [fetchSites]);
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await tagApi.create({
+          name:     row['Name'] || '',
+          tag_type: row['Tag Type'] || 'General',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchTags();
+    return { success, failed, errors };
+  };
 
   const handleDeactivate = (tag) => {
     Modal.confirm({
@@ -436,8 +480,21 @@ const TagManagementPage = () => {
           onNew={() => setView('add')}
           onDeactivate={handleDeactivate}
           canWrite={canWrite}
+          onUploadCsv={() => setCsvModalOpen(true)}
         />
       )}
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Tags"
+        entityName="Tag"
+        sampleHeaders={TAG_CSV_HEADERS}
+        sampleRows={TAG_CSV_SAMPLE}
+        validationRules={TAG_VALIDATION_RULES}
+      />
+
       {view === 'add' && canWrite && (
         <AddTagForm
           sites={sites}

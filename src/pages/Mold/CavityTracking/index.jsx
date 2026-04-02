@@ -6,11 +6,13 @@ import {
 import {
   PlusOutlined, ReloadOutlined, SearchOutlined, RightOutlined,
   StopOutlined, CheckCircleOutlined, AppstoreOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { moldMasterApi, moldCavityApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 
@@ -24,6 +26,16 @@ const CAVITY_TAG_COLOR = {
 };
 const fmtLabel = (v) => v ? v.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '\u2014';
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '\u2014';
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const CAVITY_CSV_HEADERS = ['Cavity Number', 'Position'];
+const CAVITY_CSV_SAMPLE = [
+  { 'Cavity Number': '1', 'Position': 'A1' },
+  { 'Cavity Number': '2', 'Position': 'A2' },
+];
+const CAVITY_VALIDATION_RULES = [
+  { field: 'Cavity Number', required: true },
+];
 
 const CavityTrackingPage = () => {
   const { can } = usePermissions();
@@ -45,6 +57,7 @@ const CavityTrackingPage = () => {
   // Add cavity modal
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addForm] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // Fetch all molds for dropdown
   useEffect(() => {
@@ -103,6 +116,27 @@ const CavityTrackingPage = () => {
     } catch (err) { if (!err?.errorFields) message.error(err?.message || 'Failed to add cavity'); }
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    if (!selectedMoldId) { return { success: 0, failed: rows.length, errors: ['Select a mold first'] }; }
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await moldCavityApi.createCavity(selectedMoldId, {
+          cavity_number: parseInt(row['Cavity Number'], 10),
+          position: row['Position'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Cavity ${row['Cavity Number']}: ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchCavityData();
+    return { success, failed, errors };
+  };
+
   const cavityColumns = [
     { title: '#', dataIndex: 'cavity_number', key: 'cavity_number', width: 60 },
     { title: 'Position', dataIndex: 'position', key: 'position', width: 100 },
@@ -146,7 +180,13 @@ const CavityTrackingPage = () => {
             showSearch optionFilterProp="label" style={{ width: 320 }}
             options={molds.map((m) => ({ label: `${m.mold_code} - ${m.name}`, value: m.id }))} allowClear />
           {selectedMoldId && <>
-            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('cavity-tracking.csv', cavities, cavityColumns)}>Export CSV</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => {
+              const csvRows = cavities.map((c) => ({
+                'Cavity Number': c.cavity_number ?? '', 'Position': c.position || '',
+              }));
+              downloadSampleCsv('cavity-tracking.csv', CAVITY_CSV_HEADERS, csvRows);
+            }}>Export CSV</Button>
+            {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
             <Button icon={<ReloadOutlined />} onClick={fetchCavityData} style={{ borderRadius: 8 }}>Refresh</Button>
           </>}
           {selectedMoldId && canWrite && <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalOpen(true)} style={{ borderRadius: 8 }}>Add Cavity</Button>}
@@ -213,6 +253,17 @@ const CavityTrackingPage = () => {
           </Card>
         </>
       )}
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Cavities"
+        entityName="Cavity"
+        sampleHeaders={CAVITY_CSV_HEADERS}
+        sampleRows={CAVITY_CSV_SAMPLE}
+        validationRules={CAVITY_VALIDATION_RULES}
+      />
 
       {/* Block Cavity Modal */}
       <Modal title="Block Cavity" open={blockModalOpen} onCancel={() => { setBlockModalOpen(false); setBlockReason(''); }}

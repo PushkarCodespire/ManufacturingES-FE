@@ -6,11 +6,13 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   CarOutlined, RightOutlined, SearchOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { transporterApi } from '../../../api/transporter.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -18,6 +20,17 @@ const { TextArea } = Input;
 const VEHICLE_OPTIONS = [
   'Mini Truck', 'Light Commercial Vehicle', 'Medium Truck', 'Heavy Truck',
   'Container', 'Tempo', 'Bike', 'Car', 'Other',
+];
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const TRANSPORTER_CSV_HEADERS = ['Name', 'Contact Person', 'Phone', 'Email', 'GSTIN', 'Vehicle Types', 'Address', 'Notes'];
+const TRANSPORTER_CSV_SAMPLE = [
+  { 'Name': 'Shree Transport Co.', 'Contact Person': 'Ramesh Kumar', 'Phone': '+91 98765 43210',
+    'Email': 'contact@shree.com', 'GSTIN': '22AAAAA0000A1Z5', 'Vehicle Types': 'Heavy Truck, Container',
+    'Address': 'Plot 10, MIDC Pune', 'Notes': '' },
+];
+const TRANSPORTER_VALIDATION_RULES = [
+  { field: 'Name', required: true },
 ];
 
 const TransportersPage = () => {
@@ -30,6 +43,7 @@ const TransportersPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [search,  setSearch]  = useState('');
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [form] = Form.useForm();
 
   const fetchAll = useCallback(async () => {
@@ -80,6 +94,33 @@ const TransportersPage = () => {
     } catch (err) {
       message.error(err?.message || 'Failed to delete');
     }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await transporterApi.create({
+          name: row['Name'],
+          contact_person: row['Contact Person'] || null,
+          phone: row['Phone'] || null,
+          email: row['Email'] || null,
+          gstin: row['GSTIN'] || null,
+          vehicle_types: row['Vehicle Types'] ? row['Vehicle Types'].split(',').map((v) => v.trim()).filter(Boolean) : [],
+          address: row['Address'] || null,
+          notes: row['Notes'] || null,
+          is_active: true,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchAll();
+    return { success, failed, errors };
   };
 
   const filtered = search
@@ -164,7 +205,16 @@ const TransportersPage = () => {
             style={{ width: 240, borderRadius: 8 }} allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('transporters.csv', filtered, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = filtered.map((r) => ({
+              'Name': r.name || '', 'Contact Person': r.contact_person || '',
+              'Phone': r.phone || '', 'Email': r.email || '',
+              'GSTIN': r.gstin || '', 'Vehicle Types': (r.vehicle_types ?? []).join(', '),
+              'Address': r.address || '', 'Notes': r.notes || '',
+            }));
+            downloadSampleCsv('transporters.csv', TRANSPORTER_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>
@@ -233,6 +283,17 @@ const TransportersPage = () => {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Transporters"
+        entityName="Transporter"
+        sampleHeaders={TRANSPORTER_CSV_HEADERS}
+        sampleRows={TRANSPORTER_CSV_SAMPLE}
+        validationRules={TRANSPORTER_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 };

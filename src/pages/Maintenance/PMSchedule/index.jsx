@@ -9,11 +9,13 @@ import {
   ClockCircleOutlined, PlayCircleOutlined, ThunderboltOutlined,
   BulbOutlined, WarningOutlined, ArrowUpOutlined, ArrowDownOutlined,
   UserOutlined, RiseOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { maintenancePmApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -27,6 +29,18 @@ const FREQ_LABEL = {
   daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly',
   quarterly: 'Quarterly', semi_annual: 'Semi-Annual', annual: 'Annual', custom: 'Custom',
 };
+
+// ── CSV Upload config (for PM Templates) ─────────────────────────────────────
+const PMTMPL_CSV_HEADERS = [
+  'Name', 'Frequency', 'Estimated Duration (min)', 'Description',
+];
+const PMTMPL_CSV_SAMPLE = [
+  { 'Name': 'Monthly Lubrication Check', 'Frequency': 'monthly',
+    'Estimated Duration (min)': '45', 'Description': 'Monthly greasing & oil level check' },
+];
+const PMTMPL_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
 
 export default function PMSchedulePage() {
   const [templates, setTemplates]   = useState([]);
@@ -51,6 +65,7 @@ export default function PMSchedulePage() {
   const [techLoading, setTechLoading]         = useState(false);
   const [smartSchedule, setSmartSchedule]     = useState(null);
   const [smartLoading, setSmartLoading]       = useState(false);
+  const [csvModalOpen, setCsvModalOpen]       = useState(false);
 
   // MNT-005: load/refresh PM optimization (covers ALL active schedules)
   const loadPmOpt = useCallback(async () => {
@@ -190,6 +205,28 @@ export default function PMSchedulePage() {
     finally { setGenerating(false); }
   };
 
+  // ── CSV Import handler (imports PM Templates) ───────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await maintenancePmApi.createTemplate({
+          name: row['Name'],
+          frequency_type: row['Frequency'] || 'monthly',
+          estimated_duration_minutes: row['Estimated Duration (min)'] ? parseInt(row['Estimated Duration (min)'], 10) : null,
+          description: row['Description'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    loadAll();
+    return { success, failed, errors };
+  };
+
   const openCount      = workOrders.filter((w) => w.status === 'open').length;
   const inProgressCount= workOrders.filter((w) => w.status === 'in_progress').length;
   const completedCount = workOrders.filter((w) => w.status === 'completed').length;
@@ -299,7 +336,15 @@ export default function PMSchedulePage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ClockCircleOutlined /> PM Schedule & Execution</Title>
         <Space wrap>
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('p-m-schedule.csv', workOrders, woColumns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = templates.map((t) => ({
+              'Name': t.name || '', 'Frequency': t.frequency_type || '',
+              'Estimated Duration (min)': t.estimated_duration_minutes ?? '',
+              'Description': t.description || '',
+            }));
+            downloadSampleCsv('pm-templates.csv', PMTMPL_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={loadAll}>Refresh</Button>
           <Button icon={<ThunderboltOutlined />} onClick={autoGenerate} loading={generating}>Auto-Generate WOs</Button>
           <Button icon={<PlusOutlined />} onClick={() => setSchedModal(true)}>New Schedule</Button>
@@ -584,6 +629,17 @@ export default function PMSchedulePage() {
           </>
         )}
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload PM Templates"
+        entityName="PM Template"
+        sampleHeaders={PMTMPL_CSV_HEADERS}
+        sampleRows={PMTMPL_CSV_SAMPLE}
+        validationRules={PMTMPL_VALIDATION_RULES}
+      />
 
       {/* New Template Modal */}
       <Modal title="New PM Template" open={tmplModal} onCancel={() => setTmplModal(false)} footer={null} width={600}>

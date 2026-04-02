@@ -7,7 +7,8 @@ import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, ArrowLeftOutlined,
   SettingOutlined, SearchOutlined, RightOutlined, ToolOutlined,
   CheckCircleOutlined, InfoCircleOutlined, CloseOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+  DownloadOutlined, UploadOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { machineApi } from '../../../api/machine.api';
 import { productionParameterApi } from '../../../api/productionParameter.api';
@@ -16,6 +17,8 @@ import { siteApi } from '../../../api/site.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -38,7 +41,7 @@ const PARAM_TYPE_OPTIONS = [
 // ══════════════════════════════════════════════════════════════════════════════
 //  LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete, canWrite }) => {
+const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete, canWrite, onUploadCsv }) => {
   // Build recursive tree: root machines with children nested (supports multi-level)
   const treeData = useMemo(() => {
     if (!machines?.length) return [];
@@ -179,8 +182,46 @@ const ListView = ({ machines, loading, search, onSearchChange, onRefresh, onNew,
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('machines.csv', treeData, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            // Export in same format as Upload CSV — can be re-imported to another account
+            const byId = {};
+            machines.forEach((m) => { byId[m.id] = m.name; });
+            const flatList = [];
+            const flatten = (list) => {
+              (list || []).forEach((m) => {
+                const paramNames = (m.Parameters || []).map((p) => p.name);
+                flatList.push({
+                  'Machine Name': m.name,
+                  'Parent Name': m.parent_id ? (byId[m.parent_id] || '') : '',
+                  'Description': m.description || '',
+                  'Production Against': m.production_against || 'none',
+                  'Shift': m.shift || '',
+                  'Setup Time (hrs)': m.setup_time_hrs ?? '',
+                  'Queue Time (days)': m.queue_time_days ?? '',
+                  'Min Batch Qty': m.min_batch_quantity ?? '',
+                  'Item Group Tags': (m.item_group_tags || []).join(', '),
+                  'Machine Group Tags': (m.machine_group_tags || []).join(', '),
+                  'IOT Device Tags': (m.iot_device_tags || []).join(', '),
+                  'Weighted Production': m.weighted_production ? 'yes' : 'no',
+                  'Auto Production': m.auto_production ? 'yes' : 'no',
+                  'Start Stop Flow': m.start_stop_flow ? 'yes' : 'no',
+                  'Serialization': m.serialization ? 'yes' : 'no',
+                  'Scrap': paramNames.includes('Scrap') ? 'yes' : '',
+                  'Energy': paramNames.includes('Energy') ? 'yes' : '',
+                  'Boxes': paramNames.includes('Boxes') ? 'yes' : '',
+                  'packaging': paramNames.includes('packaging') ? 'yes' : '',
+                  'shipments': paramNames.includes('shipments') ? 'yes' : '',
+                });
+                if (m.children) flatten(m.children);
+              });
+            };
+            flatten(treeData);
+            downloadSampleCsv('machines.csv', MACHINE_CSV_HEADERS, flatList);
+          }}>Export CSV</Button>
+          {canWrite && (
+            <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
               NEW
@@ -1397,6 +1438,112 @@ const EditViewPage = ({ machine, parameters, tags, onBack, onRefresh, onRefreshP
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const MACHINE_CSV_HEADERS = [
+  'Machine Name',
+  'Parent Name',
+  'Description',
+  'Production Against',
+  'Shift',
+  'Setup Time (hrs)',
+  'Queue Time (days)',
+  'Min Batch Qty',
+  'Item Group Tags',
+  'Machine Group Tags',
+  'IOT Device Tags',
+  'Weighted Production',
+  'Auto Production',
+  'Start Stop Flow',
+  'Serialization',
+  'Scrap',
+  'Energy',
+  'Boxes',
+  'packaging',
+  'shipments',
+];
+
+const MACHINE_CSV_SAMPLE = [
+  {
+    'Machine Name': 'CNC Lathe 01',
+    'Parent Name': 'Cutting Section',
+    'Description': 'High precision CNC lathe for turning operations',
+    'Production Against': 'work_order',
+    'Shift': 'Day Shift',
+    'Setup Time (hrs)': '0.5',
+    'Queue Time (days)': '1',
+    'Min Batch Qty': '10',
+    'Item Group Tags': 'Cutting Tools, Abrasives',
+    'Machine Group Tags': 'CNC, Automated',
+    'IOT Device Tags': 'Sensor-01',
+    'Weighted Production': 'yes',
+    'Auto Production': 'no',
+    'Start Stop Flow': 'yes',
+    'Serialization': 'no',
+    'Scrap': 'yes',
+    'Energy': 'yes',
+    'Boxes': '',
+    'packaging': '',
+    'shipments': '',
+  },
+  {
+    'Machine Name': 'Assembly Line 01',
+    'Parent Name': 'Assembly Section',
+    'Description': 'Manual assembly line for clip assemblies',
+    'Production Against': 'sales_order',
+    'Shift': 'Night Shift',
+    'Setup Time (hrs)': '0.25',
+    'Queue Time (days)': '0',
+    'Min Batch Qty': '50',
+    'Item Group Tags': '',
+    'Machine Group Tags': 'Manual',
+    'IOT Device Tags': '',
+    'Weighted Production': 'no',
+    'Auto Production': 'no',
+    'Start Stop Flow': 'no',
+    'Serialization': 'yes',
+    'Scrap': 'yes',
+    'Energy': '',
+    'Boxes': 'yes',
+    'packaging': 'yes',
+    'shipments': 'yes',
+  },
+];
+
+const MACHINE_VALIDATION_RULES = [
+  { field: 'Machine Name', required: true },
+  {
+    field: 'Production Against',
+    validate: (v) => {
+      if (v && !['none', 'work_order', 'sales_order'].includes(v.toLowerCase().replace(/\s+/g, '_'))) {
+        return '"Production Against" must be none, work_order, or sales_order';
+      }
+      return null;
+    },
+  },
+  {
+    field: 'Setup Time (hrs)',
+    validate: (v) => (v && isNaN(parseFloat(v)) ? '"Setup Time" must be a number' : null),
+  },
+  {
+    field: 'Queue Time (days)',
+    validate: (v) => (v && isNaN(parseFloat(v)) ? '"Queue Time" must be a number' : null),
+  },
+  {
+    field: 'Min Batch Qty',
+    validate: (v) => (v && isNaN(parseInt(v, 10)) ? '"Min Batch Qty" must be a number' : null),
+  },
+];
+
+const parseBool = (v) => {
+  if (!v) return false;
+  return ['yes', 'true', '1', 'y'].includes(v.toLowerCase().trim());
+};
+
+const parseTags = (v) => {
+  if (!v) return [];
+  return v.split(',').map((t) => t.trim()).filter(Boolean);
+};
+
 const MachinesPage = () => {
   const [view, setView]             = useState('list');
   const [machines, setMachines]     = useState([]);
@@ -1405,6 +1552,7 @@ const MachinesPage = () => {
   const [loading, setLoading]       = useState(false);
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const { can }  = usePermissions();
   const canWrite = can('production-machines-create_edit_delete');
 
@@ -1480,20 +1628,103 @@ const MachinesPage = () => {
     }
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    // Build a name→id lookup for parent resolution
+    const nameToId = {};
+    machines.forEach((m) => { nameToId[m.name.toLowerCase()] = m.id; });
+
+    // Map CSV rows → API payload with ALL fields
+    const machinePayload = rows.map((row) => {
+      const parentName = row['Parent Name']?.trim();
+      const parentId = parentName ? nameToId[parentName.toLowerCase()] : null;
+      const prodAgainst = (row['Production Against'] || 'none').toLowerCase().replace(/\s+/g, '_');
+
+      // Collect parameter names from CSV columns
+      const paramNames = [];
+      ['Scrap', 'Energy', 'Boxes', 'packaging', 'shipments'].forEach((col) => {
+        if (row[col] !== undefined && row[col] !== '' && !['false', 'no', '0', 'n'].includes(row[col]?.toLowerCase())) {
+          paramNames.push(col);
+        }
+      });
+
+      return {
+        name: row['Machine Name']?.trim(),
+        parent_id: parentId || undefined,
+        description: row['Description']?.trim() || undefined,
+        production_against: ['none', 'work_order', 'sales_order'].includes(prodAgainst)
+          ? prodAgainst : 'none',
+        shift: row['Shift']?.trim() || undefined,
+        setup_time_hrs: row['Setup Time (hrs)'] ? parseFloat(row['Setup Time (hrs)']) : undefined,
+        queue_time_days: row['Queue Time (days)'] ? parseFloat(row['Queue Time (days)']) : undefined,
+        min_batch_quantity: row['Min Batch Qty'] ? parseInt(row['Min Batch Qty'], 10) : undefined,
+        item_group_tags: parseTags(row['Item Group Tags']),
+        machine_group_tags: parseTags(row['Machine Group Tags']),
+        iot_device_tags: parseTags(row['IOT Device Tags']),
+        weighted_production: parseBool(row['Weighted Production']),
+        auto_production: parseBool(row['Auto Production']),
+        start_stop_flow: parseBool(row['Start Stop Flow']),
+        serialization: parseBool(row['Serialization']),
+        parameter_names: paramNames.length > 0 ? paramNames : undefined,
+        children: [],
+      };
+    });
+
+    // Group machines by parent — create parent machines first, then children
+    const roots = machinePayload.filter((m) => !m.parent_id);
+
+    // Attach children to roots by parent name matching
+    rows.forEach((row, idx) => {
+      const parentName = row['Parent Name']?.trim()?.toLowerCase();
+      if (parentName) {
+        const rootIdx = roots.findIndex(
+          (r) => r.name.toLowerCase() === parentName
+        );
+        if (rootIdx >= 0) {
+          roots[rootIdx].children.push(machinePayload[idx]);
+          machinePayload[idx]._attached = true;
+        }
+      }
+    });
+
+    // Final payload — roots + unattached children (with existing parent_id)
+    const finalMachines = [
+      ...roots,
+      ...machinePayload.filter((m) => m.parent_id && !m._attached),
+    ];
+
+    const res = await machineApi.bulkCreate({ machines: finalMachines });
+    fetchMachines();
+    return { success: rows.length, failed: 0 };
+  };
+
   return (
     <AppLayout>
       {view === 'list' && (
-        <ListView
-          machines={machines}
-          loading={loading}
-          search={search}
-          onSearchChange={setSearch}
-          onRefresh={fetchMachines}
-          onNew={() => setView('add')}
-          onDetail={handleDetail}
-          onDelete={handleDelete}
-          canWrite={canWrite}
-        />
+        <>
+          <ListView
+            machines={machines}
+            loading={loading}
+            search={search}
+            onSearchChange={setSearch}
+            onRefresh={fetchMachines}
+            onNew={() => setView('add')}
+            onDetail={handleDetail}
+            onDelete={handleDelete}
+            canWrite={canWrite}
+            onUploadCsv={() => setCsvModalOpen(true)}
+          />
+          <CsvUploadModal
+            open={csvModalOpen}
+            onClose={() => setCsvModalOpen(false)}
+            onImport={handleCsvImport}
+            title="Upload CSV"
+            entityName="Machine"
+            sampleHeaders={MACHINE_CSV_HEADERS}
+            sampleRows={MACHINE_CSV_SAMPLE}
+            validationRules={MACHINE_VALIDATION_RULES}
+          />
+        </>
       )}
       {view === 'add' && canWrite && (
         <CreateMachineStepper

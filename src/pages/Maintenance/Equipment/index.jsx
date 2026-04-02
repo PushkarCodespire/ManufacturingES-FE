@@ -8,11 +8,13 @@ import {
   PlusOutlined, ReloadOutlined, ToolOutlined, CheckCircleOutlined,
   ExclamationCircleOutlined, ApartmentOutlined, FileTextOutlined, EditOutlined,
   BulbOutlined, AlertOutlined, ClockCircleOutlined, SyncOutlined, SearchOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -26,6 +28,20 @@ const LEVEL_COLOR = {
   plant: 'purple', line: 'cyan', machine: 'blue',
   sub_assembly: 'geekblue', component: 'default',
 };
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const EQUIP_CSV_HEADERS = [
+  'Name', 'Level', 'Criticality', 'Manufacturer', 'Model No', 'Serial No',
+  'Location', 'Department', 'Installation Date', 'Warranty Expiry',
+];
+const EQUIP_CSV_SAMPLE = [
+  { 'Name': 'CNC Lathe 01', 'Level': 'machine', 'Criticality': 'A', 'Manufacturer': 'Mazak',
+    'Model No': 'QTN-200', 'Serial No': 'SN-12345', 'Location': 'Shop Floor Bay 1',
+    'Department': 'Production', 'Installation Date': '2023-01-15', 'Warranty Expiry': '2026-01-15' },
+];
+const EQUIP_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
 
 export default function EquipmentPage() {
   const [equipment, setEquipment]   = useState([]);
@@ -49,6 +65,7 @@ export default function EquipmentPage() {
   // MNT-003 per-equipment (detail drawer)
   const [drawerFp, setDrawerFp]               = useState(null);
   const [drawerFpLoading, setDrawerFpLoading] = useState(false);
+  const [csvModalOpen, setCsvModalOpen]       = useState(false);
 
   // ── MNT-003: Failure Pattern Detection ───────────────────────────────────
   const loadFailurePatterns = useCallback(async (equipId) => {
@@ -179,6 +196,36 @@ export default function EquipmentPage() {
     });
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const cat = row['Category'] ? categories.find((c) => c.name?.toLowerCase() === row['Category'].toLowerCase()) : null;
+        await equipmentApi.create({
+          name: row['Name'],
+          level: row['Level'] || 'machine',
+          criticality: row['Criticality'] || 'B',
+          manufacturer: row['Manufacturer'] || null,
+          model_no: row['Model No'] || null,
+          serial_no: row['Serial No'] || null,
+          location: row['Location'] || null,
+          department: row['Department'] || null,
+          installation_date: row['Installation Date'] || null,
+          warranty_expiry: row['Warranty Expiry'] || null,
+          ...(cat ? { category_id: cat.id } : {}),
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    loadEquipment();
+    return { success, failed, errors };
+  };
+
   const operationalCount = equipment.filter((e) => e.status === 'operational').length;
   const breakdownCount   = equipment.filter((e) => e.status === 'breakdown').length;
   const criticalACount   = equipment.filter((e) => e.criticality === 'A').length;
@@ -244,7 +291,17 @@ export default function EquipmentPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <Title level={4} style={{ margin: 0 }}><ApartmentOutlined /> Equipment Master</Title>
         <Space wrap>
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('equipment.csv', equipment, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = equipment.map((e) => ({
+              'Name': e.name || '', 'Level': e.level || '', 'Criticality': e.criticality || '',
+              'Manufacturer': e.manufacturer || '', 'Model No': e.model_no || '',
+              'Serial No': e.serial_no || '', 'Location': e.location || '',
+              'Department': e.department || '', 'Installation Date': e.installation_date || '',
+              'Warranty Expiry': e.warranty_expiry || '',
+            }));
+            downloadSampleCsv('equipment.csv', EQUIP_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={loadEquipment}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModal(true)}>Register Equipment</Button>
         </Space>
@@ -639,6 +696,17 @@ export default function EquipmentPage() {
           </>
         )}
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Equipment"
+        entityName="Equipment"
+        sampleHeaders={EQUIP_CSV_HEADERS}
+        sampleRows={EQUIP_CSV_SAMPLE}
+        validationRules={EQUIP_VALIDATION_RULES}
+      />
 
       {/* Edit Modal */}
       <Modal title="Edit Equipment" open={editModal} onCancel={() => { setEditModal(false); setCritSuggestion(null); }} footer={null} width={520}>

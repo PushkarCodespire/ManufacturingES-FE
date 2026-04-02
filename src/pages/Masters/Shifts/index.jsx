@@ -13,13 +13,15 @@ import {
   CalendarOutlined,
   SearchOutlined,
   RightOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { shiftApi }     from '../../../api/shift.api';
 import AppLayout        from '../../../components/AppLayout';
 import ResponsiveTable  from '../../../components/ResponsiveTable';
 import usePermissions   from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 
@@ -37,7 +39,7 @@ const fmtDateTime = (iso) => {
 // ═══════════════════════════════════════════════════════════════════════════
 //  LIST VIEW
 // ═══════════════════════════════════════════════════════════════════════════
-const ListView = ({ shifts, loading, onRefresh, onNew, onEdit, onDelete, canWrite, search, setSearch }) => {
+const ListView = ({ shifts, loading, onRefresh, onNew, onEdit, onDelete, canWrite, search, setSearch, onUploadCsv }) => {
   const baseColumns = [
     {
       title:     'Name',
@@ -171,8 +173,17 @@ const ListView = ({ shifts, loading, onRefresh, onNew, onEdit, onDelete, canWrit
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('shifts.csv', shifts, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = shifts.map((s) => ({
+              'Name': s.name || '', 'Start Time': s.start_time || '',
+              'End Time': s.end_time || '', 'Lunch Break (mins)': s.lunch_break_duration ?? '',
+            }));
+            downloadSampleCsv('shifts.csv', SHIFT_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && (
+            <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
           {canWrite && (
@@ -451,6 +462,18 @@ const ShiftFormView = ({ shift, onBack, onSaved }) => {
 // ═══════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const SHIFT_CSV_HEADERS = ['Name', 'Start Time', 'End Time', 'Lunch Break (mins)'];
+
+const SHIFT_CSV_SAMPLE = [
+  { 'Name': 'Day Shift', 'Start Time': '08:00', 'End Time': '17:00', 'Lunch Break (mins)': '30' },
+  { 'Name': 'Night Shift', 'Start Time': '20:00', 'End Time': '05:00', 'Lunch Break (mins)': '30' },
+];
+
+const SHIFT_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
+
 const ShiftsPage = () => {
   const { can } = usePermissions();
   const canWrite = can('sites-shifts___leaves-create_edit_delete');
@@ -460,6 +483,7 @@ const ShiftsPage = () => {
   const [view,         setView]         = useState('list'); // 'list' | 'form'
   const [editingShift, setEditingShift] = useState(null);  // null = add mode
   const [search,       setSearch]       = useState('');
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const fetchShifts = useCallback(async () => {
     setLoading(true);
@@ -514,6 +538,29 @@ const ShiftsPage = () => {
     setEditingShift(null);
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await shiftApi.create({
+          name:                 row['Name'] || '',
+          start_time:           row['Start Time'] || '08:00',
+          end_time:             row['End Time'] || '17:00',
+          lunch_break_duration: row['Lunch Break (mins)'] ? parseInt(row['Lunch Break (mins)'], 10) : 0,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchShifts();
+    return { success, failed, errors };
+  };
+
   // Client-side search filter
   const filteredShifts = search
     ? shifts.filter((s) => s.name?.toLowerCase().includes(search.toLowerCase()))
@@ -547,6 +594,7 @@ const ShiftsPage = () => {
           canWrite={canWrite}
           search={search}
           setSearch={setSearch}
+          onUploadCsv={() => setCsvModalOpen(true)}
         />
       ) : (
         <ShiftFormView
@@ -555,6 +603,17 @@ const ShiftsPage = () => {
           onSaved={handleSaved}
         />
       )}
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Shifts"
+        entityName="Shift"
+        sampleHeaders={SHIFT_CSV_HEADERS}
+        sampleRows={SHIFT_CSV_SAMPLE}
+        validationRules={SHIFT_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 };

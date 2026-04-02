@@ -6,12 +6,15 @@ import {
 import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, ArrowLeftOutlined,
   RightOutlined, PlusCircleOutlined, ToolOutlined, HistoryOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+  DownloadOutlined, UploadOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { cycleTimeRuleApi } from '../../../api/cycleTimeRule.api';
 import { tagApi }           from '../../../api/tag.api';
 import { machineApi }       from '../../../api/machine.api';
 import AppLayout            from '../../../components/AppLayout';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 import usePermissions       from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
 
@@ -29,6 +32,20 @@ const ITEM_GROUPS = {
   'Corrugated Boxes': 1, 'Packing Quality Check': 1,
 };
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const CTR_CSV_HEADERS = ['Machine Group Tag', 'Item Group Tag', 'Process', 'Seconds Per Unit'];
+
+const CTR_CSV_SAMPLE = [
+  { 'Machine Group Tag': 'CNC Lathe', 'Item Group Tag': 'Round Bars', 'Process': 'Turning', 'Seconds Per Unit': '45' },
+  { 'Machine Group Tag': 'Drill Press', 'Item Group Tag': 'Machined Parts', 'Process': 'Drilling', 'Seconds Per Unit': '30' },
+];
+
+const CTR_CSV_VALIDATION = [
+  { field: 'Machine Group Tag', required: true },
+  { field: 'Item Group Tag', required: true },
+  { field: 'Seconds Per Unit', required: true, validate: (v) => (isNaN(parseFloat(v)) ? '"Seconds Per Unit" must be a number' : null) },
+];
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  CYCLE TIME RULES PAGE
 // ══════════════════════════════════════════════════════════════════════════════
@@ -45,6 +62,8 @@ const CycleTimeRulesPage = () => {
   const [machineOptions, setMachineOptions] = useState([]);
   const [itemTagOptions, setItemTagOptions] = useState([]);
   const [processOptions, setProcessOptions] = useState([]);
+
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // Daily target modal
   const [targetModalOpen, setTargetModalOpen] = useState(false);
@@ -159,6 +178,28 @@ const CycleTimeRulesPage = () => {
     setEditingRule(null);
     ruleForm.resetFields();
     setSubView('add');
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await cycleTimeRuleApi.create({
+          machine_group_tag: row['Machine Group Tag']?.trim(),
+          item_group_tag: row['Item Group Tag']?.trim(),
+          process: row['Process']?.trim() || undefined,
+          seconds_per_unit: parseFloat(row['Seconds Per Unit']),
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row ${row._rowNum}: ${err.message}`);
+      }
+    }
+    fetchRules();
+    return { success, failed, errors };
   };
 
   const handleSaveRule = async (values) => {
@@ -299,8 +340,9 @@ const CycleTimeRulesPage = () => {
       <Card style={{ border: '1px solid #e8eaed', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '16px 20px' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('cycle-time-rules.csv', rules, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={fetchRules} style={{ borderRadius: 8 }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => downloadSampleCsv('cycle-time-rules.csv', CTR_CSV_HEADERS, rules.map((r) => ({ 'Machine Group Tag': r.machine_group_tag, 'Item Group Tag': r.item_group_tag, 'Process': r.process || '', 'Seconds Per Unit': r.seconds_per_unit })))}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
+          <Button icon={<ReloadOutlined />} onClick={fetchRules} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenAdd} style={{ borderRadius: 8, fontWeight: 600 }}>
               NEW
@@ -362,6 +404,17 @@ const CycleTimeRulesPage = () => {
           </div>
         </Form>
       </Modal>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Cycle Time Rules"
+        entityName="Rule"
+        sampleHeaders={CTR_CSV_HEADERS}
+        sampleRows={CTR_CSV_SAMPLE}
+        validationRules={CTR_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 };

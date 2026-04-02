@@ -8,10 +8,12 @@ import {
   PlusOutlined, ToolOutlined, CheckCircleOutlined, ClockCircleOutlined,
   ExclamationCircleOutlined, ReloadOutlined, CheckOutlined, SettingOutlined,
   CalendarOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { moldPmApi, moldMasterApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -25,6 +27,19 @@ const STATUS_COLOR = {
 };
 
 const WO_STATUS_COLOR = { open: 'blue', in_progress: 'orange', completed: 'green', cancelled: 'default' };
+
+// ── CSV Upload config (for Mold PM Templates) ───────────────────────────────
+const MOLDPM_CSV_HEADERS = [
+  'Name', 'Trigger Type', 'Shot Interval', 'Time Interval (days)',
+  'Estimated Duration (min)', 'Description',
+];
+const MOLDPM_CSV_SAMPLE = [
+  { 'Name': 'Cavity Cleaning', 'Trigger Type': 'shot_count', 'Shot Interval': '50000',
+    'Time Interval (days)': '', 'Estimated Duration (min)': '120', 'Description': 'Full cavity surface cleaning' },
+];
+const MOLDPM_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
 
 export default function PMSchedulePage() {
   const [schedules, setSchedules]       = useState([]);
@@ -46,6 +61,7 @@ export default function PMSchedulePage() {
   const [moldsLoading,      setMoldsLoading]       = useState(false);
   // Preview the selected template's details inside the modal
   const [selectedTemplate,  setSelectedTemplate]   = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const loadMolds = useCallback(async () => {
     setMoldsLoading(true);
@@ -75,6 +91,30 @@ export default function PMSchedulePage() {
   }, []);
 
   useEffect(() => { loadSchedules(); loadTemplates(); }, [loadSchedules, loadTemplates]);
+
+  // ── CSV Import handler (imports Mold PM Templates) ──────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await moldPmApi.createTemplate({
+          name: row['Name'],
+          trigger_type: row['Trigger Type'] || 'shot_count',
+          shot_interval: row['Shot Interval'] ? parseInt(row['Shot Interval'], 10) : null,
+          time_interval_days: row['Time Interval (days)'] ? parseInt(row['Time Interval (days)'], 10) : null,
+          estimated_duration_min: row['Estimated Duration (min)'] ? parseInt(row['Estimated Duration (min)'], 10) : null,
+          description: row['Description'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    loadTemplates();
+    return { success, failed, errors };
+  };
 
   const overdueCount   = schedules.filter((s) => s.status === 'overdue').length;
   const pendingCount   = schedules.filter((s) => s.status === 'pending').length;
@@ -209,7 +249,15 @@ export default function PMSchedulePage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ToolOutlined /> PM Schedule</Title>
         <Space wrap>
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('p-m-schedule.csv', schedules, scheduleColumns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = templates.map((t) => ({
+              'Name': t.name || '', 'Trigger Type': t.trigger_type || '',
+              'Shot Interval': t.shot_interval ?? '', 'Time Interval (days)': t.time_interval_days ?? '',
+              'Estimated Duration (min)': t.estimated_duration_min ?? '', 'Description': t.description || '',
+            }));
+            downloadSampleCsv('mold-pm-templates.csv', MOLDPM_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={loadSchedules}>Refresh</Button>
           <Button icon={<PlusOutlined />} onClick={() => setTmplDrawer(true)}>New Template</Button>
           <Button type="primary" icon={<CalendarOutlined />} onClick={openScheduleModal}>Schedule PM</Button>
@@ -273,6 +321,17 @@ export default function PMSchedulePage() {
             ),
           },
         ]}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Mold PM Templates"
+        entityName="PM Template"
+        sampleHeaders={MOLDPM_CSV_HEADERS}
+        sampleRows={MOLDPM_CSV_SAMPLE}
+        validationRules={MOLDPM_VALIDATION_RULES}
       />
 
       {/* Schedule PM Modal */}

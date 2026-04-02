@@ -6,14 +6,25 @@ import {
 import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, EditOutlined,
   SearchOutlined, RightOutlined, BookOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { trainingTopicApi } from '../../../api/trainingTopic.api';
 import AppLayout            from '../../../components/AppLayout';
 import usePermissions       from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const TOPIC_CSV_HEADERS = ['Name', 'Category', 'Validity (Months)', 'Description', 'Active'];
+const TOPIC_CSV_SAMPLE = [
+  { 'Name': 'CNC Machine Operation', 'Category': 'Machine', 'Validity (Months)': '12', 'Description': 'Basic CNC operation training', 'Active': 'Yes' },
+];
+const TOPIC_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
 
 const CATEGORY_OPTIONS = [
   { value: 'Machine', label: 'Machine' }, { value: 'Process', label: 'Process' },
@@ -36,6 +47,7 @@ const TrainingTopicsPage = () => {
   const [drawerOpen,  setDrawerOpen]  = useState(false);
   const [editing,     setEditing]     = useState(null);
   const [search,      setSearch]      = useState('');
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [form] = Form.useForm();
 
   const fetchTopics = useCallback(async () => {
@@ -74,6 +86,30 @@ const TrainingTopicsPage = () => {
   const handleDelete = async (record) => {
     try { await trainingTopicApi.delete(record.id); message.success('Deleted'); fetchTopics(); }
     catch (err) { message.error(err?.message || 'Failed to delete'); }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const activeVal = (row['Active'] || 'yes').toLowerCase();
+        await trainingTopicApi.create({
+          name: row['Name'],
+          category: row['Category'] || 'Other',
+          validity_months: row['Validity (Months)'] ? parseInt(row['Validity (Months)'], 10) : 12,
+          description: row['Description'] || null,
+          is_active: activeVal === 'yes' || activeVal === 'true' || activeVal === '1',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchTopics();
+    return { success, failed, errors };
   };
 
   const filtered = search ? topics.filter((t) => t.name?.toLowerCase().includes(search.toLowerCase())) : topics;
@@ -140,7 +176,15 @@ const TrainingTopicsPage = () => {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
           <Input placeholder="Search topics…" prefix={<SearchOutlined />} value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 240, borderRadius: 8 }} allowClear />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('training-topics.csv', filtered, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = filtered.map((t) => ({
+              'Name': t.name || '', 'Category': t.category || '',
+              'Validity (Months)': t.validity_months ?? '', 'Description': t.description || '',
+              'Active': t.is_active ? 'Yes' : 'No',
+            }));
+            downloadSampleCsv('training-topics.csv', TOPIC_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchTopics}>Refresh</Button>
           {canWrite && <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>Add Topic</Button>}
         </div>
@@ -187,6 +231,17 @@ const TrainingTopicsPage = () => {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Training Topics"
+        entityName="Training Topic"
+        sampleHeaders={TOPIC_CSV_HEADERS}
+        sampleRows={TOPIC_CSV_SAMPLE}
+        validationRules={TOPIC_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 };

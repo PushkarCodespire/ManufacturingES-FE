@@ -15,7 +15,7 @@ import {
   AppstoreOutlined,
   MinusCircleOutlined,
   TagOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { costingApi } from '../../../api/costing.api';
 import { vendorApi }  from '../../../api/vendor.api';
@@ -23,6 +23,8 @@ import { itemApi }    from '../../../api/item.api';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -399,6 +401,24 @@ const EditPricingModal = ({ open, record, onClose, onSaved }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const COSTING_CSV_HEADERS = [
+  'Vendor Code', 'Item Code', 'Type', 'Price per Unit', 'Min Order Qty', 'Lead Time (days)',
+];
+
+const COSTING_CSV_SAMPLE = [
+  {
+    'Vendor Code': 'V-001', 'Item Code': 'ITM-001', 'Type': 'purchase',
+    'Price per Unit': '150.00', 'Min Order Qty': '100', 'Lead Time (days)': '7',
+  },
+];
+
+const COSTING_VALIDATION_RULES = [
+  { field: 'Vendor Code', required: true },
+  { field: 'Item Code', required: true },
+  { field: 'Price per Unit', required: true },
+];
+
 const CostingPage = () => {
   const { can }  = usePermissions();
   const canWrite = can('sites-costing-create_edit_delete');
@@ -412,6 +432,7 @@ const CostingPage = () => {
   const [filterVendorId, setFilterVendorId] = useState(null);
   const [addOpen,        setAddOpen]        = useState(false);
   const [editRecord,     setEditRecord]     = useState(null);
+  const [csvModalOpen,   setCsvModalOpen]   = useState(false);
 
   // Load vendors + items once
   useEffect(() => {
@@ -453,6 +474,37 @@ const CostingPage = () => {
         }
       },
     });
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const vendorCode = row['Vendor Code'] || '';
+        const itemCode = row['Item Code'] || '';
+        const vendor = vendors.find((v) => v.partner_code === vendorCode);
+        const item = items.find((i) => i.code === itemCode);
+        if (!vendor) throw new Error(`Vendor "${vendorCode}" not found`);
+        if (!item) throw new Error(`Item "${itemCode}" not found`);
+        await costingApi.create([{
+          vendor_id:      vendor.id,
+          item_id:        item.id,
+          type:           (row['Type'] || 'purchase').toLowerCase(),
+          price_per_unit: parseFloat(row['Price per Unit']) || 0,
+          min_order_qty:  row['Min Order Qty'] ? parseInt(row['Min Order Qty'], 10) : null,
+          lead_time_days: row['Lead Time (days)'] ? parseInt(row['Lead Time (days)'], 10) : null,
+        }]);
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Vendor Code']}-${row['Item Code']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchCostings();
+    return { success, failed, errors };
   };
 
   // ── Build table columns ────────────────────────────────────────────────────
@@ -701,8 +753,18 @@ const CostingPage = () => {
 
             <div style={{ flex: 1 }} />
 
-            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('costing.csv', displayData, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={fetchCostings} style={{ borderRadius: 8 }}>
+            <Button icon={<DownloadOutlined />} onClick={() => {
+              const csvRows = displayData.map((c) => ({
+                'Vendor Code': c.Vendor?.partner_code || '', 'Item Code': c.Item?.code || '',
+                'Type': c.type || '', 'Price per Unit': c.price_per_unit ?? '',
+                'Min Order Qty': c.min_order_qty ?? '', 'Lead Time (days)': c.lead_time_days ?? '',
+              }));
+              downloadSampleCsv('costing.csv', COSTING_CSV_HEADERS, csvRows);
+            }}>Export CSV</Button>
+            {canWrite && (
+              <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
+            )}
+            <Button icon={<ReloadOutlined />} onClick={fetchCostings} style={{ borderRadius: 8 }}>
               Refresh
             </Button>
 
@@ -776,6 +838,17 @@ const CostingPage = () => {
         record={editRecord}
         onClose={() => setEditRecord(null)}
         onSaved={fetchCostings}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Costing"
+        entityName="Pricing"
+        sampleHeaders={COSTING_CSV_HEADERS}
+        sampleRows={COSTING_CSV_SAMPLE}
+        validationRules={COSTING_VALIDATION_RULES}
       />
     </AppLayout>
   );

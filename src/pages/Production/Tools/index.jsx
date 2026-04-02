@@ -7,11 +7,14 @@ import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, ArrowLeftOutlined,
   SearchOutlined, RightOutlined, EyeOutlined,
   ExclamationCircleOutlined, InfoCircleOutlined, ClockCircleOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+  DownloadOutlined, UploadOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { toolApi }          from '../../../api/tool.api';
 import { cycleTimeRuleApi } from '../../../api/cycleTimeRule.api';
 import AppLayout            from '../../../components/AppLayout';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 import usePermissions       from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
 
@@ -21,12 +24,25 @@ const fmtDateTime = (iso) => (iso ? dayjs(iso).format('DD MMM YYYY HH:mm') : '�
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
+// ── CSV Upload config ────────────────────────────────────────���───────────────
+const TOOL_CSV_HEADERS = ['Name', 'Code', 'Multiplier'];
+
+const TOOL_CSV_SAMPLE = [
+  { 'Name': 'Drill Bit 10mm', 'Code': '', 'Multiplier': '1.5' },
+  { 'Name': 'End Mill 6mm', 'Code': '', 'Multiplier': '2' },
+];
+
+const TOOL_CSV_VALIDATION = [
+  { field: 'Name', required: true },
+  { field: 'Multiplier', validate: (v) => (v && isNaN(parseFloat(v)) ? '"Multiplier" must be a number' : null) },
+];
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
 const ListView = ({
   tools, loading, search, onSearchChange, onRefresh,
-  onNew, onDetail, onDelete, canWrite,
+  onNew, onDetail, onDelete, canWrite, onUploadCsv,
 }) => {
   const columns = [
     {
@@ -155,8 +171,9 @@ const ListView = ({
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('tools.csv', tools, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
+          <Button icon={<DownloadOutlined />} onClick={() => downloadSampleCsv('tools.csv', TOOL_CSV_HEADERS, tools.map((r) => ({ 'Name': r.name, 'Code': r.code || '', 'Multiplier': r.multiplier != null ? String(r.multiplier) : '' })))}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>}
+          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
           {canWrite && (
@@ -823,6 +840,7 @@ const ToolsPage = () => {
   const [loading, setLoading]           = useState(false);
   const [search, setSearch]             = useState('');
   const [selectedTool, setSelectedTool] = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const fetchTools = useCallback(async () => {
     setLoading(true);
@@ -868,6 +886,27 @@ const ToolsPage = () => {
     });
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await toolApi.create({
+          name: row['Name']?.trim(),
+          code: row['Code']?.trim() || undefined,
+          multiplier: row['Multiplier'] ? parseFloat(row['Multiplier']) : undefined,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row ${row._rowNum}: ${err.message}`);
+      }
+    }
+    fetchTools();
+    return { success, failed, errors };
+  };
+
   const renderContent = () => {
     if (view === 'add' || view === 'detail') {
       return (
@@ -890,11 +929,26 @@ const ToolsPage = () => {
         onDetail={handleDetail}
         onDelete={handleDelete}
         canWrite={canWrite}
+        onUploadCsv={() => setCsvModalOpen(true)}
       />
     );
   };
 
-  return <AppLayout>{renderContent()}</AppLayout>;
+  return (
+    <AppLayout>
+      {renderContent()}
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Tools"
+        entityName="Tool"
+        sampleHeaders={TOOL_CSV_HEADERS}
+        sampleRows={TOOL_CSV_SAMPLE}
+        validationRules={TOOL_CSV_VALIDATION}
+      />
+    </AppLayout>
+  );
 };
 
 export default ToolsPage;

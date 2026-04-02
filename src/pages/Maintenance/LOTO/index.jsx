@@ -8,15 +8,29 @@ import {
   PlusOutlined, ReloadOutlined, LockOutlined, UnlockOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined, SafetyOutlined,
   BulbOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { lotoApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import { userApi } from '../../../api/user.api';
 import AppLayout from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+// ── CSV Upload config (for LOTO Procedures) ─────────────────────────────────
+const LOTO_CSV_HEADERS = [
+  'Equipment Code', 'Procedure Name', 'Hazard Type',
+];
+const LOTO_CSV_SAMPLE = [
+  { 'Equipment Code': 'EQP-001', 'Procedure Name': 'Main Panel Isolation',
+    'Hazard Type': 'Electrical' },
+];
+const LOTO_VALIDATION_RULES = [
+  { field: 'Procedure Name', required: true },
+];
 
 const EXEC_COLOR = {
   initiated: 'blue', locked: 'orange', completed: 'green', cancelled: 'default',
@@ -42,6 +56,7 @@ export default function LOTOPage() {
   const [permitForm] = Form.useForm();
   const [lockForm] = Form.useForm();
   const [lotoSuggestInfo, setLotoSuggestInfo] = useState(null); // { procedure_name, id } auto-loaded
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -126,6 +141,30 @@ export default function LOTOPage() {
     } catch (err) { message.error(err?.message ?? 'Failed to create permit'); }
   };
 
+  // ── CSV Import handler (imports LOTO Procedures) ────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const eqCode = row['Equipment Code'] || '';
+        const eq = equipment.find((e) => e.equipment_code?.toLowerCase() === eqCode.toLowerCase());
+        if (!eq) throw new Error(`Equipment "${eqCode}" not found`);
+        await lotoApi.createProcedure({
+          equipment_id: eq.id,
+          procedure_name: row['Procedure Name'],
+          hazard_type: row['Hazard Type'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Procedure Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    loadAll();
+    return { success, failed, errors };
+  };
+
   const activeExecs   = executions.filter((e) => e.status === 'locked').length;
   const initiatedExecs= executions.filter((e) => e.status === 'initiated').length;
   const activePermits = permits.filter((p) => p.status === 'active').length;
@@ -192,7 +231,15 @@ export default function LOTOPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><LockOutlined /> LOTO & Safety</Title>
         <Space wrap>
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('l-o-t-o.csv', executions, execColumns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = procedures.map((p) => ({
+              'Equipment Code': p.Equipment?.equipment_code || '',
+              'Procedure Name': p.procedure_name || '',
+              'Hazard Type': p.hazard_type || '',
+            }));
+            downloadSampleCsv('loto-procedures.csv', LOTO_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={loadAll}>Refresh</Button>
           <Button icon={<PlusOutlined />} onClick={() => setProcModal(true)}>New Procedure</Button>
           <Button icon={<PlusOutlined />} onClick={() => setPermitModal(true)}>Issue Permit</Button>
@@ -257,6 +304,17 @@ export default function LOTOPage() {
             children: <Table columns={permitColumns} dataSource={permits} rowKey="id" scroll={{ x: 800 }} pagination={{ pageSize: 15 }} />,
           },
         ]}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload LOTO Procedures"
+        entityName="LOTO Procedure"
+        sampleHeaders={LOTO_CSV_HEADERS}
+        sampleRows={LOTO_CSV_SAMPLE}
+        validationRules={LOTO_VALIDATION_RULES}
       />
 
       {/* LOTO Execution Drawer */}

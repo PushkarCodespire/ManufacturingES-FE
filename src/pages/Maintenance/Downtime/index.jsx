@@ -8,14 +8,29 @@ import {
   PlusOutlined, ReloadOutlined, ClockCircleOutlined,
   BarChartOutlined, ExclamationCircleOutlined, BulbOutlined,
   FireOutlined, CalendarOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { downtimeApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const DOWNTIME_CSV_HEADERS = [
+  'Equipment Code', 'Type', 'Reason', 'Start Time', 'End Time', 'Notes',
+];
+const DOWNTIME_CSV_SAMPLE = [
+  { 'Equipment Code': 'EQP-001', 'Type': 'unplanned', 'Reason': 'Bearing failure',
+    'Start Time': '2025-01-15T08:00', 'End Time': '2025-01-15T10:30', 'Notes': 'Replaced bearing' },
+];
+const DOWNTIME_VALIDATION_RULES = [
+  { field: 'Equipment Code', required: true },
+  { field: 'Start Time', required: true },
+];
 
 const TYPE_COLOR = { planned: 'blue', unplanned: 'red' };
 const REASON_CATEGORY_COLOR = {
@@ -37,6 +52,7 @@ export default function DowntimePage() {
   const [patterns, setPatterns]       = useState(null);
   const [patternLoading, setPatternLoading] = useState(false);
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const loadLog = useCallback(async (params = {}) => {
     setLoading(true);
@@ -99,6 +115,35 @@ export default function DowntimePage() {
     } catch (err) { message.error(err?.message ?? 'Failed to close downtime'); }
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────��───────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const eqCode = row['Equipment Code'] || '';
+        const eq = equipment.find((e) => e.equipment_code?.toLowerCase() === eqCode.toLowerCase());
+        if (!eq) throw new Error(`Equipment "${eqCode}" not found`);
+        const reasonName = row['Reason'] || '';
+        const reason = reasonName ? reasons.find((r) => r.name?.toLowerCase() === reasonName.toLowerCase()) : null;
+        await downtimeApi.logManual({
+          equipment_id: eq.id,
+          downtime_type: row['Type'] || 'unplanned',
+          reason_id: reason?.id || null,
+          start_time: row['Start Time'] || null,
+          end_time: row['End Time'] || null,
+          notes: row['Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Equipment Code']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    loadLog();
+    return { success, failed, errors };
+  };
+
   const plannedMin   = logs.filter((l) => l.downtime_type === 'planned').reduce((s, l) => s + (l.duration_minutes || 0), 0);
   const unplannedMin = logs.filter((l) => l.downtime_type === 'unplanned').reduce((s, l) => s + (l.duration_minutes || 0), 0);
   const openLogs     = logs.filter((l) => !l.end_time).length;
@@ -153,7 +198,16 @@ export default function DowntimePage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ClockCircleOutlined /> Downtime Log</Title>
         <Space wrap>
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('downtime.csv', logs, logColumns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = logs.map((l) => ({
+              'Equipment Code': l.Equipment?.equipment_code || '',
+              'Type': l.downtime_type || '', 'Reason': l.Reason?.name || '',
+              'Start Time': l.start_time || '', 'End Time': l.end_time || '',
+              'Notes': l.notes || '',
+            }));
+            downloadSampleCsv('downtime.csv', DOWNTIME_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={() => { loadLog(); loadPareto(); }}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setLogModal(true)}>Log Downtime</Button>
         </Space>
@@ -365,6 +419,17 @@ export default function DowntimePage() {
           )}
         </div>
       )}
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Downtime Logs"
+        entityName="Downtime Log"
+        sampleHeaders={DOWNTIME_CSV_HEADERS}
+        sampleRows={DOWNTIME_CSV_SAMPLE}
+        validationRules={DOWNTIME_VALIDATION_RULES}
+      />
 
       {/* Log Downtime Modal */}
       <Modal title="Log Downtime" open={logModal} onCancel={() => setLogModal(false)} footer={null} width={520}>

@@ -11,13 +11,15 @@ import {
   ArrowLeftOutlined,
   RightOutlined,
   InboxOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { packageApi } from '../../../../api/package.api';
 import { tagApi }     from '../../../../api/tag.api';
 import AppLayout      from '../../../../components/AppLayout';
 import usePermissions from '../../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../../utils/exportCsv';
+import CsvUploadModal from '../../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -507,7 +509,7 @@ const PackageBuilder = ({ pkg, onBack, onSaved, canWrite }) => {
 //  PACKAGES LIST — Configuration-theme table view
 // ══════════════════════════════════════════════════════════════════════════════
 const PackagesList = ({
-  packages, loading, search, onSearchChange, onRefresh, onNew, onEdit, onDelete, canWrite,
+  packages, loading, search, onSearchChange, onRefresh, onNew, onEdit, onDelete, canWrite, onUploadCsv,
 }) => {
   const columns = [
     {
@@ -693,7 +695,18 @@ const PackagesList = ({
           allowClear
         />
         <div style={{ flex: 1 }} />
-        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('packages.csv', packingSizes, psColumns)}>Export CSV</Button>
+        <Button icon={<DownloadOutlined />} onClick={() => {
+          const csvRows = packages.map((p) => ({
+            'Name': p.name || '', 'Type of Package': p.type_of_package || '',
+            'Type of Input': p.type_of_input || '',
+            'Tare Weight': p.tare_weight ?? '', 'Pack Length': p.pack_length ?? '',
+            'Pack Width': p.pack_width ?? '', 'Pack Height': p.pack_height ?? '',
+          }));
+          downloadSampleCsv('packages.csv', PACKAGE_CSV_HEADERS, csvRows);
+        }}>Export CSV</Button>
+        {canWrite && (
+          <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>
+        )}
         <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
           Refresh
         </Button>
@@ -754,6 +767,23 @@ const PackagesList = ({
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ──────────────────────────────────────────────���─────────
+const PACKAGE_CSV_HEADERS = [
+  'Name', 'Type of Package', 'Type of Input',
+  'Tare Weight', 'Pack Length', 'Pack Width', 'Pack Height',
+];
+
+const PACKAGE_CSV_SAMPLE = [
+  {
+    'Name': 'Standard Box', 'Type of Package': 'Box', 'Type of Input': 'Manual',
+    'Tare Weight': '0.5', 'Pack Length': '12', 'Pack Width': '10', 'Pack Height': '8',
+  },
+];
+
+const PACKAGE_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
+
 const PackagesPage = () => {
   const { can }  = usePermissions();
   const canWrite = can('inventory-packages-create_edit_delete');
@@ -763,6 +793,7 @@ const PackagesPage = () => {
   const [search,    setSearch]    = useState('');
   const [view,      setView]      = useState('list');   // 'list' | 'create' | 'edit'
   const [selected,  setSelected]  = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchPackages = useCallback(async () => {
@@ -799,6 +830,32 @@ const PackagesPage = () => {
   };
 
   const handleSaved = () => { setView('list'); setSelected(null); fetchPackages(); };
+
+  // ─��� CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await packageApi.create({
+          name:            row['Name'] || '',
+          type_of_package: row['Type of Package'] || null,
+          type_of_input:   row['Type of Input'] || null,
+          tare_weight:     row['Tare Weight'] ? parseFloat(row['Tare Weight']) : null,
+          pack_length:     row['Pack Length'] ? parseFloat(row['Pack Length']) : null,
+          pack_width:      row['Pack Width'] ? parseFloat(row['Pack Width']) : null,
+          pack_height:     row['Pack Height'] ? parseFloat(row['Pack Height']) : null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchPackages();
+    return { success, failed, errors };
+  };
 
   // ── Client-side search ─────────────────────────────────────────────────────
   const filtered = search
@@ -889,6 +946,18 @@ const PackagesPage = () => {
         onEdit={(r) => { setSelected(r); setView('edit'); }}
         onDelete={handleDelete}
         canWrite={canWrite}
+        onUploadCsv={() => setCsvModalOpen(true)}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Packages"
+        entityName="Package"
+        sampleHeaders={PACKAGE_CSV_HEADERS}
+        sampleRows={PACKAGE_CSV_SAMPLE}
+        validationRules={PACKAGE_VALIDATION_RULES}
       />
     </AppLayout>
   );

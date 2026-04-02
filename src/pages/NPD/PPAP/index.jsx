@@ -7,12 +7,14 @@ import {
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
   DeleteOutlined, CheckOutlined, FileDoneOutlined, CloseOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { ppapApi }    from '../../../api/quality.api';
 import { itemApi }    from '../../../api/item.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -38,6 +40,15 @@ const EL_STATUS_OPTS = [
   { value: 'na',          label: 'N/A'          },
 ];
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const PPAP_CSV_HEADERS = ['Item Name', 'Submission Level', 'Revision', 'Customer', 'Notes'];
+const PPAP_CSV_SAMPLE = [
+  { 'Item Name': 'Housing Cover', 'Submission Level': '3', 'Revision': 'A', 'Customer': 'ABC Motors', 'Notes': '' },
+];
+const PPAP_VALIDATION_RULES = [
+  { field: 'Item Name', required: true },
+];
+
 export default function PPAPPage() {
   const { can }  = usePermissions();
   const canWrite = can('npd-ppap-create_edit_delete');
@@ -51,6 +62,7 @@ export default function PPAPPage() {
   const [detailOpen,  setDetailOpen]  = useState(false);
   const [saving,      setSaving]      = useState(false);
   const [actionLoad,  setActionLoad]  = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [createForm]                  = Form.useForm();
 
   const fetchAll = useCallback(async () => {
@@ -146,6 +158,31 @@ export default function PPAPPage() {
       message.success('PPAP deleted');
       fetchAll();
     } catch (err) { message.error(err?.message || 'Delete failed'); }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const item = row['Item Name'] ? items.find((i) => i.name?.toLowerCase() === row['Item Name']?.toLowerCase()) : null;
+        if (!item) throw new Error(`Item "${row['Item Name']}" not found`);
+        await ppapApi.create({
+          item_id: item.id,
+          submission_level: row['Submission Level'] ? parseInt(row['Submission Level'], 10) : 3,
+          revision: row['Revision'] || null,
+          customer: row['Customer'] || null,
+          notes: row['Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchAll();
+    return { success, failed, errors };
   };
 
   // ── Table columns ───────────────────────────────────────────────────────────
@@ -310,7 +347,15 @@ export default function PPAPPage() {
             value={search} onChange={(e) => setSearch(e.target.value)}
             style={{ width: 280, borderRadius: 8 }} allowClear />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('p-p-a-p.csv', filtered, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = filtered.map((r) => ({
+              'Item Name': r.Item?.name || '', 'Submission Level': r.submission_level ?? '',
+              'Revision': r.revision || '', 'Customer': r.customer || '',
+              'Notes': r.notes || '',
+            }));
+            downloadSampleCsv('ppap.csv', PPAP_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { createForm.resetFields(); setCreateOpen(true); }}>
@@ -370,6 +415,17 @@ export default function PPAPPage() {
       >
         {renderElements()}
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload PPAP Submissions"
+        entityName="PPAP"
+        sampleHeaders={PPAP_CSV_HEADERS}
+        sampleRows={PPAP_CSV_SAMPLE}
+        validationRules={PPAP_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 }

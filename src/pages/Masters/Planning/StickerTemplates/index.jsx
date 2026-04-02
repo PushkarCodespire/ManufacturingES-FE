@@ -18,7 +18,7 @@ import {
   HistoryOutlined,
   EyeOutlined,
   CopyOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { stickerTemplateApi } from '../../../../api/stickerTemplate.api';
 import { machineApi }         from '../../../../api/machine.api';
@@ -26,6 +26,8 @@ import { vendorApi }          from '../../../../api/vendor.api';
 import AppLayout              from '../../../../components/AppLayout';
 import usePermissions         from '../../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../../utils/exportCsv';
+import CsvUploadModal from '../../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -820,6 +822,20 @@ const PrintPreviewModal = ({ record, open, onClose }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const STICKER_CSV_HEADERS = ['Name', 'Template For', 'Sticker Type', 'Primary Key', 'Secondary Key', 'Separator', 'Format'];
+
+const STICKER_CSV_SAMPLE = [
+  {
+    'Name': 'Machine QR Label', 'Template For': 'Machine', 'Sticker Type': 'QR Code',
+    'Primary Key': 'Machine Code', 'Secondary Key': 'Machine Name', 'Separator': '/', 'Format': 'Basic',
+  },
+];
+
+const STICKER_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
+
 const StickerTemplatesPage = () => {
   const { can }  = usePermissions();
   const canWrite = can('planning-sticker-templates-create_edit_delete');
@@ -830,6 +846,7 @@ const StickerTemplatesPage = () => {
 
   const [modal,   setModal]   = useState({ open: false, record: null });
   const [preview, setPreview] = useState({ open: false, record: null });
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchTemplates = useCallback(async () => {
@@ -863,6 +880,32 @@ const StickerTemplatesPage = () => {
         }
       },
     });
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await stickerTemplateApi.create({
+          name:          row['Name'] || '',
+          template_for:  row['Template For'] || 'Machine',
+          sticker_type:  row['Sticker Type'] || 'QR Code',
+          primary_key:   row['Primary Key'] || null,
+          secondary_key: row['Secondary Key'] || null,
+          separator:     row['Separator'] || '/',
+          format:        row['Format'] || 'Basic',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchTemplates();
+    return { success, failed, errors };
   };
 
   // ── Derived stats ─────────────────────────────────────────────────────────
@@ -1057,8 +1100,19 @@ const StickerTemplatesPage = () => {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('sticker-templates.csv', templates, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={fetchTemplates} style={{ borderRadius: 8 }}>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = templates.map((t) => ({
+              'Name': t.name || '', 'Template For': t.template_for || '',
+              'Sticker Type': t.sticker_type || '', 'Primary Key': t.primary_key || '',
+              'Secondary Key': t.secondary_key || '', 'Separator': t.separator || '',
+              'Format': t.format || '',
+            }));
+            downloadSampleCsv('sticker-templates.csv', STICKER_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && (
+            <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={fetchTemplates} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
           {canWrite && (
@@ -1120,6 +1174,17 @@ const StickerTemplatesPage = () => {
         record={preview.record}
         open={preview.open}
         onClose={() => setPreview({ open: false, record: null })}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Sticker Templates"
+        entityName="Template"
+        sampleHeaders={STICKER_CSV_HEADERS}
+        sampleRows={STICKER_CSV_SAMPLE}
+        validationRules={STICKER_VALIDATION_RULES}
       />
     </AppLayout>
   );

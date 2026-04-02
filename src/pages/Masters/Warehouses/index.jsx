@@ -15,13 +15,15 @@ import {
   SearchOutlined,
   RightOutlined,
   SettingOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { warehouseApi } from '../../../api/warehouse.api';
 import { vendorApi }    from '../../../api/vendor.api';
 import AppLayout        from '../../../components/AppLayout';
 import usePermissions   from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 
@@ -34,7 +36,7 @@ const fmtDateTime = (iso) => {
 // ══════════════════════════════════════════════════════════════════════════════
 //  LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-const ListView = ({ warehouses, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete, canWrite }) => {
+const ListView = ({ warehouses, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete, canWrite, onUploadCsv }) => {
   const totalActive = warehouses.filter((w) => w.is_active).length;
 
   const columns = [
@@ -179,8 +181,16 @@ const ListView = ({ warehouses, loading, search, onSearchChange, onRefresh, onNe
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('warehouses.csv', warehouses, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = warehouses.map((w) => ({
+              'Name': w.name || '', 'Code': w.code || '',
+            }));
+            downloadSampleCsv('warehouses.csv', WAREHOUSE_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && (
+            <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
           {canWrite && (
@@ -994,6 +1004,18 @@ const DetailView = ({ warehouse, onBack, onSaved, canWrite }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const WAREHOUSE_CSV_HEADERS = ['Name', 'Code'];
+
+const WAREHOUSE_CSV_SAMPLE = [
+  { 'Name': 'Main Warehouse', 'Code': 'WH-MAIN' },
+  { 'Name': 'Raw Material Store', 'Code': 'WH-RM' },
+];
+
+const WAREHOUSE_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
+
 const WarehousesPage = () => {
   const [warehouses,       setWarehouses]       = useState([]);
   const [loading,          setLoading]          = useState(false);
@@ -1002,6 +1024,7 @@ const WarehousesPage = () => {
   const [search,           setSearch]           = useState('');
   const { can }  = usePermissions();
   const canWrite = can('inventory-warehouses-create_edit_delete');
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const fetchWarehouses = useCallback(async () => {
     setLoading(true);
@@ -1056,6 +1079,27 @@ const WarehousesPage = () => {
     fetchWarehouses();
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await warehouseApi.create({
+          name: row['Name'] || '',
+          code: row['Code'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchWarehouses();
+    return { success, failed, errors };
+  };
+
   const handleBack = () => {
     setView('list');
     setSelectedWarehouse(null);
@@ -1074,8 +1118,20 @@ const WarehousesPage = () => {
           onDetail={handleDetail}
           onDelete={handleDelete}
           canWrite={canWrite}
+          onUploadCsv={() => setCsvModalOpen(true)}
         />
       )}
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Warehouses"
+        entityName="Warehouse"
+        sampleHeaders={WAREHOUSE_CSV_HEADERS}
+        sampleRows={WAREHOUSE_CSV_SAMPLE}
+        validationRules={WAREHOUSE_VALIDATION_RULES}
+      />
 
       {view === 'add' && canWrite && (
         <AddWarehouseView

@@ -7,7 +7,7 @@ import {
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
   EditOutlined, DeleteOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
@@ -15,6 +15,8 @@ import usePermissions from '../../../hooks/usePermissions';
 import { capaApi }    from '../../../api/quality.api';
 import { userApi }    from '../../../api/user.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -34,6 +36,16 @@ const SOURCE_OPTS = [
   { value: 'other',               label: 'Other'                },
 ];
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const CAPA_CSV_HEADERS = ['Source Type', 'Problem Title', 'Problem Description', 'Champion Name', 'Target Date'];
+const CAPA_CSV_SAMPLE = [
+  { 'Source Type': 'customer_complaint', 'Problem Title': 'Surface finish defect on housing',
+    'Problem Description': 'Multiple units showing rough surface', 'Champion Name': 'Amit Sharma', 'Target Date': '2025-07-15' },
+];
+const CAPA_VALIDATION_RULES = [
+  { field: 'Problem Title', required: true },
+];
+
 export default function CAPAPage() {
   const { can }  = usePermissions();
   const canWrite = can('quality-capa-create_edit_delete');
@@ -46,6 +58,7 @@ export default function CAPAPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing,    setEditing]    = useState(null);
   const [saving,     setSaving]     = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [form]                      = Form.useForm();
 
   const fetchAll = useCallback(async () => {
@@ -113,6 +126,30 @@ export default function CAPAPage() {
       message.success('CAPA deleted');
       fetchAll();
     } catch (err) { message.error(err?.message || 'Delete failed'); }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const champion = row['Champion Name'] ? users.find((u) => u.name?.toLowerCase() === row['Champion Name']?.toLowerCase()) : null;
+        await capaApi.create({
+          source_type: row['Source Type'] || 'other',
+          problem_title: row['Problem Title'],
+          problem_desc: row['Problem Description'] || null,
+          champion_id: champion?.id || null,
+          target_date: row['Target Date'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Problem Title']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchAll();
+    return { success, failed, errors };
   };
 
   // ── Table columns ─────────────────────────────────────────────────────────
@@ -193,7 +230,15 @@ export default function CAPAPage() {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('c-a-p-a.csv', filtered, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = filtered.map((r) => ({
+              'Source Type': r.source_type || '', 'Problem Title': r.problem_title || '',
+              'Problem Description': r.problem_desc || '', 'Champion Name': r.Champion?.name || '',
+              'Target Date': r.target_date || '',
+            }));
+            downloadSampleCsv('capa.csv', CAPA_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New CAPA</Button>
@@ -257,6 +302,17 @@ export default function CAPAPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload CAPAs"
+        entityName="CAPA"
+        sampleHeaders={CAPA_CSV_HEADERS}
+        sampleRows={CAPA_CSV_SAMPLE}
+        validationRules={CAPA_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 }

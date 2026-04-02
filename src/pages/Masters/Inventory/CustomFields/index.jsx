@@ -14,12 +14,14 @@ import {
   UpCircleOutlined,
   DownCircleOutlined,
   FormOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { customFieldApi } from '../../../../api/customField.api';
 import AppLayout           from '../../../../components/AppLayout';
 import usePermissions      from '../../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../../utils/exportCsv';
+import CsvUploadModal from '../../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -391,7 +393,7 @@ const AddEditView = ({ group, usedEvents, onBack, onSaved, canWrite }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 //  LIST VIEW  (matches Configuration theme + screenshot 1)
 // ══════════════════════════════════════════════════════════════════════════════
-const ListView = ({ groups, loading, search, onSearchChange, onRefresh, onNew, onEdit, onDelete, canWrite }) => {
+const ListView = ({ groups, loading, search, onSearchChange, onRefresh, onNew, onEdit, onDelete, canWrite, onUploadCsv }) => {
   const columns = [
     {
       title: 'Event',
@@ -507,7 +509,16 @@ const ListView = ({ groups, loading, search, onSearchChange, onRefresh, onNew, o
           allowClear
         />
         <div style={{ flex: 1 }} />
-        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('custom-fields.csv', groups, columns)}>Export CSV</Button>
+        <Button icon={<DownloadOutlined />} onClick={() => {
+          const csvRows = groups.map((g) => ({
+            'Event': g.event || '', 'Module': g.field_module || '',
+            'Fields': (g.fields ?? []).map((f) => f.name).filter(Boolean).join(', '),
+          }));
+          downloadSampleCsv('custom-fields.csv', CUSTOM_FIELD_CSV_HEADERS, csvRows);
+        }}>Export CSV</Button>
+        {canWrite && (
+          <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>
+        )}
         <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
           Refresh
         </Button>
@@ -557,6 +568,17 @@ const ListView = ({ groups, loading, search, onSearchChange, onRefresh, onNew, o
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ────────────────────���───────────────────────────────────
+const CUSTOM_FIELD_CSV_HEADERS = ['Event', 'Module', 'Fields'];
+
+const CUSTOM_FIELD_CSV_SAMPLE = [
+  { 'Event': 'Sales Order – Header Custom Fields', 'Module': 'Sales', 'Fields': 'PO Reference, Delivery Priority' },
+];
+
+const CUSTOM_FIELD_VALIDATION_RULES = [
+  { field: 'Event', required: true },
+];
+
 const CustomFieldsPage = () => {
   const { can }  = usePermissions();
   const canWrite = can('inventory-custom-fields-create_edit_delete');
@@ -566,6 +588,7 @@ const CustomFieldsPage = () => {
   const [search,   setSearch]   = useState('');
   const [view,     setView]     = useState('list');   // 'list' | 'add' | 'edit'
   const [selected, setSelected] = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // Fetch
   const fetchGroups = useCallback(async () => {
@@ -610,6 +633,36 @@ const CustomFieldsPage = () => {
   };
 
   const handleSaved = () => { setView('list'); setSelected(null); fetchGroups(); };
+
+  // ── CSV Import handler ─────────────────────��─────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const fieldNames = (row['Fields'] || '').split(',').map((f) => f.trim()).filter(Boolean);
+        const fields = fieldNames.map((name) => ({
+          name,
+          type: 'text',
+          show_in_form: true,
+          mandatory: false,
+          show_in_table: false,
+        }));
+        await customFieldApi.create({
+          event:        row['Event'] || '',
+          field_module: row['Module'] || null,
+          fields,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Event']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchGroups();
+    return { success, failed, errors };
+  };
 
   // Events already taken (to exclude from "add" dropdown)
   const usedEvents = groups.map((g) => g.event);
@@ -692,6 +745,18 @@ const CustomFieldsPage = () => {
         onEdit={(r) => { setSelected(r); setView('edit'); }}
         onDelete={handleDelete}
         canWrite={canWrite}
+        onUploadCsv={() => setCsvModalOpen(true)}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Custom Fields"
+        entityName="Field Group"
+        sampleHeaders={CUSTOM_FIELD_CSV_HEADERS}
+        sampleRows={CUSTOM_FIELD_CSV_SAMPLE}
+        validationRules={CUSTOM_FIELD_VALIDATION_RULES}
       />
     </AppLayout>
   );

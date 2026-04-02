@@ -11,10 +11,14 @@ import {
   ArrowLeftOutlined,
   RightOutlined,
   FormOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+  DownloadOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { productionFormApi } from '../../../api/productionForm.api';
 import AppLayout        from '../../../components/AppLayout';
+import CsvUploadModal   from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 import usePermissions   from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
 
@@ -67,6 +71,18 @@ const makeDerivedField = () => ({
   is_derived: true,
   ctq:        false,
 });
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const PF_CSV_HEADERS = ['Title', 'Group By'];
+
+const PF_CSV_SAMPLE = [
+  { 'Title': 'Daily Production Report', 'Group By': 'Item' },
+  { 'Title': 'Quality Check Form', 'Group By': 'None' },
+];
+
+const PF_CSV_VALIDATION = [
+  { field: 'Title', required: true },
+];
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  PRODUCTION FORM BUILDER — create / edit view
@@ -388,7 +404,7 @@ const ProductionFormBuilder = ({ form, onBack, onSaved, canWrite }) => {
 //  PRODUCTION FORMS LIST — Configuration-theme table view
 // ══════════════════════════════════════════════════════════════════════════════
 const ProductionFormsList = ({
-  forms, loading, search, onSearchChange, onRefresh, onNew, onEdit, onDelete, canWrite,
+  forms, loading, search, onSearchChange, onRefresh, onNew, onEdit, onDelete, canWrite, onUploadCsv,
 }) => {
   const columns = [
     {
@@ -519,7 +535,8 @@ const ProductionFormsList = ({
           allowClear
         />
         <div style={{ flex: 1 }} />
-        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('production-forms.csv', fields, columns)}>Export CSV</Button>
+        <Button icon={<DownloadOutlined />} onClick={() => downloadSampleCsv('production-forms.csv', PF_CSV_HEADERS, forms.map((r) => ({ 'Title': r.title, 'Group By': r.group_by || 'None' })))}>Export CSV</Button>
+        {canWrite && <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
           Refresh
         </Button>
@@ -589,6 +606,7 @@ const ProductionFormsPage = () => {
   const [search,   setSearch]   = useState('');
   const [view,     setView]     = useState('list');   // 'list' | 'create' | 'edit'
   const [selected, setSelected] = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchForms = useCallback(async () => {
@@ -622,6 +640,28 @@ const ProductionFormsPage = () => {
         }
       },
     });
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const groupBy = row['Group By']?.trim();
+        await productionFormApi.create({
+          title: row['Title']?.trim(),
+          group_by: (!groupBy || groupBy === 'None') ? null : groupBy,
+          fields: [],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row ${row._rowNum}: ${err.message}`);
+      }
+    }
+    fetchForms();
+    return { success, failed, errors };
   };
 
   const handleSaved = () => { setView('list'); setSelected(null); fetchForms(); };
@@ -717,6 +757,18 @@ const ProductionFormsPage = () => {
         onEdit={(r) => { setSelected(r); setView('edit'); }}
         onDelete={handleDelete}
         canWrite={canWrite}
+        onUploadCsv={() => setCsvModalOpen(true)}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Production Forms"
+        entityName="Production Form"
+        sampleHeaders={PF_CSV_HEADERS}
+        sampleRows={PF_CSV_SAMPLE}
+        validationRules={PF_CSV_VALIDATION}
       />
     </AppLayout>
   );

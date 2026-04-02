@@ -8,7 +8,7 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   EditOutlined, DeleteOutlined, RightOutlined,
   PlusCircleOutlined, MinusCircleOutlined, CheckCircleOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout              from '../../../components/AppLayout';
 import ResponsiveTable        from '../../../components/ResponsiveTable';
@@ -17,6 +17,8 @@ import { stockAdjustmentApi } from '../../../api/store.api';
 import { itemApi }            from '../../../api/item.api';
 import { warehouseApi }       from '../../../api/warehouse.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 
@@ -52,6 +54,17 @@ const computeDiff = (row) => ({
   qty_diff: (parseFloat(row.qty_actual) || 0) - (parseFloat(row.qty_book) || 0),
 });
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const STOCK_ADJ_CSV_HEADERS = ['Warehouse Name', 'Adjustment Date', 'Adjustment Type', 'Item Name', 'Book Qty', 'Actual Qty', 'Notes'];
+const STOCK_ADJ_CSV_SAMPLE = [
+  { 'Warehouse Name': 'Main Store', 'Adjustment Date': '2025-06-10', 'Adjustment Type': 'count',
+    'Item Name': 'Housing Cover', 'Book Qty': '100', 'Actual Qty': '95', 'Notes': 'Physical count mismatch' },
+];
+const STOCK_ADJ_VALIDATION_RULES = [
+  { field: 'Warehouse Name', required: true },
+  { field: 'Item Name', required: true },
+];
+
 export default function StockAdjustmentPage() {
   const { can } = usePermissions();
   const canWrite = can('store-inventory-stock_adjustment-create_edit_delete');
@@ -62,6 +75,8 @@ export default function StockAdjustmentPage() {
   const [loading,      setLoading]      = useState(false);
   const [search,       setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState(null);
+
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -200,6 +215,38 @@ export default function StockAdjustmentPage() {
     }));
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    // Group rows by warehouse + date + type for batch creation
+    for (const row of rows) {
+      try {
+        const warehouse = row['Warehouse Name'] ? warehouses.find((w) => w.name?.toLowerCase() === row['Warehouse Name']?.toLowerCase()) : null;
+        const item = row['Item Name'] ? items.find((i) => i.name?.toLowerCase() === row['Item Name']?.toLowerCase()) : null;
+        await stockAdjustmentApi.create({
+          warehouse_id: warehouse?.id || null,
+          adj_date: row['Adjustment Date'] || dayjs().format('YYYY-MM-DD'),
+          adj_type: row['Adjustment Type'] || 'count',
+          notes: row['Notes'] || '',
+          items: [{
+            item_id: item?.id || null,
+            description: row['Item Name'] || '',
+            qty_book: parseFloat(row['Book Qty']) || 0,
+            qty_actual: parseFloat(row['Actual Qty']) || 0,
+            qty_diff: (parseFloat(row['Actual Qty']) || 0) - (parseFloat(row['Book Qty']) || 0),
+          }],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
+
   // ── Stats ──────────────────────────────────────────────────────────────────
   const total    = adjustments.length;
   const pending  = adjustments.filter((r) => r.status === 'pending').length;
@@ -325,7 +372,17 @@ export default function StockAdjustmentPage() {
             style={{ width: 160 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('stock-adjustment.csv', adjustments, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = adjustments.map((r) => ({
+              'Warehouse Name': r.Warehouse?.name || '', 'Adjustment Date': r.adj_date || '',
+              'Adjustment Type': r.adj_type || '', 'Item Name': (r.Items || []).map((i) => i.description || '').join('; '),
+              'Book Qty': (r.Items || []).map((i) => i.qty_book).join('; '),
+              'Actual Qty': (r.Items || []).map((i) => i.qty_actual).join('; '),
+              'Notes': r.notes || '',
+            }));
+            downloadSampleCsv('stock-adjustment.csv', STOCK_ADJ_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Adjustment</Button>
@@ -482,6 +539,17 @@ export default function StockAdjustmentPage() {
           </div>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Stock Adjustments"
+        entityName="Stock Adjustment"
+        sampleHeaders={STOCK_ADJ_CSV_HEADERS}
+        sampleRows={STOCK_ADJ_CSV_SAMPLE}
+        validationRules={STOCK_ADJ_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 }

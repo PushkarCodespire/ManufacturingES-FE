@@ -6,7 +6,7 @@ import {
 import {
   PlusOutlined, ReloadOutlined, SearchOutlined, RightOutlined,
   ToolOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { moldMasterApi } from '../../../api/mold.api';
@@ -14,6 +14,8 @@ import { vendorApi } from '../../../api/procurement.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 
@@ -38,6 +40,22 @@ const LIFE_STAGE_OPTIONS = Object.keys(LIFE_STAGE_COLOR).map((s) => ({
 
 const fmtLabel = (v) => v ? v.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '\u2014';
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const MOLD_CSV_HEADERS = [
+  'Name', 'Serial No', 'Manufacturer', 'Material', 'Weight (kg)',
+  'Tonnage Requirement', 'Platen Size', 'Total Cavities', 'Expected Life (shots)',
+  'Owner Type', 'Notes',
+];
+const MOLD_CSV_SAMPLE = [
+  { 'Name': 'Housing Mold A', 'Serial No': 'MLD-SN-001', 'Manufacturer': 'DME',
+    'Material': 'P20', 'Weight (kg)': '850', 'Tonnage Requirement': '350',
+    'Platen Size': '500x500 mm', 'Total Cavities': '4', 'Expected Life (shots)': '500000',
+    'Owner Type': 'company', 'Notes': '' },
+];
+const MOLD_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
+
 const MoldMasterPage = () => {
   const navigate = useNavigate();
   const { can } = usePermissions();
@@ -59,6 +77,7 @@ const MoldMasterPage = () => {
   const [ownerType, setOwnerType] = useState('company');
   const [form] = Form.useForm();
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 400);
@@ -121,6 +140,35 @@ const MoldMasterPage = () => {
       if (err?.errorFields) return;
       message.error(err?.message ?? 'Failed to save mold');
     } finally { setSaving(false); }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await moldMasterApi.create({
+          name: row['Name'],
+          serial_no: row['Serial No'] || null,
+          manufacturer: row['Manufacturer'] || null,
+          material: row['Material'] || null,
+          weight_kg: row['Weight (kg)'] ? parseFloat(row['Weight (kg)']) : null,
+          tonnage_req: row['Tonnage Requirement'] ? parseFloat(row['Tonnage Requirement']) : null,
+          platen_size: row['Platen Size'] || null,
+          total_cavities: row['Total Cavities'] ? parseInt(row['Total Cavities'], 10) : null,
+          expected_life_shots: row['Expected Life (shots)'] ? parseInt(row['Expected Life (shots)'], 10) : null,
+          owner_type: row['Owner Type'] || 'company',
+          notes: row['Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchMolds();
+    return { success, failed, errors };
   };
 
   const activeCount = molds.filter((m) => m.status === 'in_production').length;
@@ -188,7 +236,18 @@ const MoldMasterPage = () => {
           <Select placeholder="Life Stage" value={lifeStageFilter} onChange={(v) => { setLifeStageFilter(v); setPage(1); }}
             options={LIFE_STAGE_OPTIONS} allowClear style={{ width: 170 }} />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('mold-master.csv', molds, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = molds.map((m) => ({
+              'Name': m.name || '', 'Serial No': m.serial_no || '',
+              'Manufacturer': m.manufacturer || '', 'Material': m.material || '',
+              'Weight (kg)': m.weight_kg ?? '', 'Tonnage Requirement': m.tonnage_req ?? '',
+              'Platen Size': m.platen_size || '', 'Total Cavities': m.total_cavities ?? '',
+              'Expected Life (shots)': m.expected_life_shots ?? '',
+              'Owner Type': m.owner_type || '', 'Notes': m.notes || '',
+            }));
+            downloadSampleCsv('mold-master.csv', MOLD_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchMolds} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()} style={{ borderRadius: 8, fontWeight: 600 }}>Add Mold</Button>}
         </div>
@@ -198,6 +257,17 @@ const MoldMasterPage = () => {
           scroll={{ x: 1100 }} size="middle" style={{ borderRadius: 8, overflow: 'hidden' }}
           locale={{ emptyText: (<div style={{ padding: 40 }}><ToolOutlined style={{ fontSize: 32, color: '#d1d5db', display: 'block', marginBottom: 12 }} /><Text style={{ color: '#9ca3af' }}>No molds found</Text></div>) }} />
       </Card>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Molds"
+        entityName="Mold"
+        sampleHeaders={MOLD_CSV_HEADERS}
+        sampleRows={MOLD_CSV_SAMPLE}
+        validationRules={MOLD_VALIDATION_RULES}
+      />
 
       <Drawer title={editRecord ? 'Edit Mold' : 'Add New Mold'} width={520} open={drawerOpen} onClose={closeDrawer} destroyOnClose
         extra={<Button type="primary" loading={saving} onClick={handleSave} style={{ borderRadius: 8 }}>{editRecord ? 'Update' : 'Create'}</Button>}>

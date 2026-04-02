@@ -7,7 +7,7 @@ import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, EditOutlined,
   SearchOutlined, RightOutlined, FileTextOutlined,
   BulbOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { trainingRecordApi }  from '../../../api/trainingRecord.api';
 import AppLayout              from '../../../components/AppLayout';
@@ -17,6 +17,8 @@ import aiApi                  from '../../../api/ai.api';
 import useAiSuggestion        from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard       from '../../../components/AiSuggestion/AiSuggestionCard';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 
@@ -39,6 +41,16 @@ const STATUS_LABELS  = { active: 'Active', expiring_soon: 'Expiring Soon', expir
 
 const fmtDate = (iso) => (iso ? dayjs(iso).format('DD MMM YYYY') : '—');
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const RECORD_CSV_HEADERS = ['Employee Name', 'Topic Name', 'Training Date', 'Trainer Name', 'Score', 'Validity (Months)', 'Notes'];
+const RECORD_CSV_SAMPLE = [
+  { 'Employee Name': 'Amit Sharma', 'Topic Name': 'CNC Machine Operation', 'Training Date': '2025-06-15', 'Trainer Name': 'Raj Kumar', 'Score': '85', 'Validity (Months)': '12', 'Notes': '' },
+];
+const RECORD_VALIDATION_RULES = [
+  { field: 'Employee Name', required: true },
+  { field: 'Topic Name', required: true },
+];
+
 const TrainingRecordsPage = () => {
   const { can } = usePermissions();
   const canWrite = can('other-training_records-create_edit_delete');
@@ -52,6 +64,7 @@ const TrainingRecordsPage = () => {
   const [editing,    setEditing]    = useState(null);
   const [filters,    setFilters]    = useState({ search: '', employee_id: null, topic_id: null, status: null });
   const [expiry,     setExpiry]     = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [form] = Form.useForm();
 
   const aiSkillGap = useAiSuggestion(aiApi.getSkillGapAnalysis);
@@ -138,6 +151,35 @@ const TrainingRecordsPage = () => {
   const handleDelete = async (r) => {
     try { await trainingRecordApi.delete(r.id); message.success('Deleted'); fetchRecords(); }
     catch (err) { message.error(err?.message || 'Failed to delete'); }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const emp = employees.find((e) => e.name?.toLowerCase() === row['Employee Name']?.toLowerCase());
+        const topic = topics.find((t) => t.name?.toLowerCase() === row['Topic Name']?.toLowerCase());
+        if (!emp) throw new Error(`Employee "${row['Employee Name']}" not found`);
+        if (!topic) throw new Error(`Topic "${row['Topic Name']}" not found`);
+        await trainingRecordApi.create({
+          employee_id: emp.id,
+          topic_id: topic.id,
+          training_date: row['Training Date'] || null,
+          trainer_name: row['Trainer Name'] || null,
+          score: row['Score'] ? parseFloat(row['Score']) : null,
+          validity_months: row['Validity (Months)'] ? parseInt(row['Validity (Months)'], 10) : topic.validity_months || 12,
+          notes: row['Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Employee Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchRecords();
+    return { success, failed, errors };
   };
 
   const filtered = filters.search
@@ -369,7 +411,16 @@ const TrainingRecordsPage = () => {
               AI Skill Gap
             </Button>
           )}
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('training-records.csv', filtered, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = filtered.map((r) => ({
+              'Employee Name': r.Employee?.name || '', 'Topic Name': r.Topic?.name || '',
+              'Training Date': r.training_date || '', 'Trainer Name': r.trainer_name || '',
+              'Score': r.score ?? '', 'Validity (Months)': r.validity_months ?? '',
+              'Notes': r.notes || '',
+            }));
+            downloadSampleCsv('training-records.csv', RECORD_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchRecords}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>Add Record</Button>
@@ -456,6 +507,17 @@ const TrainingRecordsPage = () => {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Training Records"
+        entityName="Training Record"
+        sampleHeaders={RECORD_CSV_HEADERS}
+        sampleRows={RECORD_CSV_SAMPLE}
+        validationRules={RECORD_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 };

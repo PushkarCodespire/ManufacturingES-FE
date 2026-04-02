@@ -8,8 +8,11 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   SearchOutlined, RightOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+  DownloadOutlined, UploadOutlined,
+} from '@ant-design/icons';
 import { workCenterApi } from '../../../api/workCenter.api';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
@@ -23,6 +26,49 @@ const TYPE_LABELS = {
   inspection: 'Inspection', painting: 'Painting', other: 'Other',
 };
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const WC_CSV_HEADERS = [
+  'Name', 'Code', 'Type', 'Department', 'Capacity Per Shift', 'Capacity UOM', 'Description',
+];
+
+const WC_CSV_SAMPLE = [
+  {
+    'Name': 'CNC Bay 1',
+    'Code': '',
+    'Type': 'machining',
+    'Department': 'Production',
+    'Capacity Per Shift': '100',
+    'Capacity UOM': 'pcs',
+    'Description': 'CNC machining center bay 1',
+  },
+  {
+    'Name': 'Assembly Line A',
+    'Code': '',
+    'Type': 'assembly',
+    'Department': 'Production',
+    'Capacity Per Shift': '50',
+    'Capacity UOM': 'pcs',
+    'Description': 'Manual assembly line',
+  },
+];
+
+const WC_CSV_VALIDATION = [
+  { field: 'Name', required: true },
+  {
+    field: 'Type',
+    validate: (v) => {
+      if (v && !['machining', 'assembly', 'welding', 'inspection', 'painting', 'other'].includes(v.toLowerCase())) {
+        return '"Type" must be machining, assembly, welding, inspection, painting, or other';
+      }
+      return null;
+    },
+  },
+  {
+    field: 'Capacity Per Shift',
+    validate: (v) => (v && isNaN(parseFloat(v)) ? '"Capacity Per Shift" must be a number' : null),
+  },
+];
+
 export default function WorkCentersPage() {
   const { can } = usePermissions();
   const canWrite = can('production-work_centers-create_edit_delete');
@@ -33,6 +79,7 @@ export default function WorkCentersPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing,    setEditing]    = useState(null);
   const [saving,     setSaving]     = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const [form] = Form.useForm();
 
@@ -113,6 +160,31 @@ export default function WorkCentersPage() {
     } catch (err) {
       message.error(err?.message || 'Toggle failed');
     }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await workCenterApi.create({
+          name: row['Name']?.trim(),
+          code: row['Code']?.trim() || undefined,
+          type: row['Type']?.trim()?.toLowerCase() || undefined,
+          department: row['Department']?.trim() || undefined,
+          capacity_per_shift: row['Capacity Per Shift'] ? parseFloat(row['Capacity Per Shift']) : undefined,
+          capacity_uom: row['Capacity UOM']?.trim() || undefined,
+          description: row['Description']?.trim() || undefined,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row ${row._rowNum}: ${err.message}`);
+      }
+    }
+    fetchData();
+    return { success, failed, errors };
   };
 
   const columns = [
@@ -213,8 +285,9 @@ export default function WorkCentersPage() {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('work-centers.csv', data, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => downloadSampleCsv('work-centers.csv', WC_CSV_HEADERS, data.map((r) => ({ 'Name': r.name, 'Code': r.code, 'Type': r.type, 'Department': r.department, 'Capacity Per Shift': r.capacity_per_shift, 'Capacity UOM': r.capacity_uom, 'Description': r.description })))}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
+          <Button icon={<ReloadOutlined />} onClick={fetchData}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
               Add Work Center
@@ -313,6 +386,17 @@ export default function WorkCentersPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Work Centers"
+        entityName="Work Center"
+        sampleHeaders={WC_CSV_HEADERS}
+        sampleRows={WC_CSV_SAMPLE}
+        validationRules={WC_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

@@ -15,6 +15,8 @@ import usePermissions from '../../../hooks/usePermissions';
 import { drawingApi } from '../../../api/quality.api';
 import { uploadApi }  from '../../../api/orders.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -73,6 +75,16 @@ function FilePreviewModal({ open, url, name, onClose }) {
   );
 }
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const DRAWING_CSV_HEADERS = ['Drawing No', 'Title', 'Revision', 'Customer', 'Material', 'Notes'];
+const DRAWING_CSV_SAMPLE = [
+  { 'Drawing No': 'DWG-001', 'Title': 'Housing Assembly', 'Revision': 'A',
+    'Customer': 'ABC Motors', 'Material': 'ABS', 'Notes': '' },
+];
+const DRAWING_VALIDATION_RULES = [
+  { field: 'Title', required: true },
+];
+
 export default function DrawingsPage() {
   const { can }  = usePermissions();
   const canWrite = can('npd-drawings-create_edit_delete');
@@ -88,6 +100,7 @@ export default function DrawingsPage() {
   const [selectedFile,     setSelectedFile]     = useState(null);
   const [previewLoadingId, setPreviewLoadingId] = useState(null);
   const [previewModal,     setPreviewModal]     = useState({ open: false, url: '', name: '' });
+  const [csvModalOpen,     setCsvModalOpen]     = useState(false);
   const [form]                                  = Form.useForm();
 
   const fetchAll = useCallback(async () => {
@@ -106,6 +119,30 @@ export default function DrawingsPage() {
     const file = e.target.files?.[0];
     if (file) setSelectedFile(file);
     e.target.value = '';
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await drawingApi.create({
+          drawing_no: row['Drawing No'] || null,
+          title: row['Title'],
+          current_revision: row['Revision'] || null,
+          customer: row['Customer'] || null,
+          material: row['Material'] || null,
+          notes: row['Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Title']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchAll();
+    return { success, failed, errors };
   };
 
   // ── Preview ────────────────────────────────────────────────────────────────
@@ -282,7 +319,15 @@ export default function DrawingsPage() {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('drawings.csv', filtered, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = filtered.map((r) => ({
+              'Drawing No': r.drawing_no || '', 'Title': r.title || '',
+              'Revision': r.current_revision || '', 'Customer': r.customer || '',
+              'Material': r.material || '', 'Notes': r.notes || '',
+            }));
+            downloadSampleCsv('drawings.csv', DRAWING_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>Add Drawing</Button>
@@ -385,6 +430,17 @@ export default function DrawingsPage() {
         url={previewModal.url}
         name={previewModal.name}
         onClose={() => setPreviewModal((p) => ({ ...p, open: false }))}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Drawings"
+        entityName="Drawing"
+        sampleHeaders={DRAWING_CSV_HEADERS}
+        sampleRows={DRAWING_CSV_SAMPLE}
+        validationRules={DRAWING_VALIDATION_RULES}
       />
     </AppLayout>
   );

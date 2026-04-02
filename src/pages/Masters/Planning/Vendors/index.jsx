@@ -13,7 +13,7 @@ import {
   RightOutlined,
   EnvironmentOutlined,
   UserOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { vendorApi }   from '../../../../api/vendor.api';
 import { warehouseApi } from '../../../../api/warehouse.api';
@@ -21,6 +21,8 @@ import AppLayout        from '../../../../components/AppLayout';
 import ResponsiveTable  from '../../../../components/ResponsiveTable';
 import usePermissions   from '../../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../../utils/exportCsv';
+import CsvUploadModal from '../../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -368,7 +370,7 @@ const AddEditView = ({ vendor, defaultType = 'vendor', onBack, onSaved, canWrite
 // ══════════════════════════════════════════════════════════════════════════════
 //  LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-const ListView = ({ vendors, loading, search, onSearchChange, onRefresh, onNew, onEdit, onDelete, canWrite }) => {
+const ListView = ({ vendors, loading, search, onSearchChange, onRefresh, onNew, onEdit, onDelete, canWrite, onUploadCsv }) => {
   const vendorCount  = vendors.filter((v) => v.type === 'vendor').length;
   const jobworkCount = vendors.filter((v) => v.type === 'jobwork_vendor').length;
   const [tab, setTab] = useState('vendor');
@@ -519,8 +521,19 @@ const ListView = ({ vendors, loading, search, onSearchChange, onRefresh, onNew, 
                 style={{ width: 220, borderRadius: 8 }}
                 allowClear
               />
-              <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('vendors.csv', filtered, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }} />
+              <Button icon={<DownloadOutlined />} onClick={() => {
+                const csvRows = filtered.map((v) => ({
+                  'Name': v.name || '', 'Type': v.type || '', 'Email': v.email || '',
+                  'Mobile': v.mobile || '', 'GSTIN': v.gstin || '',
+                  'Address': v.address || '', 'City': v.city || '',
+                  'State': v.state || '', 'Country': v.country || '', 'Pincode': v.pincode || '',
+                }));
+                downloadSampleCsv('vendors.csv', VENDOR_CSV_HEADERS, csvRows);
+              }}>Export CSV</Button>
+              {canWrite && (
+                <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>
+              )}
+              <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }} />
               {canWrite && (
                 <Button
                   type="primary"
@@ -578,6 +591,25 @@ const ListView = ({ vendors, loading, search, onSearchChange, onRefresh, onNew, 
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const VENDOR_CSV_HEADERS = [
+  'Name', 'Type', 'Email', 'Mobile', 'GSTIN',
+  'Address', 'City', 'State', 'Country', 'Pincode',
+];
+
+const VENDOR_CSV_SAMPLE = [
+  {
+    'Name': 'Steel Suppliers Ltd', 'Type': 'vendor', 'Email': 'info@steelsupply.com',
+    'Mobile': '+91 98765 43210', 'GSTIN': '27AAAAA0000A1Z5',
+    'Address': '45 Industrial Area', 'City': 'Pune', 'State': 'Maharashtra',
+    'Country': 'IN', 'Pincode': '411018',
+  },
+];
+
+const VENDOR_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
+
 const VendorsPage = () => {
   const { can }  = usePermissions();
   const canWrite = can('planning-vendors-create_edit_delete');
@@ -587,6 +619,7 @@ const VendorsPage = () => {
   const [search,   setSearch]   = useState('');
   const [view,     setView]     = useState('list');  // 'list' | 'add' | 'edit'
   const [selected, setSelected] = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // ── Fetch ────────────────────────────────────────────────────────────────
   const fetchVendors = useCallback(async () => {
@@ -627,6 +660,36 @@ const VendorsPage = () => {
     setView('list');
     setSelected(null);
     fetchVendors();
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const typeVal = (row['Type'] || 'vendor').toLowerCase().replace(/\s+/g, '_');
+        await vendorApi.create({
+          type:    typeVal || 'vendor',
+          name:    row['Name'] || '',
+          email:   row['Email'] || null,
+          mobile:  row['Mobile'] || null,
+          gstin:   row['GSTIN'] || null,
+          address: row['Address'] || null,
+          city:    row['City'] || null,
+          state:   row['State'] || null,
+          country: row['Country'] || 'IN',
+          pincode: row['Pincode'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchVendors();
+    return { success, failed, errors };
   };
 
   // ── Add / Edit views ─────────────────────────────────────────────────────
@@ -681,6 +744,18 @@ const VendorsPage = () => {
         onEdit={(r) => { setSelected(r); setView('edit'); }}
         onDelete={handleDelete}
         canWrite={canWrite}
+        onUploadCsv={() => setCsvModalOpen(true)}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Vendors"
+        entityName="Vendor"
+        sampleHeaders={VENDOR_CSV_HEADERS}
+        sampleRows={VENDOR_CSV_SAMPLE}
+        validationRules={VENDOR_VALIDATION_RULES}
       />
     </AppLayout>
   );

@@ -1,0 +1,14 @@
+Machine Name,Parent Name,Description,Production Against,Shift,Setup Time (hrs),Queue Time (days),Min Batch Qty,Item Group Tags,Machine Group Tags,IOT Device Tags,Weighted Production,Auto Production,Start Stop Flow,Serialization,Scrap,Energy,Boxes,packaging,shipments
+Cutting Section,,Parent section for cutting machines,none,,,,,,CNC,,no,no,no,no,,,,,
+CNC Lathe 01,Cutting Section,High precision CNC lathe,work_order,Day Shift,0.5,1,10,"Cutting Tools, Abrasives","CNC, Automated",Sensor-01,yes,no,yes,no,yes,yes,,,
+CNC Lathe 02,Cutting Section,Standard CNC lathe,work_order,Day Shift,0.5,1,10,Cutting Tools,CNC,,yes,no,yes,no,yes,yes,,,
+Bandsaw Machine,Cutting Section,Metal cutting bandsaw,work_order,Night Shift,0.25,0,5,,Manual,,no,no,no,no,yes,,,,
+Drilling Section,,Parent section for drilling,none,,,,,,,,no,no,no,no,,,,,
+Drill Press 01,Drilling Section,Vertical drill press,work_order,Day Shift,0.25,0,20,Cutting Tools,Manual,,no,no,no,no,yes,yes,,,
+Radial Drill,Drilling Section,Radial arm drill machine,work_order,Night Shift,0.5,1,15,Cutting Tools,Manual,,no,no,no,no,yes,,,,
+Assembly Section,,Parent section for assembly,none,,,,,,,,no,no,no,no,,,,,
+Assembly Line 01,Assembly Section,Manual assembly line,sales_order,Day Shift,0.25,0,50,,Manual,,no,no,no,yes,yes,,yes,yes,yes
+Assembly Line 02,Assembly Section,Automated assembly line,sales_order,Night Shift,0.15,0,100,,Automated,Sensor-02,yes,yes,yes,yes,yes,yes,yes,yes,yes
+Packing Section,,Parent section for packing,none,,,,,,,,no,no,no,no,,,,,
+Packing Machine 01,Packing Section,Carton packing machine,none,Day Shift,0.1,0,200,,Automated,,no,yes,no,no,,,yes,yes,yes
+Shrink Wrap Machine,Packing Section,Heat shrink wrapping,none,Day Shift,0.1,0,100,,Automated,,no,yes,no,no,,,yes,yes,

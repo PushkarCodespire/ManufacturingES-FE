@@ -10,6 +10,7 @@ import {
   FilterOutlined, DownloadOutlined, SettingOutlined,
   CloseCircleOutlined, PlusCircleOutlined,
   AuditOutlined, ToolOutlined, CheckCircleOutlined, LockOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { itemApi } from '../../../api/item.api';
@@ -19,6 +20,8 @@ import { tagApi } from '../../../api/tag.api';
 import { machineApi } from '../../../api/machine.api';
 import AppLayout from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 import usePermissions from '../../../hooks/usePermissions';
 import useScreen from '../../../hooks/useScreen';
 import { exportTableToCsv } from '../../../utils/exportCsv';
@@ -154,6 +157,72 @@ const PARTNER_OPTIONS = [
 ].map((p) => ({ label: p, value: p }));
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const ITEM_CSV_HEADERS = [
+  'Item Name', 'Code', 'Short Name', 'Description', 'Item Group', 'Item Type',
+  'Unit', 'BOM Unit', 'HSN Code', 'GST Rate', 'Reorder Point', 'Category',
+  'SKU Group Tags',
+];
+
+const ITEM_CSV_SAMPLE = [
+  {
+    'Item Name': 'CNC Shaft Assembly',
+    'Code': '',
+    'Short Name': 'CNC-SHAFT',
+    'Description': 'Precision machined shaft assembly',
+    'Item Group': 'Assemblies',
+    'Item Type': 'FG',
+    'Unit': 'piece',
+    'BOM Unit': 'piece',
+    'HSN Code': '8483',
+    'GST Rate': '18',
+    'Reorder Point': '50',
+    'Category': '',
+    'SKU Group Tags': 'Machined, Assembly',
+  },
+  {
+    'Item Name': 'Steel Round Bar 25mm',
+    'Code': '',
+    'Short Name': 'SRB-25',
+    'Description': 'Round bar raw material',
+    'Item Group': 'Round Bars',
+    'Item Type': 'RM',
+    'Unit': 'kg',
+    'BOM Unit': 'kg',
+    'HSN Code': '7214',
+    'GST Rate': '18',
+    'Reorder Point': '100',
+    'Category': '',
+    'SKU Group Tags': '',
+  },
+];
+
+const ITEM_CSV_VALIDATION = [
+  { field: 'Item Name', required: true },
+  {
+    field: 'Item Type',
+    validate: (v) => {
+      if (v && !['RM', 'FG', 'SFG', 'MRO', 'PKG'].includes(v.toUpperCase())) {
+        return '"Item Type" must be RM, FG, SFG, MRO, or PKG';
+      }
+      return null;
+    },
+  },
+  {
+    field: 'GST Rate',
+    validate: (v) => (v && isNaN(parseFloat(v)) ? '"GST Rate" must be a number' : null),
+  },
+  {
+    field: 'Reorder Point',
+    validate: (v) => (v && isNaN(parseFloat(v)) ? '"Reorder Point" must be a number' : null),
+  },
+];
+
+const parseTags = (v) => {
+  if (!v) return [];
+  return v.split(',').map((t) => t.trim()).filter(Boolean);
+};
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  FINALIZE BOM MODAL
@@ -758,8 +827,8 @@ const RulesView = ({ onBack, canWrite }) => {
 //  LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
 const ListView = ({
-  items, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete,
-  canWrite, pagination, onPageChange, onShowBomModal, onShowProcessModal,
+  items, allItems, loading, search, onSearchChange, onRefresh, onNew, onDetail, onDelete,
+  canWrite, pagination, onPageChange, onShowBomModal, onShowProcessModal, onUploadCsv,
 }) => {
   const { isMobile } = useScreen();
   const columns = [
@@ -841,6 +910,25 @@ const ListView = ({
           {!isMobile && <div style={{ flex: 1 }} />}
           {canWrite && <Button icon={<AuditOutlined />} onClick={onShowBomModal} style={{ borderRadius: 8, fontWeight: 600 }}>{isMobile ? 'BOM' : 'FINALIZE BOM'}</Button>}
           {canWrite && <Button icon={<ToolOutlined />} onClick={onShowProcessModal} style={{ borderRadius: 8, fontWeight: 600 }}>{isMobile ? 'Process' : 'SET PROCESS'}</Button>}
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const rows = (allItems?.length ? allItems : items || []).map((i) => ({
+              'Item Name': i.name || '',
+              'Code': i.code || '',
+              'Short Name': i.item_short_name || '',
+              'Description': i.description || '',
+              'Item Group': i.item_group || '',
+              'Item Type': i.item_type || '',
+              'Unit': i.unit || '',
+              'BOM Unit': i.bom_unit || '',
+              'HSN Code': i.hsn_code || '',
+              'GST Rate': i.gst_rate ?? '',
+              'Reorder Point': i.reorder_point ?? '',
+              'Category': i.category || '',
+              'SKU Group Tags': (i.sku_group_tags || []).join(', '),
+            }));
+            downloadSampleCsv('items.csv', ITEM_CSV_HEADERS, rows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>}
           <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }} />
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8, fontWeight: 600 }}>
@@ -1540,6 +1628,7 @@ const ItemsPage = () => {
   const [selected, setSelected]     = useState(null);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0 });
   const [showBomModal, setShowBomModal]         = useState(false);
+  const [csvModalOpen, setCsvModalOpen]          = useState(false);
   const { can }  = usePermissions();
   const canWrite = can('production-items-create_edit_delete');
   const { isMobile } = useScreen();
@@ -1598,16 +1687,49 @@ const ItemsPage = () => {
     catch { /* silent */ }
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await itemApi.create({
+          name: row['Item Name']?.trim(),
+          code: row['Code']?.trim() || undefined,
+          item_short_name: row['Short Name']?.trim() || undefined,
+          description: row['Description']?.trim() || undefined,
+          item_group: row['Item Group']?.trim() || undefined,
+          item_type: row['Item Type']?.trim()?.toUpperCase() || undefined,
+          unit: row['Unit']?.trim() || undefined,
+          bom_unit: row['BOM Unit']?.trim() || undefined,
+          hsn_code: row['HSN Code']?.trim() || undefined,
+          gst_rate: row['GST Rate'] ? parseFloat(row['GST Rate']) : undefined,
+          reorder_point: row['Reorder Point'] ? parseFloat(row['Reorder Point']) : undefined,
+          category: row['Category']?.trim() || undefined,
+          sku_group_tags: parseTags(row['SKU Group Tags']),
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row ${row._rowNum}: ${err.message}`);
+      }
+    }
+    fetchItems();
+    fetchAllItems();
+    return { success, failed, errors };
+  };
+
   return (
     <AppLayout>
       {view === 'list' && (
-        <ListView items={items} loading={loading} search={search}
+        <ListView items={items} allItems={allItems} loading={loading} search={search}
           onSearchChange={(v) => { setSearch(v); setPagination((p) => ({ ...p, page: 1 })); }}
           onRefresh={fetchItems} onNew={() => { setSelected(null); setView('add'); }}
           onDetail={handleDetail} onDelete={handleDelete} canWrite={canWrite}
           pagination={pagination} onPageChange={handlePageChange}
           onShowBomModal={() => setShowBomModal(true)}
-          onShowProcessModal={() => setView('rules')} />
+          onShowProcessModal={() => setView('rules')}
+          onUploadCsv={() => setCsvModalOpen(true)} />
       )}
       {view === 'add' && canWrite && (
         <AddItemForm onSave={handleCreate} onCancel={() => setView('list')} saving={saving} />
@@ -1620,6 +1742,16 @@ const ItemsPage = () => {
       )}
 
       {/* Modals */}
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Items"
+        entityName="Item"
+        sampleHeaders={ITEM_CSV_HEADERS}
+        sampleRows={ITEM_CSV_SAMPLE}
+        validationRules={ITEM_CSV_VALIDATION}
+      />
       <FinalizeBomModal open={showBomModal} onClose={() => setShowBomModal(false)} allItems={allItems} />
     </AppLayout>
   );

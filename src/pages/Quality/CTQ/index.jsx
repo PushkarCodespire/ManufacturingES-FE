@@ -7,13 +7,16 @@ import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, ArrowLeftOutlined,
   SearchOutlined, RightOutlined, EyeOutlined,
   ExclamationCircleOutlined, ClockCircleOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+  DownloadOutlined, UploadOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { ctqIssueApi } from '../../../api/ctqIssue.api';
 import { tagApi } from '../../../api/tag.api';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 
@@ -38,12 +41,20 @@ const SEVERITY_OPTIONS = [
   { label: 'Critical', value: 'Critical' },
 ];
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const CTQ_CSV_HEADERS = ['Name', 'Code', 'Department', 'Severity', 'Category', 'Tags'];
+const CTQ_CSV_SAMPLE = [
+  { 'Name': 'Surface Finish Defect', 'Code': '', 'Department': 'Production', 'Severity': 'High', 'Category': 'Unplanned', 'Tags': 'CNC, Machining' },
+  { 'Name': 'Dimensional Deviation', 'Code': '', 'Department': 'Quality', 'Severity': 'Critical', 'Category': 'Planned', 'Tags': '' },
+];
+const CTQ_CSV_VALIDATION = [{ field: 'Name', required: true }];
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
 const ListView = ({
   issues, loading, search, onSearchChange, onRefresh,
-  onNew, onDetail, onDelete, canWrite,
+  onNew, onDetail, onDelete, canWrite, onUploadCsv,
 }) => {
   const columns = [
     {
@@ -165,8 +176,15 @@ const ListView = ({
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('c-t-q.csv', issues, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const rows = (issues || []).map((r) => ({
+              'Name': r.name || '', 'Code': r.code || '', 'Department': r.department || '',
+              'Severity': r.severity || '', 'Category': r.category || '', 'Tags': (r.tags || []).join(', '),
+            }));
+            downloadSampleCsv('ctq-issues.csv', CTQ_CSV_HEADERS, rows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>}
+          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
           {canWrite && (
@@ -474,6 +492,7 @@ const CTQPage = () => {
   const [loading, setLoading]             = useState(false);
   const [search, setSearch]               = useState('');
   const [selectedIssue, setSelectedIssue] = useState(null);
+  const [csvModalOpen, setCsvModalOpen]   = useState(false);
 
   const fetchIssues = useCallback(async () => {
     setLoading(true);
@@ -526,6 +545,28 @@ const CTQPage = () => {
     });
   };
 
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await ctqIssueApi.create({
+          name: row['Name']?.trim(),
+          department: row['Department']?.trim() || 'Production',
+          severity: row['Severity']?.trim() || 'Low',
+          category: row['Category']?.trim() || 'Unplanned',
+          tags: row['Tags'] ? row['Tags'].split(',').map((t) => t.trim()).filter(Boolean) : [],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row ${row._rowNum}: ${err.message || 'Failed'}`);
+      }
+    }
+    fetchIssues();
+    return { success, failed, errors };
+  };
+
   const renderContent = () => {
     if (view === 'add' || view === 'detail') {
       return (
@@ -538,17 +579,30 @@ const CTQPage = () => {
       );
     }
     return (
-      <ListView
-        issues={filtered}
-        loading={loading}
-        search={search}
-        onSearchChange={setSearch}
-        onRefresh={fetchIssues}
-        onNew={handleNew}
-        onDetail={handleDetail}
-        onDelete={handleDelete}
-        canWrite={canWrite}
-      />
+      <>
+        <ListView
+          issues={filtered}
+          loading={loading}
+          search={search}
+          onSearchChange={setSearch}
+          onRefresh={fetchIssues}
+          onNew={handleNew}
+          onDetail={handleDetail}
+          onDelete={handleDelete}
+          canWrite={canWrite}
+          onUploadCsv={() => setCsvModalOpen(true)}
+        />
+        <CsvUploadModal
+          open={csvModalOpen}
+          onClose={() => setCsvModalOpen(false)}
+          onImport={handleCsvImport}
+          title="Upload CTQ Issues"
+          entityName="CTQ Issue"
+          sampleHeaders={CTQ_CSV_HEADERS}
+          sampleRows={CTQ_CSV_SAMPLE}
+          validationRules={CTQ_CSV_VALIDATION}
+        />
+      </>
     );
   };
 

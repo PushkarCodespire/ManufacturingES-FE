@@ -14,7 +14,7 @@ import {
   EnvironmentOutlined,
   EditOutlined,
   TeamOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { vendorApi }    from '../../../../api/vendor.api';
 import { warehouseApi } from '../../../../api/warehouse.api';
@@ -23,6 +23,8 @@ import AppLayout        from '../../../../components/AppLayout';
 import ResponsiveTable  from '../../../../components/ResponsiveTable';
 import usePermissions   from '../../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../../utils/exportCsv';
+import CsvUploadModal from '../../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -458,6 +460,27 @@ const AddEditView = ({ customer, onBack, onSaved, canWrite }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const CUSTOMER_CSV_HEADERS = [
+  'Name', 'Email', 'Mobile', 'GSTIN',
+  'Address', 'City', 'State', 'Country', 'Pincode',
+  'Shipping Address', 'Shipping City', 'Shipping State', 'Shipping Country', 'Shipping Pincode',
+];
+
+const CUSTOMER_CSV_SAMPLE = [
+  {
+    'Name': 'Acme Corp', 'Email': 'contact@acme.com', 'Mobile': '+91 98765 43210',
+    'GSTIN': '22AAAAA0000A1Z5', 'Address': '123 Main St', 'City': 'Mumbai',
+    'State': 'Maharashtra', 'Country': 'IN', 'Pincode': '400001',
+    'Shipping Address': '456 Warehouse Rd', 'Shipping City': 'Pune',
+    'Shipping State': 'Maharashtra', 'Shipping Country': 'IN', 'Shipping Pincode': '411001',
+  },
+];
+
+const CUSTOMER_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
+
 const CustomersPage = () => {
   const { can }  = usePermissions();
   const canWrite = can('planning-vendors-create_edit_delete');
@@ -467,6 +490,7 @@ const CustomersPage = () => {
   const [search,    setSearch]    = useState('');
   const [view,      setView]      = useState('list');   // list | add | edit
   const [selected,  setSelected]  = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
@@ -501,6 +525,40 @@ const CustomersPage = () => {
   };
 
   const handleSaved = () => { setView('list'); setSelected(null); fetchCustomers(); };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await vendorApi.create({
+          type: 'customer',
+          name:             row['Name'] || '',
+          email:            row['Email'] || null,
+          mobile:           row['Mobile'] || null,
+          gstin:            row['GSTIN'] || null,
+          address:          row['Address'] || null,
+          city:             row['City'] || null,
+          state:            row['State'] || null,
+          country:          row['Country'] || 'IN',
+          pincode:          row['Pincode'] || null,
+          shipping_address: row['Shipping Address'] || null,
+          shipping_city:    row['Shipping City'] || null,
+          shipping_state:   row['Shipping State'] || null,
+          shipping_country: row['Shipping Country'] || null,
+          shipping_pincode: row['Shipping Pincode'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchCustomers();
+    return { success, failed, errors };
+  };
 
   // ── Table columns ───────────────────────────────────────────────────────
   const columns = [
@@ -674,8 +732,21 @@ const CustomersPage = () => {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('customers.csv', customers, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={fetchCustomers} style={{ borderRadius: 8 }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = customers.map((c) => ({
+              'Name': c.name || '', 'Email': c.email || '', 'Mobile': c.mobile || '',
+              'GSTIN': c.gstin || '', 'Address': c.address || '', 'City': c.city || '',
+              'State': c.state || '', 'Country': c.country || '', 'Pincode': c.pincode || '',
+              'Shipping Address': c.shipping_address || '', 'Shipping City': c.shipping_city || '',
+              'Shipping State': c.shipping_state || '', 'Shipping Country': c.shipping_country || '',
+              'Shipping Pincode': c.shipping_pincode || '',
+            }));
+            downloadSampleCsv('customers.csv', CUSTOMER_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && (
+            <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={fetchCustomers} style={{ borderRadius: 8 }}>Refresh</Button>
           {canWrite && (
             <Button
               type="primary"
@@ -716,6 +787,17 @@ const CustomersPage = () => {
           }}
         />
       </Card>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Customers"
+        entityName="Customer"
+        sampleHeaders={CUSTOMER_CSV_HEADERS}
+        sampleRows={CUSTOMER_CSV_SAMPLE}
+        validationRules={CUSTOMER_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 };

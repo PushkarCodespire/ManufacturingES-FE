@@ -7,11 +7,14 @@ import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, ArrowLeftOutlined,
   SearchOutlined, RightOutlined, EyeOutlined,
   ExclamationCircleOutlined, ClockCircleOutlined, EditOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+  DownloadOutlined, UploadOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { downtimeReasonApi } from '../../../api/downtimeReason.api';
 import { tagApi } from '../../../api/tag.api';
 import AppLayout from '../../../components/AppLayout';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 import usePermissions from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
 
@@ -55,9 +58,49 @@ const NATURE_OF_FAULT_OPTIONS = [
 // ══════════════════════════════════════════════════════════════════════════════
 //  LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const DT_CSV_HEADERS = [
+  'Name', 'Code', 'Category', 'Department', 'Severity',
+  'Type of Fault', 'Nature of Fault', 'Description', 'Tags',
+];
+
+const DT_CSV_SAMPLE = [
+  {
+    'Name': 'Tool Breakage',
+    'Code': '',
+    'Category': 'Unplanned',
+    'Department': 'Production',
+    'Severity': 'High',
+    'Type of Fault': 'Machine',
+    'Nature of Fault': 'Mechanical',
+    'Description': 'Tool broke during operation',
+    'Tags': 'CNC, Cutting',
+  },
+  {
+    'Name': 'Scheduled PM',
+    'Code': '',
+    'Category': 'Planned',
+    'Department': 'Production',
+    'Severity': 'Low',
+    'Type of Fault': '',
+    'Nature of Fault': '',
+    'Description': 'Regular preventive maintenance',
+    'Tags': '',
+  },
+];
+
+const DT_CSV_VALIDATION = [
+  { field: 'Name', required: true },
+];
+
+const parseCsvTags = (v) => {
+  if (!v) return [];
+  return v.split(',').map((t) => t.trim()).filter(Boolean);
+};
+
 const ListView = ({
   reasons, loading, search, onSearchChange, onRefresh,
-  onNew, onDetail, onDelete, canWrite,
+  onNew, onDetail, onDelete, canWrite, onUploadCsv,
 }) => {
   const columns = [
     {
@@ -212,8 +255,9 @@ const ListView = ({
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('downtime.csv', reasons, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
+          <Button icon={<DownloadOutlined />} onClick={() => downloadSampleCsv('downtime-reasons.csv', DT_CSV_HEADERS, reasons.map((r) => ({ 'Name': r.name, 'Code': r.code || '', 'Category': r.category || '', 'Department': r.department || '', 'Severity': r.severity || '', 'Type of Fault': r.type_of_fault || '', 'Nature of Fault': r.nature_of_fault || '', 'Description': r.description || '', 'Tags': (r.tags || []).join(', ') })))}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>}
+          <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
           {canWrite && (
@@ -548,6 +592,7 @@ const DowntimePage = () => {
   const [loading, setLoading]       = useState(false);
   const [search, setSearch]         = useState('');
   const [selectedReason, setSelectedReason] = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const fetchReasons = useCallback(async () => {
     setLoading(true);
@@ -603,6 +648,33 @@ const DowntimePage = () => {
     });
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await downtimeReasonApi.create({
+          name: row['Name']?.trim(),
+          code: row['Code']?.trim() || undefined,
+          category: row['Category']?.trim() || undefined,
+          department: row['Department']?.trim() || undefined,
+          severity: row['Severity']?.trim() || undefined,
+          type_of_fault: row['Type of Fault']?.trim() || undefined,
+          nature_of_fault: row['Nature of Fault']?.trim() || undefined,
+          description: row['Description']?.trim() || undefined,
+          tags: parseCsvTags(row['Tags']),
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row ${row._rowNum}: ${err.message}`);
+      }
+    }
+    fetchReasons();
+    return { success, failed, errors };
+  };
+
   const renderContent = () => {
     if (view === 'add' || view === 'detail') {
       return (
@@ -625,11 +697,26 @@ const DowntimePage = () => {
         onDetail={handleDetail}
         onDelete={handleDelete}
         canWrite={canWrite}
+        onUploadCsv={() => setCsvModalOpen(true)}
       />
     );
   };
 
-  return <AppLayout>{renderContent()}</AppLayout>;
+  return (
+    <AppLayout>
+      {renderContent()}
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Downtime Reasons"
+        entityName="Downtime Reason"
+        sampleHeaders={DT_CSV_HEADERS}
+        sampleRows={DT_CSV_SAMPLE}
+        validationRules={DT_CSV_VALIDATION}
+      />
+    </AppLayout>
+  );
 };
 
 export default DowntimePage;

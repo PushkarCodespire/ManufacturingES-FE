@@ -8,14 +8,28 @@ import {
   PlusOutlined, ReloadOutlined, ToolOutlined, ExclamationCircleOutlined,
   CheckCircleOutlined, MinusCircleOutlined, WarningOutlined, BulbOutlined,
   ArrowUpOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { sparePartsApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const SPARE_CSV_HEADERS = [
+  'Name', 'Description', 'Unit of Measure', 'Unit Cost', 'Current Stock', 'Min Stock',
+];
+const SPARE_CSV_SAMPLE = [
+  { 'Name': 'Bearing SKF 6205', 'Description': 'Deep groove ball bearing', 'Unit of Measure': 'pcs',
+    'Unit Cost': '450', 'Current Stock': '25', 'Min Stock': '10' },
+];
+const SPARE_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
 
 export default function SparePartsPage() {
   const [parts, setParts]         = useState([]);
@@ -33,6 +47,7 @@ export default function SparePartsPage() {
   const [consumeForm] = Form.useForm();
   const [bomForm] = Form.useForm();
   const [anomalyMap, setAnomalyMap] = useState({}); // spare_part_id → anomaly data
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   // MNT-009: Demand forecast state
   const [forecast, setForecast]         = useState(null);
   const [forecastLoading, setForecastLoading] = useState(false);
@@ -125,6 +140,30 @@ export default function SparePartsPage() {
     });
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await sparePartsApi.createSparePart({
+          name: row['Name'],
+          description: row['Description'] || null,
+          unit_of_measure: row['Unit of Measure'] || null,
+          unit_cost: row['Unit Cost'] ? parseFloat(row['Unit Cost']) : null,
+          current_stock: row['Current Stock'] ? parseFloat(row['Current Stock']) : 0,
+          min_stock: row['Min Stock'] ? parseFloat(row['Min Stock']) : 0,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    loadParts();
+    return { success, failed, errors };
+  };
+
   const lowStockCount   = parts.filter((p) => parseFloat(p.current_stock) <= parseFloat(p.min_stock)).length;
   const anomalyCount    = Object.keys(anomalyMap).length;
   const totalParts      = parts.length;
@@ -209,7 +248,15 @@ export default function SparePartsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ToolOutlined /> Spare Parts & BOM</Title>
         <Space wrap>
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('spare-parts.csv', parts, partColumns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = parts.map((p) => ({
+              'Name': p.name || '', 'Description': p.description || '',
+              'Unit of Measure': p.unit_of_measure || '', 'Unit Cost': p.unit_cost ?? '',
+              'Current Stock': p.current_stock ?? '', 'Min Stock': p.min_stock ?? '',
+            }));
+            downloadSampleCsv('spare-parts.csv', SPARE_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={loadParts}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModal(true)}>Register Part</Button>
         </Space>
@@ -420,6 +467,17 @@ export default function SparePartsPage() {
           </Space>
         </Form>
       </Modal>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Spare Parts"
+        entityName="Spare Part"
+        sampleHeaders={SPARE_CSV_HEADERS}
+        sampleRows={SPARE_CSV_SAMPLE}
+        validationRules={SPARE_VALIDATION_RULES}
+      />
 
       {/* Add BOM Item Modal */}
       <Modal title="Add BOM Item" open={bomModal} onCancel={() => setBomModal(false)} footer={null}>

@@ -8,13 +8,28 @@ import {
   PlusOutlined, ToolOutlined, CheckCircleOutlined, ClockCircleOutlined,
   ExclamationCircleOutlined, SendOutlined, ReloadOutlined, DollarOutlined,
   SettingOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { moldRepairApi, moldMasterApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+// ── CSV Upload config (for Repair Requests) ─────────────────────────────────
+const REPAIR_CSV_HEADERS = [
+  'Mold Code', 'Damage Description', 'Damage Area', 'Urgency', 'Estimated Cost',
+];
+const REPAIR_CSV_SAMPLE = [
+  { 'Mold Code': 'MLD-001', 'Damage Description': 'Cavity surface crack near gate',
+    'Damage Area': 'Cavity surface', 'Urgency': 'high', 'Estimated Cost': '15000' },
+];
+const REPAIR_VALIDATION_RULES = [
+  { field: 'Mold Code', required: true },
+  { field: 'Damage Description', required: true },
+];
 
 const URGENCY_COLOR = { low: 'green', medium: 'blue', high: 'orange', critical: 'red' };
 const STATUS_COLOR  = {
@@ -40,6 +55,7 @@ export default function RepairPage() {
   const [trackForm] = Form.useForm();
   const [typeForm] = Form.useForm();
 
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   // ── Repair Types drawer state ─────────────────────────────────────────────
   const [typesDrawer, setTypesDrawer] = useState(false);
   const [savingType,  setSavingType]  = useState(false);
@@ -144,6 +160,34 @@ export default function RepairPage() {
     finally { setSavingType(false); }
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const moldCode = row['Mold Code'] || '';
+        const mold = molds.find((m) => m.mold_code?.toLowerCase() === moldCode.toLowerCase());
+        if (!mold) throw new Error(`Mold "${moldCode}" not found`);
+        const rtName = row['Repair Type'] || '';
+        const rt = rtName ? repairTypes.find((t) => t.name?.toLowerCase() === rtName.toLowerCase()) : null;
+        await moldRepairApi.createRequest(mold.id, {
+          damage_description: row['Damage Description'],
+          damage_area: row['Damage Area'] || null,
+          urgency: row['Urgency'] || 'medium',
+          estimated_cost: row['Estimated Cost'] ? parseFloat(row['Estimated Cost']) : null,
+          ...(rt ? { repair_type_id: rt.id } : {}),
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Mold Code']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    loadRequests();
+    return { success, failed, errors };
+  };
+
   const columns = [
     {
       title: 'Mold', width: 150,
@@ -178,7 +222,15 @@ export default function RepairPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ToolOutlined /> Mold Repair</Title>
         <Space wrap>
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('repair.csv', requests, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = requests.map((r) => ({
+              'Mold Code': r.Mold?.mold_code || '', 'Damage Description': r.damage_description || '',
+              'Damage Area': r.damage_area || '', 'Urgency': r.urgency || '',
+              'Estimated Cost': r.estimated_cost ?? '',
+            }));
+            downloadSampleCsv('mold-repair.csv', REPAIR_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={loadRequests}>Refresh</Button>
           <Button icon={<SettingOutlined />} onClick={() => setTypesDrawer(true)}>Manage Types</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModal(true)}>Request Repair</Button>
@@ -193,6 +245,17 @@ export default function RepairPage() {
 
       <Table columns={columns} dataSource={requests} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />
 
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Repair Requests"
+        entityName="Repair Request"
+        sampleHeaders={REPAIR_CSV_HEADERS}
+        sampleRows={REPAIR_CSV_SAMPLE}
+        validationRules={REPAIR_VALIDATION_RULES}
+      />
 
       {/* Create Repair Request Modal */}
       <Modal title="New Repair Request" open={createModal} onCancel={() => setCreateModal(false)} footer={null} width={560}>

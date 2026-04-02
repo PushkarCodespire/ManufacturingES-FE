@@ -11,12 +11,14 @@ import {
   ArrowLeftOutlined,
   RightOutlined,
   FileTextOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { reportApi } from '../../../../api/report.api';
 import AppLayout      from '../../../../components/AppLayout';
 import usePermissions from '../../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../../utils/exportCsv';
+import CsvUploadModal from '../../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -269,7 +271,7 @@ const ReportForm = ({ report, onBack, onSaved, canWrite }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 const ReportsList = ({
   reports, loading, search, onSearchChange, onRefresh, onNew, onEdit, onDelete,
-  canWrite, activeTab, onTabChange,
+  canWrite, activeTab, onTabChange, onUploadCsv,
 }) => {
   const filtered = reports.filter((r) => r.type === activeTab);
 
@@ -431,7 +433,17 @@ const ReportsList = ({
           allowClear
         />
         <div style={{ flex: 1 }} />
-        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('reports.csv', filtered, columns)}>Export CSV</Button>
+        <Button icon={<DownloadOutlined />} onClick={() => {
+          const csvRows = filtered.map((r) => ({
+            'Name': r.name || '', 'Type': r.type || '', 'Parameter': r.parameter || '',
+            'Resource': r.resource || '', 'Frequency': r.frequency || '',
+            'Scheduled Time': r.scheduled_time || '', 'Email': r.email || '',
+          }));
+          downloadSampleCsv('reports.csv', REPORT_CSV_HEADERS, csvRows);
+        }}>Export CSV</Button>
+        {canWrite && (
+          <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>
+        )}
         <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
           Refresh
         </Button>
@@ -507,6 +519,21 @@ const ReportsList = ({
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const REPORT_CSV_HEADERS = ['Name', 'Type', 'Parameter', 'Resource', 'Frequency', 'Scheduled Time', 'Email'];
+
+const REPORT_CSV_SAMPLE = [
+  {
+    'Name': 'Daily Production Report', 'Type': 'Periodic', 'Parameter': 'DPR',
+    'Resource': 'Machine', 'Frequency': 'Daily', 'Scheduled Time': '08:00',
+    'Email': 'ops@company.com',
+  },
+];
+
+const REPORT_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
+
 const ReportsPage = () => {
   const { can }  = usePermissions();
   const canWrite = can('other-reports-create_edit_delete');
@@ -517,6 +544,7 @@ const ReportsPage = () => {
   const [view,      setView]      = useState('list');   // 'list' | 'create' | 'edit'
   const [selected,  setSelected]  = useState(null);
   const [activeTab, setActiveTab] = useState('Periodic');
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchReports = useCallback(async () => {
@@ -553,6 +581,32 @@ const ReportsPage = () => {
   };
 
   const handleSaved = () => { setView('list'); setSelected(null); fetchReports(); };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await reportApi.create({
+          name:           row['Name'] || '',
+          type:           row['Type'] || 'Periodic',
+          parameter:      row['Parameter'] || null,
+          resource:       row['Resource'] || null,
+          frequency:      row['Frequency'] || null,
+          scheduled_time: row['Scheduled Time'] || '00:00',
+          email:          row['Email'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchReports();
+    return { success, failed, errors };
+  };
 
   // ── Client-side search ─────────────────────────────────────────────────────
   const searchFiltered = search
@@ -645,6 +699,18 @@ const ReportsPage = () => {
         canWrite={canWrite}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        onUploadCsv={() => setCsvModalOpen(true)}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Reports"
+        entityName="Report"
+        sampleHeaders={REPORT_CSV_HEADERS}
+        sampleRows={REPORT_CSV_SAMPLE}
+        validationRules={REPORT_VALIDATION_RULES}
       />
     </AppLayout>
   );

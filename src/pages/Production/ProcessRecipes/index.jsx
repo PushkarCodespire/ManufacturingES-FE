@@ -7,7 +7,7 @@ import {
 import {
   PlusOutlined, ReloadOutlined, RightOutlined, DeleteOutlined,
   ExperimentOutlined, WarningOutlined, EditOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
@@ -15,6 +15,8 @@ import { processRecipeApi } from '../../../api/production.api';
 import { itemApi } from '../../../api/item.api';
 import { machineApi } from '../../../api/machine.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -24,6 +26,18 @@ const STATUS_CONFIG = {
   warning:  { color: 'orange', label: 'Warning' },
   critical: { color: 'red',    label: 'Critical' },
 };
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const RECIPE_CSV_HEADERS = ['Item Code', 'Machine Code', 'Parameter Name', 'Target Value', 'Min Value', 'Max Value', 'Unit', 'Is Critical'];
+const RECIPE_CSV_SAMPLE = [
+  { 'Item Code': 'ITM-001', 'Machine Code': 'MC-001', 'Parameter Name': 'Temperature',
+    'Target Value': '180', 'Min Value': '170', 'Max Value': '190', 'Unit': '°C', 'Is Critical': 'Yes' },
+];
+const RECIPE_VALIDATION_RULES = [
+  { field: 'Item Code', required: true },
+  { field: 'Machine Code', required: true },
+  { field: 'Parameter Name', required: true },
+];
 
 // ── Recipe Management Tab ────────────────────────────────────────────────────
 function RecipeTab() {
@@ -40,6 +54,7 @@ function RecipeTab() {
   const [editing, setEditing]       = useState(null);
   const [form]                      = Form.useForm();
   const [saving, setSaving]         = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,6 +131,35 @@ function RecipeTab() {
     }).catch(() => {});
   }, []);
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const item = row['Item Code'] ? items.find((i) => i.code?.toLowerCase() === row['Item Code']?.toLowerCase()) : null;
+        const machine = row['Machine Code'] ? machines.find((m) => m.code?.toLowerCase() === row['Machine Code']?.toLowerCase()) : null;
+        const param = row['Parameter Name'] ? params.find((p) => p.name?.toLowerCase() === row['Parameter Name']?.toLowerCase()) : null;
+        await processRecipeApi.create({
+          item_id: item?.id || null,
+          machine_id: machine?.id || null,
+          parameter_id: param?.id || null,
+          target_value: row['Target Value'] ? parseFloat(row['Target Value']) : null,
+          min_value: row['Min Value'] ? parseFloat(row['Min Value']) : null,
+          max_value: row['Max Value'] ? parseFloat(row['Max Value']) : null,
+          unit: row['Unit'] || null,
+          is_critical: row['Is Critical']?.toLowerCase() === 'yes',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Code']} / ${row['Parameter Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
+
   const columns = [
     {
       title: 'Item', key: 'item', width: 160,
@@ -158,7 +202,16 @@ function RecipeTab() {
             options={machines.map((m) => ({ value: m.id, label: `${m.code} — ${m.name}` }))} style={{ width: 220 }} allowClear />
           <div style={{ flex: 1 }} />
           <Tag color="blue">Total: {recipes.length}</Tag>
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('process-recipes.csv', recipes, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = recipes.map((r) => ({
+              'Item Code': r.Item?.code || '', 'Machine Code': r.Machine?.code || '',
+              'Parameter Name': r.Parameter?.name || '', 'Target Value': r.target_value ?? '',
+              'Min Value': r.min_value ?? '', 'Max Value': r.max_value ?? '',
+              'Unit': r.unit || '', 'Is Critical': r.is_critical ? 'Yes' : 'No',
+            }));
+            downloadSampleCsv('process-recipes.csv', RECIPE_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>Add Recipe</Button>}
         </div>
@@ -197,6 +250,17 @@ function RecipeTab() {
           <Form.Item name="is_critical" label="Critical Parameter" valuePropName="checked"><Switch /></Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Process Recipes"
+        entityName="Recipe"
+        sampleHeaders={RECIPE_CSV_HEADERS}
+        sampleRows={RECIPE_CSV_SAMPLE}
+        validationRules={RECIPE_VALIDATION_RULES}
+      />
     </>
   );
 }

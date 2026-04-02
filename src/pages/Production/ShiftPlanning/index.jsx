@@ -6,16 +6,28 @@ import {
 import {
   PlusOutlined, ReloadOutlined, RightOutlined,
   DeleteOutlined, UserAddOutlined, CalendarOutlined, EditOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
 import api            from '../../../api/axios';
 import usePermissions from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const SHIFT_ASSIGN_CSV_HEADERS = ['Shift Name', 'Work Order No', 'Machine Name', 'Planned Qty', 'Notes'];
+const SHIFT_ASSIGN_CSV_SAMPLE = [
+  { 'Shift Name': 'Morning', 'Work Order No': 'WO-001', 'Machine Name': 'Press 01', 'Planned Qty': '500', 'Notes': 'Priority order' },
+];
+const SHIFT_ASSIGN_VALIDATION_RULES = [
+  { field: 'Shift Name', required: true },
+  { field: 'Work Order No', required: true },
+];
 
 export default function ShiftPlanningPage() {
   const { can } = usePermissions();
@@ -33,6 +45,7 @@ export default function ShiftPlanningPage() {
   const [crew,        setCrew]        = useState([]);
   const [loading,     setLoading]     = useState(false);
 
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [assignDrawer, setAssignDrawer] = useState(false);
   const [crewDrawer,   setCrewDrawer]   = useState(false);
   const [editRecord,   setEditRecord]   = useState(null);
@@ -148,6 +161,33 @@ export default function ShiftPlanningPage() {
     });
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const shift = row['Shift Name'] ? shifts.find((s) => s.name?.toLowerCase() === row['Shift Name']?.toLowerCase()) : null;
+        const wo = row['Work Order No'] ? workOrders.find((w) => w.wo_no?.toLowerCase() === row['Work Order No']?.toLowerCase()) : null;
+        const machine = row['Machine Name'] ? machines.find((m) => m.name?.toLowerCase() === row['Machine Name']?.toLowerCase()) : null;
+        await api.post('/shift-assignments', {
+          shift_id: shift?.id || null,
+          work_order_id: wo?.id || null,
+          machine_id: machine?.id || null,
+          planned_qty: row['Planned Qty'] ? parseFloat(row['Planned Qty']) : null,
+          notes: row['Notes'] || null,
+          assignment_date: selDate.format('YYYY-MM-DD'),
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Shift Name']} / ${row['Work Order No']}": ${err?.response?.data?.message || err?.message || 'Failed'}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
+
   // Assignment table columns
   const assignCols = [
     {
@@ -226,7 +266,15 @@ export default function ShiftPlanningPage() {
           />
           <Tag color="blue">{assignments.length} Assignment{assignments.length !== 1 ? 's' : ''}</Tag>
           <Tag color="green">{crew.length} Crew Member{crew.length !== 1 ? 's' : ''}</Tag>
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('shift-planning.csv', assignments, assignCols)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = assignments.map((r) => ({
+              'Shift Name': r.Shift?.name || '', 'Work Order No': r.WorkOrder?.wo_no || '',
+              'Machine Name': r.Machine?.name || '', 'Planned Qty': r.planned_qty ?? '',
+              'Notes': r.notes || '',
+            }));
+            downloadSampleCsv('shift-planning.csv', SHIFT_ASSIGN_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load} style={{ marginLeft: 'auto' }}>Refresh</Button>
         </div>
 
@@ -421,6 +469,17 @@ export default function ShiftPlanningPage() {
             </Form.Item>
           </Form>
         </Drawer>
+
+        <CsvUploadModal
+          open={csvModalOpen}
+          onClose={() => setCsvModalOpen(false)}
+          onImport={handleCsvImport}
+          title="Upload Shift Assignments"
+          entityName="Shift Assignment"
+          sampleHeaders={SHIFT_ASSIGN_CSV_HEADERS}
+          sampleRows={SHIFT_ASSIGN_CSV_SAMPLE}
+          validationRules={SHIFT_ASSIGN_VALIDATION_RULES}
+        />
     </AppLayout>
   );
 }

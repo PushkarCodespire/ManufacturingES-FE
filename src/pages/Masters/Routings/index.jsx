@@ -8,17 +8,57 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   SearchOutlined, RightOutlined, PauseCircleOutlined, PlayCircleOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+  DownloadOutlined, UploadOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { routingApi } from '../../../api/routing.api';
 import { workCenterApi } from '../../../api/workCenter.api';
 import api from '../../../api/axios';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 import { exportTableToCsv } from '../../../utils/exportCsv';
 
 const { Title, Text } = Typography;
 
 const STATUS_COLORS = { draft: 'orange', active: 'green', obsolete: 'default' };
 const STATUS_LABELS = { draft: 'Draft', active: 'Active', obsolete: 'Obsolete' };
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const ROUTING_CSV_HEADERS = ['Name', 'Code', 'Item Name', 'Version', 'Status', 'Effective Date', 'Notes'];
+
+const ROUTING_CSV_SAMPLE = [
+  {
+    'Name': 'Standard Machining Routing',
+    'Code': '',
+    'Item Name': 'CNC Shaft Assembly',
+    'Version': '1.0',
+    'Status': 'draft',
+    'Effective Date': '2026-04-01',
+    'Notes': 'Default routing for shaft assemblies',
+  },
+  {
+    'Name': 'Assembly Line Routing',
+    'Code': '',
+    'Item Name': '',
+    'Version': '1.0',
+    'Status': 'active',
+    'Effective Date': '',
+    'Notes': '',
+  },
+];
+
+const ROUTING_CSV_VALIDATION = [
+  { field: 'Name', required: true },
+  {
+    field: 'Status',
+    validate: (v) => {
+      if (v && !['draft', 'active', 'obsolete'].includes(v.toLowerCase())) {
+        return '"Status" must be draft, active, or obsolete';
+      }
+      return null;
+    },
+  },
+];
 
 export default function RoutingsPage() {
   const { can } = usePermissions();
@@ -30,6 +70,7 @@ export default function RoutingsPage() {
   const [drawerOpen,   setDrawerOpen]   = useState(false);
   const [editing,      setEditing]      = useState(null);
   const [saving,       setSaving]       = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // Lookup data
   const [items,        setItems]        = useState([]);
@@ -170,6 +211,38 @@ export default function RoutingsPage() {
     } catch (err) {
       message.error(err?.message || 'Status update failed');
     }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    // Build item name→id lookup
+    const itemNameToId = {};
+    items.forEach((i) => { itemNameToId[i.name?.toLowerCase()] = i.id; });
+
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const itemName = row['Item Name']?.trim();
+        const itemId = itemName ? itemNameToId[itemName.toLowerCase()] : undefined;
+        await routingApi.create({
+          name: row['Name']?.trim(),
+          code: row['Code']?.trim() || undefined,
+          item_id: itemId || undefined,
+          version: row['Version']?.trim() || '1.0',
+          status: row['Status']?.trim()?.toLowerCase() || 'draft',
+          effective_date: row['Effective Date']?.trim() || undefined,
+          notes: row['Notes']?.trim() || undefined,
+          steps: [],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row ${row._rowNum}: ${err.message}`);
+      }
+    }
+    fetchData();
+    return { success, failed, errors };
   };
 
   // ── Steps mini-table columns ──────────────────────────────────────────────
@@ -395,8 +468,9 @@ export default function RoutingsPage() {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('routings.csv', data, columns)}>Export CSV</Button>
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => downloadSampleCsv('routings.csv', ROUTING_CSV_HEADERS, data.map((r) => ({ 'Name': r.name, 'Code': r.code || '', 'Item Name': r.Item?.name || '', 'Version': r.version || '', 'Status': r.status || '', 'Effective Date': r.effective_date || '', 'Notes': r.notes || '' })))}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
+          <Button icon={<ReloadOutlined />} onClick={fetchData}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
               New Routing
@@ -512,6 +586,17 @@ export default function RoutingsPage() {
           )}
         </div>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Routings"
+        entityName="Routing"
+        sampleHeaders={ROUTING_CSV_HEADERS}
+        sampleRows={ROUTING_CSV_SAMPLE}
+        validationRules={ROUTING_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

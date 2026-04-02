@@ -7,16 +7,28 @@ import {
 import {
   PlusOutlined, ReloadOutlined, RightOutlined, ToolOutlined,
   DeleteOutlined, HistoryOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { toolLogApi } from '../../../api/production.api';
 import api            from '../../../api/axios';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const TOOL_LOG_CSV_HEADERS = ['Tool Code', 'Usage Strokes', 'Date', 'Machine Name', 'Condition After'];
+const TOOL_LOG_CSV_SAMPLE = [
+  { 'Tool Code': 'TL-001', 'Usage Strokes': '500', 'Date': '2025-06-10', 'Machine Name': 'Press 01', 'Condition After': 'good' },
+];
+const TOOL_LOG_VALIDATION_RULES = [
+  { field: 'Tool Code', required: true },
+  { field: 'Usage Strokes', required: true },
+];
 
 function conditionColor(c) {
   return c === 'good' ? 'green' : c === 'worn' ? 'gold' : 'red';
@@ -48,6 +60,8 @@ export default function ToolManagementPage() {
   const [logOpen,  setLogOpen]  = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [logForm]               = Form.useForm();
+
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // Lookups
   const [tools,    setTools]    = useState([]);
@@ -124,6 +138,32 @@ export default function ToolManagementPage() {
       message.success('Log deleted');
       loadLogs();
     } catch { message.error('Delete failed'); }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const tool = row['Tool Code'] ? tools.find((t) => t.code?.toLowerCase() === row['Tool Code']?.toLowerCase()) : null;
+        const machine = row['Machine Name'] ? machines.find((m) => m.name?.toLowerCase() === row['Machine Name']?.toLowerCase()) : null;
+        await toolLogApi.logUsage({
+          tool_id: tool?.id || null,
+          usage_strokes: row['Usage Strokes'] ? parseInt(row['Usage Strokes']) : null,
+          used_at: row['Date'] || dayjs().format('YYYY-MM-DD'),
+          machine_id: machine?.id || null,
+          condition_after: row['Condition After'] || 'good',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Tool Code']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    loadSummary();
+    if (activeTab === 'logs') loadLogs();
+    return { success, failed, errors };
   };
 
   const summaryColumns = [
@@ -204,7 +244,15 @@ export default function ToolManagementPage() {
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab="Tool Summary" key="summary">
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-              <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('tool-management.csv', summary, summaryColumns)}>Export CSV</Button>
+              <Button icon={<DownloadOutlined />} onClick={() => {
+                const csvRows = summary.map((r) => ({
+                  'Tool Code': r.tool_code || '', 'Usage Strokes': r.total_strokes ?? '',
+                  'Date': r.last_used || '', 'Machine Name': '',
+                  'Condition After': r.current_condition || '',
+                }));
+                downloadSampleCsv('tool-management.csv', TOOL_LOG_CSV_HEADERS, csvRows);
+              }}>Export CSV</Button>
+              {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={loadSummary}>Refresh</Button>
             </div>
             <Table
@@ -344,6 +392,17 @@ export default function ToolManagementPage() {
           </>
         ) : null}
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Tool Usage Logs"
+        entityName="Tool Log"
+        sampleHeaders={TOOL_LOG_CSV_HEADERS}
+        sampleRows={TOOL_LOG_CSV_SAMPLE}
+        validationRules={TOOL_LOG_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 }

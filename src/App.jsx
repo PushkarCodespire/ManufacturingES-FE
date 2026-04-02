@@ -12,6 +12,7 @@ import MultiPlantDashboard from './pages/Dashboard/MultiPlant';
 import ProfilePage from './pages/Profile';
 import ResetPasswordPage from './pages/Admin/ResetPassword';
 import ControlRoomPage from './pages/Admin/ControlRoom';
+import AiDashboardPage from './pages/Admin/AiDashboard';
 import EmployeesPage      from './pages/Masters/Employees';
 import EmployeeDetailPage from './pages/Masters/Employees/EmployeeDetail';
 import ConfigurationPage  from './pages/Masters/Configuration';
@@ -269,6 +270,14 @@ function App() {
                 element={
                   <ProtectedRoute roles={['it_admin', 'plant_head']}>
                     <ControlRoomPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/ai-dashboard"
+                element={
+                  <ProtectedRoute roles={['it_admin', 'plant_head']}>
+                    <AiDashboardPage />
                   </ProtectedRoute>
                 }
               />

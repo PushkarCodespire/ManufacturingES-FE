@@ -16,12 +16,14 @@ import {
   UpOutlined,
   DownOutlined,
   FileTextOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { templateApi } from '../../../../api/template.api';
 import AppLayout        from '../../../../components/AppLayout';
 import usePermissions   from '../../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../../utils/exportCsv';
+import CsvUploadModal from '../../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -510,7 +512,7 @@ const TemplateBuilder = ({ template, onBack, onSaved, canWrite }) => {
 //  TEMPLATES LIST — Configuration-theme table view
 // ══════════════════════════════════════════════════════════════════════════════
 const TemplatesList = ({
-  templates, loading, search, onSearchChange, onRefresh, onNew, onEdit, onDelete, canWrite,
+  templates, loading, search, onSearchChange, onRefresh, onNew, onEdit, onDelete, canWrite, onUploadCsv,
 }) => {
   const columns = [
     {
@@ -600,7 +602,13 @@ const TemplatesList = ({
           allowClear
         />
         <div style={{ flex: 1 }} />
-        <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('templates.csv', templates, columns)}>Export CSV</Button>
+        <Button icon={<DownloadOutlined />} onClick={() => {
+          const csvRows = templates.map((t) => ({ 'Name': t.name || '' }));
+          downloadSampleCsv('templates.csv', TEMPLATE_CSV_HEADERS, csvRows);
+        }}>Export CSV</Button>
+        {canWrite && (
+          <Button icon={<UploadOutlined />} onClick={onUploadCsv} style={{ borderRadius: 8 }}>Upload CSV</Button>
+        )}
         <Button icon={<ReloadOutlined />} onClick={onRefresh} style={{ borderRadius: 8 }}>
           Refresh
         </Button>
@@ -650,6 +658,18 @@ const TemplatesList = ({
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const TEMPLATE_CSV_HEADERS = ['Name'];
+
+const TEMPLATE_CSV_SAMPLE = [
+  { 'Name': 'Purchase Order Template' },
+  { 'Name': 'Sales Enquiry Template' },
+];
+
+const TEMPLATE_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
+
 const TemplatesPage = () => {
   const { can }  = usePermissions();
   const canWrite = can('other-templates-create_edit_delete');
@@ -659,6 +679,7 @@ const TemplatesPage = () => {
   const [search,    setSearch]    = useState('');
   const [view,      setView]      = useState('list');   // 'list' | 'create' | 'edit'
   const [selected,  setSelected]  = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchTemplates = useCallback(async () => {
@@ -695,6 +716,27 @@ const TemplatesPage = () => {
   };
 
   const handleSaved = () => { setView('list'); setSelected(null); fetchTemplates(); };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await templateApi.create({
+          name:     row['Name'] || '',
+          sections: [],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchTemplates();
+    return { success, failed, errors };
+  };
 
   // ── Client-side search ─────────────────────────────────────────────────────
   const filtered = search
@@ -780,6 +822,18 @@ const TemplatesPage = () => {
         onEdit={(r) => { setSelected(r); setView('edit'); }}
         onDelete={handleDelete}
         canWrite={canWrite}
+        onUploadCsv={() => setCsvModalOpen(true)}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Templates"
+        entityName="Template"
+        sampleHeaders={TEMPLATE_CSV_HEADERS}
+        sampleRows={TEMPLATE_CSV_SAMPLE}
+        validationRules={TEMPLATE_VALIDATION_RULES}
       />
     </AppLayout>
   );

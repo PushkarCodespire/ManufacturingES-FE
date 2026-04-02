@@ -7,13 +7,15 @@ import {
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
   CheckCircleOutlined, DeleteOutlined, PlayCircleOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout       from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
 import usePermissions  from '../../../hooks/usePermissions';
 import { auditPlanApi } from '../../../api/quality.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -51,6 +53,15 @@ const STANDARDS = [
   { value: 'Internal',             label: 'Internal Audit'        },
 ];
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const AUDIT_CSV_HEADERS = ['Plan Name', 'Year', 'Standard', 'Notes'];
+const AUDIT_CSV_SAMPLE = [
+  { 'Plan Name': 'Annual Internal Audit 2025', 'Year': '2025', 'Standard': 'ISO 9001:2015', 'Notes': '' },
+];
+const AUDIT_VALIDATION_RULES = [
+  { field: 'Plan Name', required: true },
+];
+
 export default function AuditPlanPage() {
   const { can }  = usePermissions();
   const canWrite = can('quality-audit_plan-create_edit_delete');
@@ -66,6 +77,7 @@ export default function AuditPlanPage() {
   const [findingOpen,  setFindingOpen]  = useState(false);
   const [selItem,      setSelItem]      = useState(null);
   const [saving,       setSaving]       = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [createForm]                    = Form.useForm();
   const [addItemForm]                   = Form.useForm();
   const [execForm]                      = Form.useForm();
@@ -186,6 +198,28 @@ export default function AuditPlanPage() {
       if (err?.errorFields) return;
       message.error(err?.message || 'Add finding failed');
     } finally { setSaving(false); }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await auditPlanApi.create({
+          plan_name: row['Plan Name'],
+          year: row['Year'] ? parseInt(row['Year'], 10) : new Date().getFullYear(),
+          standard: row['Standard'] || null,
+          notes: row['Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Plan Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchAll();
+    return { success, failed, errors };
   };
 
   // ── Table columns ───────────────────────────────────────────────────────────
@@ -357,7 +391,14 @@ export default function AuditPlanPage() {
             value={search} onChange={(e) => setSearch(e.target.value)}
             style={{ width: 280, borderRadius: 8 }} allowClear />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('audit-plan.csv', filtered, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = filtered.map((r) => ({
+              'Plan Name': r.plan_name || '', 'Year': r.year ?? '',
+              'Standard': r.standard || '', 'Notes': r.notes || '',
+            }));
+            downloadSampleCsv('audit-plan.csv', AUDIT_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { createForm.resetFields(); setCreateOpen(true); }}>
@@ -473,6 +514,17 @@ export default function AuditPlanPage() {
             message="Major NC and Minor NC findings will automatically generate a CAPA." />
         </Form>
       </Modal>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Audit Plans"
+        entityName="Audit Plan"
+        sampleHeaders={AUDIT_CSV_HEADERS}
+        sampleRows={AUDIT_CSV_SAMPLE}
+        validationRules={AUDIT_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 }

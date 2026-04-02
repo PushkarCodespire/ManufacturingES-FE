@@ -7,7 +7,7 @@ import {
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
   EditOutlined, DeleteOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout        from '../../../components/AppLayout';
 import ResponsiveTable  from '../../../components/ResponsiveTable';
@@ -16,6 +16,8 @@ import { complaintApi } from '../../../api/quality.api';
 import { vendorApi }    from '../../../api/vendor.api';
 import { itemApi }      from '../../../api/item.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -25,6 +27,18 @@ const STATUS_COLOR = {
   resolved: 'cyan',   closed: 'green',       rejected: 'red',
 };
 
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const COMPLAINT_CSV_HEADERS = ['Customer Name', 'Customer Ref', 'Item Name', 'Part No', 'Qty Affected', 'Defect Description', 'Delivery Date'];
+const COMPLAINT_CSV_SAMPLE = [
+  { 'Customer Name': 'ABC Motors', 'Customer Ref': 'CR-001', 'Item Name': 'Housing Cover',
+    'Part No': 'HC-100', 'Qty Affected': '25', 'Defect Description': 'Scratch marks on surface',
+    'Delivery Date': '2025-06-10' },
+];
+const COMPLAINT_VALIDATION_RULES = [
+  { field: 'Customer Name', required: true },
+  { field: 'Defect Description', required: true },
+];
 
 export default function ComplaintsPage() {
   const { can }  = usePermissions();
@@ -40,6 +54,7 @@ export default function ComplaintsPage() {
   const [editing,          setEditing]          = useState(null);
   const [saving,           setSaving]           = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [csvModalOpen,     setCsvModalOpen]     = useState(false);
   const [form]                                  = Form.useForm();
 
   const fetchAll = useCallback(async () => {
@@ -119,6 +134,32 @@ export default function ComplaintsPage() {
       message.success('Complaint deleted');
       fetchAll();
     } catch (err) { message.error(err?.message || 'Delete failed'); }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const item = row['Item Name'] ? items.find((i) => i.name?.toLowerCase() === row['Item Name']?.toLowerCase()) : null;
+        await complaintApi.create({
+          customer_name: row['Customer Name'],
+          customer_ref: row['Customer Ref'] || null,
+          item_id: item?.id || null,
+          part_no_ext: row['Part No'] || null,
+          qty_affected: row['Qty Affected'] ? parseFloat(row['Qty Affected']) : null,
+          defect_desc: row['Defect Description'],
+          delivery_date: row['Delivery Date'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Customer Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchAll();
+    return { success, failed, errors };
   };
 
   // ── Table columns ─────────────────────────────────────────────────────────
@@ -202,7 +243,16 @@ export default function ComplaintsPage() {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('complaints.csv', filtered, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = filtered.map((r) => ({
+              'Customer Name': r.customer_name || '', 'Customer Ref': r.customer_ref || '',
+              'Item Name': r.Item?.name || '', 'Part No': r.part_no_ext || '',
+              'Qty Affected': r.qty_affected ?? '', 'Defect Description': r.defect_desc || '',
+              'Delivery Date': r.delivery_date || '',
+            }));
+            downloadSampleCsv('complaints.csv', COMPLAINT_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>Log Complaint</Button>
@@ -301,6 +351,17 @@ export default function ComplaintsPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Complaints"
+        entityName="Complaint"
+        sampleHeaders={COMPLAINT_CSV_HEADERS}
+        sampleRows={COMPLAINT_CSV_SAMPLE}
+        validationRules={COMPLAINT_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 }

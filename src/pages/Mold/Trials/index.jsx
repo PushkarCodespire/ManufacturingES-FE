@@ -8,10 +8,12 @@ import {
   PlusOutlined, ReloadOutlined, CheckCircleOutlined,
   ClockCircleOutlined, ExclamationCircleOutlined, ExperimentOutlined,
   EyeOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { moldTrialApi, moldMasterApi } from '../../../api/mold.api';
 import AppLayout from '../../../components/AppLayout';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -23,6 +25,18 @@ const STATUS_COLOR = {
   failed: 'red',
   conditionally_passed: 'gold',
 };
+
+// ── CSV Upload config (for Trial Protocols) ─────────────────────────────────
+const TRIAL_CSV_HEADERS = [
+  'Name', 'Trial Type', 'Min Shots Required', 'Description',
+];
+const TRIAL_CSV_SAMPLE = [
+  { 'Name': 'Post-Repair Validation', 'Trial Type': 'post_repair',
+    'Min Shots Required': '500', 'Description': 'Standard post-repair trial protocol' },
+];
+const TRIAL_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
 
 const RESULT_COLOR = {
   pass: 'green',
@@ -46,6 +60,7 @@ export default function TrialsPage() {
   const [form] = Form.useForm();
   const [paramForm] = Form.useForm();
   const [protocolForm] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const loadTrials = useCallback(async () => {
     setLoading(true);
@@ -121,6 +136,28 @@ export default function TrialsPage() {
     } catch (err) { message.error(err?.message ?? 'Failed to create protocol'); }
   };
 
+  // ── CSV Import handler (imports Trial Protocols) ────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await moldTrialApi.createProtocol({
+          name: row['Name'],
+          trial_type: row['Trial Type'] || 'post_repair',
+          min_shots_required: row['Min Shots Required'] ? parseInt(row['Min Shots Required'], 10) : null,
+          description: row['Description'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    loadProtocols();
+    return { success, failed, errors };
+  };
+
   const trialColumns = [
     {
       title: 'Mold', width: 140,
@@ -180,7 +217,14 @@ export default function TrialsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <Title level={4} style={{ margin: 0 }}><ExperimentOutlined /> Mold Trials</Title>
         <Space wrap>
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('trials.csv', trials, trialColumns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = protocols.map((p) => ({
+              'Name': p.name || '', 'Trial Type': p.trial_type || '',
+              'Min Shots Required': p.min_sample_shots ?? '', 'Description': p.description || '',
+            }));
+            downloadSampleCsv('trial-protocols.csv', TRIAL_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={loadTrials}>Refresh</Button>
           <Button onClick={() => setProtocolModal(true)}>New Protocol</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setStartModal(true)}>Start Trial</Button>
@@ -240,6 +284,17 @@ export default function TrialsPage() {
             ),
           },
         ]}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Trial Protocols"
+        entityName="Protocol"
+        sampleHeaders={TRIAL_CSV_HEADERS}
+        sampleRows={TRIAL_CSV_SAMPLE}
+        validationRules={TRIAL_VALIDATION_RULES}
       />
 
       {/* Start Trial Modal */}

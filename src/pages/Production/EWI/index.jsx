@@ -8,11 +8,13 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined,
   CheckCircleOutlined, StopOutlined, FileTextOutlined,
   WarningOutlined, SearchOutlined, ReloadOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import AppLayout from '../../../components/AppLayout';
 import { ewiApi } from '../../../api/ewi.api';
 import { useAuth } from '../../../context/AuthContext';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -22,6 +24,15 @@ const STATUS_COLOR = { draft: 'default', active: 'success', obsolete: 'warning' 
 const STATUS_LABEL = { draft: 'Draft', active: 'Active', obsolete: 'Obsolete' };
 
 const ADMIN_ROLES = ['it_admin', 'plant_head', 'production_manager', 'production_incharge', 'quality_manager', 'quality_incharge'];
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const EWI_CSV_HEADERS = ['Title', 'Version', 'Effective Date', 'Notes'];
+const EWI_CSV_SAMPLE = [
+  { 'Title': 'Assembly – PP Granules Injection Moulding', 'Version': '1.0', 'Effective Date': '2025-06-01', 'Notes': 'Applicable for all PP items' },
+];
+const EWI_VALIDATION_RULES = [
+  { field: 'Title', required: true },
+];
 
 /* ── Step editor row ─────────────────────────────────────────────────────── */
 function StepRow({ step, onSave, onDelete, readOnly }) {
@@ -164,6 +175,7 @@ export default function EWIPage() {
   const [drawerLoading, setDrawerLoading] = useState(false);
   const [selected,      setSelected]      = useState(null); // full EWI with Steps
   const [editMode,      setEditMode]      = useState(false);
+  const [csvModalOpen,  setCsvModalOpen]  = useState(false);
   const [form] = Form.useForm();
 
   /* ── Fetch list ── */
@@ -245,6 +257,28 @@ export default function EWIPage() {
   const deleteStep = async (stepId) => {
     await ewiApi.deleteStep(selected.id, stepId);
     await reloadSelected();
+  };
+
+  /* ── CSV Import handler ── */
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await ewiApi.create({
+          title: row['Title'],
+          version: row['Version'] || '1.0',
+          effective_date: row['Effective Date'] || null,
+          notes: row['Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Title']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchList();
+    return { success, failed, errors };
   };
 
   /* ── Table columns ── */
@@ -339,7 +373,14 @@ export default function EWIPage() {
               <Option value="active">Active</Option>
               <Option value="obsolete">Obsolete</Option>
             </Select>
-            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('e-w-i.csv', data, columns)}>Export CSV</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => {
+              const csvRows = data.map((r) => ({
+                'Title': r.title || '', 'Version': r.version || '',
+                'Effective Date': r.effective_date || '', 'Notes': r.notes || '',
+              }));
+              downloadSampleCsv('e-w-i.csv', EWI_CSV_HEADERS, csvRows);
+            }}>Export CSV</Button>
+            {isAdmin && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchList}>Refresh</Button>
           </Space>
         </Card>
@@ -459,6 +500,17 @@ export default function EWIPage() {
           </>
         )}
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload EWI Documents"
+        entityName="EWI"
+        sampleHeaders={EWI_CSV_HEADERS}
+        sampleRows={EWI_CSV_SAMPLE}
+        validationRules={EWI_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 }

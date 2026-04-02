@@ -508,8 +508,9 @@ const NAV_ITEMS_DEF = [
     icon:  <SettingOutlined />,
     roles: ['plant_head', 'it_admin'],
     children: [
-      { key: 'admin-control-room', label: 'Control Room'          },
-      { key: 'admin-audit-log',    label: 'Audit Log'             },
+      { key: 'admin-control-room',  label: 'Control Room'           },
+      { key: 'admin-ai-dashboard', label: 'AI Dashboard'           },
+      { key: 'admin-audit-log',    label: 'Audit Log'              },
       { key: 'admin-whatsapp',     label: 'WhatsApp Notifications' },
     ],
   },
@@ -634,6 +635,7 @@ const KEY_TO_PATH = {
   'reports-hub': '/reports',
   // Admin
   'admin-control-room':    '/admin/control-room',
+  'admin-ai-dashboard':    '/admin/ai-dashboard',
   'admin-audit-log':       '/admin/audit-log',
   'admin-whatsapp':        '/admin/whatsapp',
   // Maintenance
@@ -777,7 +779,8 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/accounts/payments'))           return { selected: 'acc-payments',           open: ['accounts'] };
   if (pathname.startsWith('/accounts/copq'))               return { selected: 'acc-copq',              open: ['accounts'] };
   // Admin
-  if (pathname.startsWith('/admin/control-room')) return { selected: 'admin-control-room', open: ['admin'] };
+  if (pathname.startsWith('/admin/control-room'))  return { selected: 'admin-control-room',  open: ['admin'] };
+  if (pathname.startsWith('/admin/ai-dashboard'))  return { selected: 'admin-ai-dashboard',  open: ['admin'] };
   if (pathname.startsWith('/admin/audit-log'))    return { selected: 'admin-audit-log',    open: ['admin'] };
   if (pathname.startsWith('/admin/whatsapp'))     return { selected: 'admin-whatsapp',      open: ['admin'] };
   // Maintenance — Assets sub-group

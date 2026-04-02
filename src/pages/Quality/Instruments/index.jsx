@@ -9,7 +9,7 @@ import {
   EditOutlined, DeleteOutlined, RightOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined,
   SafetyCertificateOutlined, BulbOutlined, QrcodeOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
 import ResponsiveTable     from '../../../components/ResponsiveTable';
@@ -20,6 +20,8 @@ import { instrumentApi, calibrationFailureApi } from '../../../api/quality.api';
 import aiApi               from '../../../api/ai.api';
 import QrLabelPrint        from '../../../components/common/QrLabelPrint';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 
@@ -62,6 +64,20 @@ const VERIFY_RESULT = {
   conditional: { color: 'gold',  label: 'Conditional' },
 };
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const INSTR_CSV_HEADERS = [
+  'Name', 'Category', 'Manufacturer', 'Model No', 'Serial No',
+  'Measurement Range', 'Accuracy', 'Location', 'Calibration Freq (days)', 'Notes',
+];
+const INSTR_CSV_SAMPLE = [
+  { 'Name': 'Digital Caliper', 'Category': 'dimensional', 'Manufacturer': 'Mitutoyo',
+    'Model No': 'CD-6 ASX', 'Serial No': 'SN-12345', 'Measurement Range': '0-150mm',
+    'Accuracy': '0.01mm', 'Location': 'QC Lab', 'Calibration Freq (days)': '180', 'Notes': '' },
+];
+const INSTR_VALIDATION_RULES = [
+  { field: 'Name', required: true },
+];
+
 export default function InstrumentsPage() {
   const { can } = usePermissions();
   const canWrite = can('quality-instruments-create_edit_delete');
@@ -72,6 +88,8 @@ export default function InstrumentsPage() {
   const [statusFilter, setStatusFilter] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [activeTab,   setActiveTab]   = useState('list');
+
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // QR label state
   const [qrRecord, setQrRecord] = useState(null);
@@ -251,6 +269,34 @@ export default function InstrumentsPage() {
       if (err?.errorFields) return;
       message.error(err?.message || 'Verification failed');
     } finally { setVerifySaving(false); }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await instrumentApi.create({
+          name: row['Name'],
+          category: row['Category'] || null,
+          manufacturer: row['Manufacturer'] || null,
+          model_no: row['Model No'] || null,
+          serial_no: row['Serial No'] || null,
+          measurement_range: row['Measurement Range'] || null,
+          accuracy: row['Accuracy'] || null,
+          location: row['Location'] || null,
+          calibration_frequency_days: row['Calibration Freq (days)'] ? parseInt(row['Calibration Freq (days)'], 10) : null,
+          notes: row['Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   // ── Table columns — Instruments List ───────────────────────────────────────
@@ -482,7 +528,17 @@ export default function InstrumentsPage() {
             style={{ width: 140 }}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('instruments.csv', instruments, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = instruments.map((i) => ({
+              'Name': i.name || '', 'Category': i.category || '',
+              'Manufacturer': i.manufacturer || '', 'Model No': i.model_no || '',
+              'Serial No': i.serial_no || '', 'Measurement Range': i.measurement_range || '',
+              'Accuracy': i.accuracy || '', 'Location': i.location || '',
+              'Calibration Freq (days)': i.calibration_frequency_days ?? '', 'Notes': i.notes || '',
+            }));
+            downloadSampleCsv('instruments.csv', INSTR_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Instrument</Button>
@@ -829,6 +885,17 @@ export default function InstrumentsPage() {
         identifier={qrRecord?.instrument_code || ''}
         title="Instrument"
         subtitle={qrRecord?.name || ''}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Instruments"
+        entityName="Instrument"
+        sampleHeaders={INSTR_CSV_HEADERS}
+        sampleRows={INSTR_CSV_SAMPLE}
+        validationRules={INSTR_VALIDATION_RULES}
       />
     </AppLayout>
   );

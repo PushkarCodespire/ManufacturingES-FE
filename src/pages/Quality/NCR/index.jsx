@@ -7,13 +7,15 @@ import {
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, RightOutlined,
   EditOutlined, DeleteOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import AppLayout      from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
 import usePermissions from '../../../hooks/usePermissions';
 import { ncrApi }     from '../../../api/quality.api';
 import { itemApi }    from '../../../api/item.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -35,6 +37,16 @@ const LOCATION_OPTS = [
   { value: 'store',      label: 'Store'      },
 ];
 
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const NCR_CSV_HEADERS = ['NCR Type', 'Location Found', 'Item Name', 'Defect Description', 'Qty Affected'];
+const NCR_CSV_SAMPLE = [
+  { 'NCR Type': 'dimensional', 'Location Found': 'iqc', 'Item Name': 'Housing Cover',
+    'Defect Description': 'Dimension out of tolerance', 'Qty Affected': '50' },
+];
+const NCR_VALIDATION_RULES = [
+  { field: 'Defect Description', required: true },
+];
+
 export default function NCRPage() {
   const { can }  = usePermissions();
   const canWrite = can('quality-ncr-create_edit_delete');
@@ -47,6 +59,7 @@ export default function NCRPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing,    setEditing]    = useState(null);
   const [saving,     setSaving]     = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [form]                      = Form.useForm();
 
   const fetchAll = useCallback(async () => {
@@ -111,6 +124,30 @@ export default function NCRPage() {
       message.success('NCR deleted');
       fetchAll();
     } catch (err) { message.error(err?.message || 'Delete failed'); }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const item = row['Item Name'] ? items.find((i) => i.name?.toLowerCase() === row['Item Name']?.toLowerCase()) : null;
+        await ncrApi.create({
+          ncr_type: row['NCR Type'] || null,
+          location_found: row['Location Found'] || null,
+          item_id: item?.id || null,
+          defect_desc: row['Defect Description'],
+          qty_affected: row['Qty Affected'] ? parseFloat(row['Qty Affected']) : null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Defect Description']?.slice(0, 30)}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchAll();
+    return { success, failed, errors };
   };
 
   // ── Table columns ─────────────────────────────────────────────────────────
@@ -195,7 +232,15 @@ export default function NCRPage() {
             allowClear
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('n-c-r.csv', filtered, columns)}>Export CSV</Button>
+          <Button icon={<DownloadOutlined />} onClick={() => {
+            const csvRows = filtered.map((r) => ({
+              'NCR Type': r.ncr_type || '', 'Location Found': r.location_found || '',
+              'Item Name': r.Item?.name || '', 'Defect Description': r.defect_desc || '',
+              'Qty Affected': r.qty_affected ?? '',
+            }));
+            downloadSampleCsv('ncr.csv', NCR_CSV_HEADERS, csvRows);
+          }}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>Raise NCR</Button>
@@ -256,6 +301,17 @@ export default function NCRPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload NCRs"
+        entityName="NCR"
+        sampleHeaders={NCR_CSV_HEADERS}
+        sampleRows={NCR_CSV_SAMPLE}
+        validationRules={NCR_VALIDATION_RULES}
+      />
     </AppLayout>
   );
 }
