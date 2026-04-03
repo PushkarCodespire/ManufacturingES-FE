@@ -22,6 +22,7 @@ import {
   ApartmentOutlined,
   FileTextOutlined,
   ScanOutlined,
+  GoldOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth }        from '../../context/AuthContext';
@@ -62,13 +63,6 @@ const NAV_ITEMS_DEF = [
     icon:       <ScanOutlined />,
     permission: null,             // always show — any authenticated user
   },
-  {
-    key:        'operator-panel',
-    label:      'Operator Panel',
-    icon:       <ToolOutlined />,
-    permission: null,             // any authenticated user — touch-optimized for shop floor
-  },
-
   // ── Masters ──────────────────────────────────────────────────────────────────
   {
     key:   'masters',
@@ -103,16 +97,7 @@ const NAV_ITEMS_DEF = [
           { key: 'm-routings',        label: 'Routings',            permission: 'production-routings-read'         },
         ],
       },
-      // ── Planning (SubMenu) ─────────────────────────
-      {
-        key:   'grp-planning',
-        label: 'Planning',
-        children: [
-          { key: 'm-customers',         label: 'Customers',         permission: 'planning-vendors-read' },
-          { key: 'm-vendors',           label: 'Vendors',           permission: 'planning-vendors-read' },
-          { key: 'm-sticker-templates', label: 'Sticker Templates', permission: 'planning-sticker_templates-read' },
-        ],
-      },
+      // (Planning items moved to Orders and Procurement)
       // ── Inventory (SubMenu) ────────────────────────
       {
         key:   'grp-inventory',
@@ -130,7 +115,8 @@ const NAV_ITEMS_DEF = [
         children: [
           { key: 'm-reports',        label: 'Reports',        permission: 'other-reports-read'        },
           { key: 'm-tag-management', label: 'Tag Management', permission: 'other-tag_management-read' },
-          { key: 'm-templates',      label: 'Templates',      permission: 'other-templates-read'      },
+          { key: 'm-templates',           label: 'Templates',         permission: 'other-templates-read'               },
+          { key: 'm-sticker-templates', label: 'Sticker Templates', permission: 'planning-sticker_templates-read' },
           { key: 'm-automation',     label: 'Automation',     disabled: true, adminOnly: true },
           { key: 'm-onboarding',     label: 'Onboarding',     disabled: true, adminOnly: true },
         ],
@@ -144,6 +130,7 @@ const NAV_ITEMS_DEF = [
     label: 'Orders',
     icon:  <SolutionOutlined />,
     children: [
+      { key: 'm-customers',      label: 'Customers',      permission: 'planning-vendors-read'           },
       { key: 'o-rfq',            label: 'RFQ',            permission: 'plan-orders-rfq-read'            },
       { key: 'o-quotation',      label: 'Quotation',      permission: 'plan-orders-quotation-read'      },
       { key: 'o-customer-po',    label: 'Customer PO',    permission: 'plan-orders-customer_po-read'    },
@@ -225,6 +212,7 @@ const NAV_ITEMS_DEF = [
         key: 'grp-proc-vendors',
         label: 'Vendor Management',
         children: [
+          { key: 'm-vendors',          label: 'Vendors',            permission: 'planning-vendors-read' },
           { key: 'supplier-scorecard', label: 'Supplier Scorecard', permission: 'plan-supplier-scorecard-supplier_scorecard-read' },
           { key: 'scar',               label: 'SCAR',               permission: 'plan-scar-scar-read'                             },
         ],
@@ -291,7 +279,8 @@ const NAV_ITEMS_DEF = [
           { key: 'production-scheduling', label: 'Scheduling',      permission: 'prod-mrp_expected_production-create_plan-read' },
           { key: 'mrp-planning',          label: 'MRP / Net Req.',  permission: 'prod-mrp_expected_production-view_plan-read'   },
           { key: 'demand-forecast',       label: 'Demand Forecast', permission: 'prod-demand_forecast-forecast-read'            },
-          { key: 'process-recipes',      label: 'Process Recipes', permission: 'prod-process_recipes-process_recipes-read'      },
+          { key: 'process-recipes',      label: 'Process Recipes',    permission: 'prod-process_recipes-process_recipes-read'      },
+          { key: 'ewi',                 label: 'Work Instructions', permission: null },
         ],
       },
       // ── Inspections ────────────────────────────────────────────────────
@@ -303,7 +292,6 @@ const NAV_ITEMS_DEF = [
           { key: 'lqc', label: 'LQC Inspection', permission: 'prod-quality_level-iqc-read' },
           { key: 'pqc', label: 'PQC Inspection', permission: 'prod-quality_level-pqc-read' },
           { key: 'oqc', label: 'OQC Inspection', permission: 'prod-quality_level-oqc-read' },
-          { key: 'ewi', label: 'Work Instructions', permission: null },
         ],
       },
       // ── Workforce ──────────────────────────────────────────────────────
@@ -328,6 +316,7 @@ const NAV_ITEMS_DEF = [
           { key: 'capacity-planning', label: 'Capacity Planning',    permission: 'prod-dpr-daily_production_report-read'       },
           { key: 'scoreboard',        label: 'Production Scoreboard',permission: 'prod-work_centre-manage_work_centre-read'    },
           { key: 'andon',             label: 'Andon Board',          permission: 'prod-work_centre-manage_work_centre-read'    },
+          { key: 'operator-panel',   label: 'Operator Panel',       permission: null },
         ],
       },
       // ── Operations ─────────────────────────────────────────────────────
@@ -403,7 +392,7 @@ const NAV_ITEMS_DEF = [
   {
     key:   'mold',
     label: 'Mold Management',
-    icon:  <ToolOutlined />,
+    icon:  <GoldOutlined />,
     children: [
       // ── Mold Data ─────────────────────────────────────────────────────
       {
