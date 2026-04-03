@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Tabs, Table, Switch, Select, Input, Button, Card,
-  Slider, Checkbox, Radio, Tag, message, Spin, Empty, Alert, Modal, Result,
+  Slider, Checkbox, Radio, Tag, message, Spin, Empty, Alert,
 } from 'antd';
 import {
   SettingOutlined, RightOutlined, ReloadOutlined,
   SearchOutlined, SaveOutlined, RobotOutlined,
-  FilterOutlined, DeleteOutlined, WarningOutlined,
-  DownloadOutlined, } from '@ant-design/icons';
-import api from '../../../api/axios';
+  FilterOutlined,
+DownloadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
   moduleToggleApi,
@@ -1121,96 +1120,6 @@ const AuditLogTab = () => {
 // ══════════════════════════════════════════════════════════════════════════════
 //  TAB CONFIGURATION
 // ══════════════════════════════════════════════════════════════════════════════
-// ══════════════════════════════════════════════════════════════════════════════
-//  8. DATABASE MAINTENANCE TAB (TEMPORARY — remove after use)
-// ══════════════════════════════════════════════════════════════════════════════
-const DatabaseMaintenanceTab = () => {
-  const [clearing, setClearing] = useState(false);
-  const [result, setResult]     = useState(null);
-
-  const handleClearData = () => {
-    Modal.confirm({
-      title: 'Clear All Transactional Data?',
-      icon: <WarningOutlined style={{ color: '#dc2626' }} />,
-      content: (
-        <div>
-          <p style={{ color: '#dc2626', fontWeight: 600 }}>This will permanently delete:</p>
-          <ul style={{ fontSize: 13, color: '#374151' }}>
-            <li>Work Orders, Job Cards, Production data</li>
-            <li>Purchase Orders, GRNs, Invoices</li>
-            <li>IQC/LQC/PQC/OQC Inspections</li>
-            <li>Inventory transactions, Issue Slips</li>
-            <li>Dispatch Orders, Delivery Challans</li>
-            <li>Complaints, NCRs, CAPAs</li>
-            <li>All audit logs and notifications</li>
-          </ul>
-          <p style={{ fontWeight: 600, marginTop: 12 }}>Kept: Users, Items, Machines, Vendors, Customers, Warehouses, Sites, Shifts</p>
-        </div>
-      ),
-      okText: 'Yes, Clear Everything',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      width: 500,
-      onOk: async () => {
-        setClearing(true);
-        setResult(null);
-        try {
-          const res = await api.post('/admin/clear-transactional-data');
-          setResult({ success: true, message: res?.message || 'Data cleared successfully' });
-          message.success('Transactional data cleared');
-        } catch (err) {
-          setResult({ success: false, message: err?.response?.data?.message || err.message || 'Failed' });
-          message.error('Failed to clear data');
-        } finally {
-          setClearing(false);
-        }
-      },
-    });
-  };
-
-  return (
-    <div style={{ maxWidth: 600 }}>
-      <Alert
-        type="warning"
-        showIcon
-        message="Development Tool"
-        description="This tool clears all transactional data from the database. Use only in development/staging environments. Master data (users, items, machines, etc.) will be preserved."
-        style={{ marginBottom: 20, borderRadius: 8 }}
-      />
-
-      <Card style={{ borderRadius: 10, border: '1px solid #fecaca' }} bodyStyle={{ padding: '20px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <Text strong style={{ fontSize: 15, display: 'block' }}>Clear Transactional Data</Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Removes all WOs, POs, GRNs, inspections, dispatches, and other transactional records
-            </Text>
-          </div>
-          <Button
-            danger
-            type="primary"
-            icon={<DeleteOutlined />}
-            loading={clearing}
-            onClick={handleClearData}
-            size="large"
-          >
-            Clear Data
-          </Button>
-        </div>
-      </Card>
-
-      {result && (
-        <Result
-          status={result.success ? 'success' : 'error'}
-          title={result.success ? 'Data Cleared' : 'Failed'}
-          subTitle={result.message}
-          style={{ marginTop: 20 }}
-        />
-      )}
-    </div>
-  );
-};
-
 const TAB_ITEMS = [
   { key: 'modules',           label: 'Module Toggles',    children: <ModuleTogglesTab /> },
   { key: 'features',          label: 'Feature Toggles',   children: <FeatureTogglesTab /> },
@@ -1219,7 +1128,6 @@ const TAB_ITEMS = [
   { key: 'ai-agents',         label: 'AI Agent Toggles',  children: <AIAgentTogglesTab /> },
   { key: 'field-visibility',  label: 'Field Visibility',  children: <FieldVisibilityTab /> },
   { key: 'audit-log',         label: 'Audit Log',         children: <AuditLogTab /> },
-  { key: 'db-maintenance',    label: 'DB Maintenance',    children: <DatabaseMaintenanceTab /> },
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════
