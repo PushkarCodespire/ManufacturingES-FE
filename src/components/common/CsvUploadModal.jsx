@@ -244,7 +244,22 @@ export default function CsvUploadModal({
             }
             subTitle={
               importResult.errors.length > 0
-                ? importResult.errors.slice(0, 5).join('; ')
+                ? (
+                  <div style={{ textAlign: 'left', maxHeight: 200, overflowY: 'auto', marginTop: 8 }}>
+                    <ul style={{ paddingLeft: 20, margin: 0, fontSize: 13, color: '#374151' }}>
+                      {importResult.errors.slice(0, 10).map((err, i) => (
+                        <li key={i} style={{ marginBottom: 4, lineHeight: 1.5 }}>
+                          <span style={{ color: '#dc2626' }}>{err}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {importResult.errors.length > 10 && (
+                      <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 6, paddingLeft: 20 }}>
+                        ...and {importResult.errors.length - 10} more errors
+                      </div>
+                    )}
+                  </div>
+                )
                 : undefined
             }
             extra={

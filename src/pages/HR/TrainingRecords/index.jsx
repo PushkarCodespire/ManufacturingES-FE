@@ -42,12 +42,12 @@ const STATUS_LABELS  = { active: 'Active', expiring_soon: 'Expiring Soon', expir
 const fmtDate = (iso) => (iso ? dayjs(iso).format('DD MMM YYYY') : '—');
 
 // ── CSV Upload config ────────────────────────────────────────────────────────
-const RECORD_CSV_HEADERS = ['Employee Name', 'Topic Name', 'Training Date', 'Trainer Name', 'Score', 'Validity (Months)', 'Notes'];
+const RECORD_CSV_HEADERS = ['Employee ID', 'Employee Name', 'Topic Name', 'Training Date', 'Trainer Name', 'Score', 'Validity (Months)', 'Notes'];
 const RECORD_CSV_SAMPLE = [
-  { 'Employee Name': 'Amit Sharma', 'Topic Name': 'CNC Machine Operation', 'Training Date': '2025-06-15', 'Trainer Name': 'Raj Kumar', 'Score': '85', 'Validity (Months)': '12', 'Notes': '' },
+  { 'Employee ID': 'DT10002', 'Employee Name': 'Amit Sharma', 'Topic Name': 'CNC Machine Operation', 'Training Date': '2025-06-15', 'Trainer Name': 'Raj Kumar', 'Score': '85', 'Validity (Months)': '12', 'Notes': '' },
 ];
 const RECORD_VALIDATION_RULES = [
-  { field: 'Employee Name', required: true },
+  { field: 'Employee ID', required: true },
   { field: 'Topic Name', required: true },
 ];
 
@@ -159,9 +159,14 @@ const TrainingRecordsPage = () => {
     const errors = [];
     for (const row of rows) {
       try {
-        const emp = employees.find((e) => e.name?.toLowerCase() === row['Employee Name']?.toLowerCase());
-        const topic = topics.find((t) => t.name?.toLowerCase() === row['Topic Name']?.toLowerCase());
-        if (!emp) throw new Error(`Employee "${row['Employee Name']}" not found`);
+        const empId = (row['Employee ID'] || '').trim();
+        if (!empId) throw new Error('Employee ID is required');
+
+        // Match by employee_id (e.g., DT10002) — only org employees will match
+        const emp = employees.find((e) => e.employee_id?.toUpperCase() === empId.toUpperCase());
+        if (!emp) throw new Error(`Employee ID "${empId}" not found in organization. Only existing employees can be added.`);
+
+        const topic = topics.find((t) => t.name?.toLowerCase() === (row['Topic Name'] || '').toLowerCase());
         if (!topic) throw new Error(`Topic "${row['Topic Name']}" not found`);
         await trainingRecordApi.create({
           employee_id: emp.id,
@@ -413,6 +418,7 @@ const TrainingRecordsPage = () => {
           )}
           <Button icon={<DownloadOutlined />} onClick={() => {
             const csvRows = filtered.map((r) => ({
+              'Employee ID': r.Employee?.employee_id || '',
               'Employee Name': r.Employee?.name || '', 'Topic Name': r.Topic?.name || '',
               'Training Date': r.training_date || '', 'Trainer Name': r.trainer_name || '',
               'Score': r.score ?? '', 'Validity (Months)': r.validity_months ?? '',
