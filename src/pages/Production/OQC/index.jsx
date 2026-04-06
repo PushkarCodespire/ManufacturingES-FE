@@ -25,6 +25,19 @@ import OqcTestCertTemplate from './templates/OqcTestCertTemplate';
 import OqcCOCTemplate      from './templates/OqcCOCTemplate';
 import '../../../pages/Dispatch/DispatchDocuments/printStyles.css';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const OQC_CSV_HEADERS = ['Item Code', 'Customer Code', 'Work Order No', 'Batch No', 'Inspection Date', 'Qty Inspected', 'Qty Rejected', 'Qty Accepted', 'Notes'];
+const OQC_CSV_SAMPLE = [
+  { 'Item Code': 'ITM-001', 'Customer Code': 'CUST-001', 'Work Order No': 'WO-001', 'Batch No': 'LOT-001', 'Inspection Date': '2026-04-01', 'Qty Inspected': '200', 'Qty Rejected': '3', 'Qty Accepted': '197', 'Notes': '' },
+];
+const OQC_CSV_VALIDATION = [
+  { field: 'Item Code', required: true },
+  { field: 'Inspection Date', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -63,6 +76,7 @@ export default function OQCPage() {
   const [params,     setParams]     = useState([emptyParam()]);
 
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [priorityMap, setPriorityMap] = useState({});
   const aiPriority = useAiSuggestion(aiApi.getOqcPriority);
   const aiStandards = useAiSuggestion(aiApi.detectStandards);
@@ -198,6 +212,41 @@ export default function OQCPage() {
       if (err?.errorFields) return;
       message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const itemCode = (row['Item Code'] || '').trim();
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        if (!item) throw new Error(`Item "${itemCode}" not found`);
+        const custCode = (row['Customer Code'] || '').trim();
+        const customer = custCode ? customers.find((c) => c.partner_code?.toLowerCase() === custCode.toLowerCase()) : null;
+        const woNo = (row['Work Order No'] || '').trim();
+        const wo = woNo ? workOrders.find((w) => w.wo_no?.toLowerCase() === woNo.toLowerCase()) : null;
+        await oqcApi.create({
+          item_id:         item.id,
+          customer_id:     customer?.id || null,
+          work_order_id:   wo?.id || null,
+          batch_no:        row['Batch No'] || null,
+          inspection_date: row['Inspection Date'] || dayjs().format('YYYY-MM-DD'),
+          qty_inspected:   parseFloat(row['Qty Inspected']) || 0,
+          qty_rejected:    parseFloat(row['Qty Rejected']) || 0,
+          qty_accepted:    parseFloat(row['Qty Accepted']) || 0,
+          notes:           row['Notes'] || null,
+          results:         [],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   const onResult = async (id, result) => {
@@ -420,6 +469,7 @@ export default function OQCPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('o-q-c.csv', inspections, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New OQC Inspection</Button>
@@ -612,6 +662,17 @@ export default function OQCPage() {
           </Button>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload OQC Inspections"
+        entityName="OQC Inspection"
+        sampleHeaders={OQC_CSV_HEADERS}
+        sampleRows={OQC_CSV_SAMPLE}
+        validationRules={OQC_CSV_VALIDATION}
+      />
 
       {/* Hidden print templates */}
       <div style={{ display: 'none' }}>

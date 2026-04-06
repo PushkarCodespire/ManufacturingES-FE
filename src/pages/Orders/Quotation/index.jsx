@@ -19,6 +19,9 @@ import aiApi            from '../../../api/ai.api';
 import useAiSuggestion  from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard from '../../../components/AiSuggestion/AiSuggestionCard';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -30,6 +33,18 @@ const STATUS_CONFIG = {
   revised:  { color: 'orange',  label: 'Revised'  },
 };
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }));
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const CSV_HEADERS = ['Customer Code', 'Quotation Date', 'Valid Till', 'Item Code', 'Description', 'Qty', 'Unit', 'Unit Price', 'Discount %', 'GST %', 'Notes'];
+const CSV_SAMPLE = [
+  { 'Customer Code': 'CUST-001', 'Quotation Date': '2025-06-15', 'Valid Till': '2025-07-15', 'Item Code': 'ITM-001', 'Description': 'Shaft Assembly', 'Qty': '100', 'Unit': 'pcs', 'Unit Price': '250', 'Discount %': '0', 'GST %': '18', 'Notes': '' },
+];
+const CSV_VALIDATION = [
+  { field: 'Customer Code', required: true },
+  { field: 'Item Code', required: true },
+  { field: 'Qty', required: true },
+  { field: 'Unit Price', required: true },
+];
 
 const emptyItem = () => ({
   _key: Date.now() + Math.random(),
@@ -62,6 +77,7 @@ export default function QuotationPage() {
   const [lineItems,    setLineItems]    = useState([emptyItem()]);
 
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [priceHint, setPriceHint] = useState(null);
   const aiPrice = useAiSuggestion(aiApi.suggestPrice);
 
@@ -191,6 +207,54 @@ export default function QuotationPage() {
   const removeLine = (key) => setLineItems((p) => p.filter((r) => r._key !== key));
   const updateLine = (key, field, value) =>
     setLineItems((p) => p.map((r) => r._key === key ? { ...r, [field]: value } : r));
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    const groups = {};
+    for (const row of rows) {
+      const key = `${(row['Customer Code'] || '').trim()}||${(row['Quotation Date'] || '').trim()}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(row);
+    }
+    for (const [, groupRows] of Object.entries(groups)) {
+      try {
+        const first = groupRows[0];
+        const custCode = (first['Customer Code'] || '').trim();
+        const cust = customers.find((c) => c.partner_code?.toLowerCase() === custCode.toLowerCase());
+        if (!cust) throw new Error(`Customer "${custCode}" not found`);
+        const itemsPayload = groupRows.map((row) => {
+          const itemCode = (row['Item Code'] || '').trim();
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          return {
+            item_id: item?.id || null,
+            description: row['Description'] || item?.name || '',
+            qty: parseFloat(row['Qty']) || 1,
+            unit: row['Unit'] || 'pcs',
+            unit_price: parseFloat(row['Unit Price']) || 0,
+            discount: parseFloat(row['Discount %']) || 0,
+            gst_rate: parseFloat(row['GST %']) || 18,
+            total_price: calcTotal(parseFloat(row['Qty']) || 1, parseFloat(row['Unit Price']) || 0, parseFloat(row['Discount %']) || 0, parseFloat(row['GST %']) || 18),
+          };
+        });
+        await quotationApi.create({
+          customer_id: cust.id,
+          quotation_date: first['Quotation Date'] || dayjs().format('YYYY-MM-DD'),
+          valid_till: first['Valid Till'] || dayjs().add(30, 'day').format('YYYY-MM-DD'),
+          terms: '',
+          notes: first['Notes'] || '',
+          items: itemsPayload,
+        });
+        success += groupRows.length;
+      } catch (err) {
+        failed += groupRows.length;
+        errors.push(`Group "${groupRows[0]['Customer Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
 
   // When RFQ selected, auto-populate customer + line items
   const onRfqSelect = (rfqId) => {
@@ -356,6 +420,7 @@ export default function QuotationPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('quotation.csv', quotations, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Quotation</Button>
@@ -511,6 +576,17 @@ export default function QuotationPage() {
           </div>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Quotations"
+        entityName="Quotation"
+        sampleHeaders={CSV_HEADERS}
+        sampleRows={CSV_SAMPLE}
+        validationRules={CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

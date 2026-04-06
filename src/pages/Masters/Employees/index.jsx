@@ -19,12 +19,26 @@ import {
   BankOutlined,
   AppstoreOutlined,
   RightOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { userApi }  from '../../../api/user.api';
 import AppLayout    from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
 import usePermissions from '../../../hooks/usePermissions';
 import { exportToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const EMP_CSV_HEADERS = ['Name', 'Email', 'Phone', 'Department', 'Role'];
+const EMP_CSV_SAMPLE = [
+  { 'Name': 'Priya Sharma', 'Email': 'priya@dynatech.com', 'Phone': '9876543210', 'Department': 'Quality', 'Role': 'QA Inspector' },
+];
+const EMP_CSV_VALIDATION = [
+  { field: 'Name', required: true },
+  { field: 'Email', required: true },
+  { field: 'Department', required: true },
+  { field: 'Role', required: true },
+];
 
 const { Title, Text } = Typography;
 const { Option }      = Select;
@@ -214,6 +228,7 @@ const EmployeesPage = () => {
   // Success modal
   const [successData, setSuccessData]   = useState(null);
   const [copied,      setCopied]        = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // ── Fetch employees ───────────────────────────────────────────────────────
   const fetchUsers = useCallback(async () => {
@@ -325,6 +340,31 @@ const EmployeesPage = () => {
     }
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const dept = row['Department'] ? departments.find((d) => d.name?.toLowerCase() === row['Department'].toLowerCase()) : null;
+        const role = row['Role'] ? roles.find((r) => r.label?.toLowerCase() === row['Role'].toLowerCase() && (!dept || r.department_id === dept?.id)) : null;
+        await userApi.create({
+          name:          row['Name'],
+          email:         row['Email'],
+          phone:         row['Phone'] || null,
+          department_id: dept?.id || null,
+          role_id:       role?.id || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchUsers();
+    return { success, failed, errors };
+  };
+
   // ── Stats ─────────────────────────────────────────────────────────────────
   const totalActive   = users.filter((u) => u.is_active).length;
   const totalInactive = users.filter((u) => !u.is_active).length;
@@ -414,6 +454,7 @@ const EmployeesPage = () => {
             <Option value="false">Inactive</Option>
           </Select>
           <div style={{ flex: 1 }} />
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
           <Button icon={<ReloadOutlined />} onClick={fetchUsers} style={{ borderRadius: 8 }}>
             Refresh
           </Button>
@@ -791,6 +832,17 @@ const EmployeesPage = () => {
           </div>
         )}
       </Modal>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Employees"
+        entityName="Employee"
+        sampleHeaders={EMP_CSV_HEADERS}
+        sampleRows={EMP_CSV_SAMPLE}
+        validationRules={EMP_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 };

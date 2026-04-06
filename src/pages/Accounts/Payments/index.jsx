@@ -1,11 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Button, Input, Table, Tag, Space, Drawer, Form, Select, DatePicker, InputNumber, message, Popconfirm, Row, Col } from 'antd';
-import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, RightOutlined, DownloadOutlined, } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, RightOutlined, DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import { paymentApi } from '../../../api/accounts.api';
 import { vendorApi } from '../../../api/vendor.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const PAY_CSV_HEADERS = ['Type', 'Payment Date', 'Vendor/Customer Name', 'Amount', 'Payment Mode', 'Ref No', 'Reference', 'Notes'];
+const PAY_CSV_SAMPLE = [
+  { 'Type': 'payable', 'Payment Date': '2025-06-15', 'Vendor/Customer Name': 'ABC Suppliers', 'Amount': '25000', 'Payment Mode': 'bank_transfer', 'Ref No': 'PO-2025-001', 'Reference': 'UTR123456', 'Notes': '' },
+];
+const PAY_CSV_VALIDATION = [
+  { field: 'Type', required: true },
+  { field: 'Amount', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -29,6 +41,7 @@ const PaymentsPage = () => {
   const [saving, setSaving]         = useState(false);
   const [form] = Form.useForm();
   const payType = Form.useWatch('type', form);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,6 +111,43 @@ const PaymentsPage = () => {
     catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const type = (row['Type'] || 'payable').toLowerCase();
+        const partyName = row['Vendor/Customer Name'] || '';
+        let vendor_id = null, customer_id = null;
+        if (type === 'payable' && partyName) {
+          const v = vendors.find((x) => x.name?.toLowerCase() === partyName.toLowerCase());
+          vendor_id = v?.id || null;
+        } else if (type === 'receivable' && partyName) {
+          const c = customers.find((x) => x.name?.toLowerCase() === partyName.toLowerCase());
+          customer_id = c?.id || null;
+        }
+        await paymentApi.create({
+          type,
+          vendor_id,
+          customer_id,
+          payment_date:  row['Payment Date'] || null,
+          amount:        parseFloat(row['Amount']) || 0,
+          payment_mode:  row['Payment Mode'] || null,
+          ref_no:        row['Ref No'] || null,
+          reference:     row['Reference'] || null,
+          notes:         row['Notes'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Vendor/Customer Name'] || type}": ${err?.message || 'Failed'}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
+
   const totalPayable   = rows.filter((r) => r.type === 'payable').reduce((s, r) => s + parseFloat(r.amount || 0), 0);
   const totalReceivable = rows.filter((r) => r.type === 'receivable').reduce((s, r) => s + parseFloat(r.amount || 0), 0);
   const columns = [
@@ -162,6 +212,7 @@ const PaymentsPage = () => {
           <Select placeholder="Status" allowClear value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} style={{ width: 130 }} />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('payments.csv', rows, columns)}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Payment</Button>
         </div>
@@ -209,6 +260,17 @@ const PaymentsPage = () => {
           <Form.Item name="notes" label="Notes"><Input.TextArea rows={2} placeholder="Notes..." /></Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Payments"
+        entityName="Payment"
+        sampleHeaders={PAY_CSV_HEADERS}
+        sampleRows={PAY_CSV_SAMPLE}
+        validationRules={PAY_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 };

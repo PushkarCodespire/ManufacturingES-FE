@@ -9,7 +9,7 @@ import {
   EditOutlined, DeleteOutlined, RightOutlined,
   PlusCircleOutlined, MinusCircleOutlined, CheckCircleOutlined,
   BulbOutlined, StopOutlined, ExclamationCircleOutlined, QrcodeOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout            from '../../../components/AppLayout';
 import ResponsiveTable      from '../../../components/ResponsiveTable';
@@ -24,6 +24,20 @@ import useAiSuggestion      from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionCard';
 import QrLabelPrint         from '../../../components/common/QrLabelPrint';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const GRN_CSV_HEADERS = ['Vendor Code', 'Warehouse', 'Received Date', 'Invoice No', 'Item Code', 'Qty Received', 'Unit', 'Unit Price', 'Discount %', 'GST %', 'Lot No', 'Notes'];
+const GRN_CSV_SAMPLE = [
+  { 'Vendor Code': 'VND-001', 'Warehouse': 'Main Store', 'Received Date': '2025-06-15', 'Invoice No': 'INV-001', 'Item Code': 'ITM-001', 'Qty Received': '100', 'Unit': 'pcs', 'Unit Price': '50', 'Discount %': '0', 'GST %': '18', 'Lot No': 'LOT-001', 'Notes': '' },
+];
+const GRN_CSV_VALIDATION = [
+  { field: 'Vendor Code', required: true },
+  { field: 'Warehouse', required: true },
+  { field: 'Item Code', required: true },
+  { field: 'Qty Received', required: true, validate: (v) => isNaN(parseFloat(v)) ? 'Qty must be a number' : null },
+];
 
 const parseInsight = (raw) => {
   if (!raw) return null;
@@ -84,6 +98,7 @@ export default function GRNPage() {
   const [loading,      setLoading]      = useState(false);
   const [search,       setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // QR label state
   const [qrRecord, setQrRecord] = useState(null);
@@ -236,6 +251,60 @@ export default function GRNPage() {
       message.success('GRN deleted');
       load();
     } catch (err) { message.error(err?.message || 'Delete failed'); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    // Group rows by Vendor Code + Invoice No to create one GRN per group
+    const groups = {};
+    for (const row of rows) {
+      const key = `${(row['Vendor Code'] || '').trim()}||${(row['Invoice No'] || '').trim()}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(row);
+    }
+    for (const [, groupRows] of Object.entries(groups)) {
+      try {
+        const first = groupRows[0];
+        const vendorCode = (first['Vendor Code'] || '').trim();
+        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase());
+        if (!vendor) throw new Error(`Vendor "${vendorCode}" not found`);
+        const whName = (first['Warehouse'] || '').trim();
+        const wh = warehouses.find((w) => w.name?.toLowerCase() === whName.toLowerCase());
+        if (!wh) throw new Error(`Warehouse "${whName}" not found`);
+        const itemsPayload = groupRows.map((row) => {
+          const itemCode = (row['Item Code'] || '').trim();
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          return {
+            item_id:      item?.id || null,
+            item_code:    itemCode,
+            description:  item?.name || '',
+            qty_received: parseFloat(row['Qty Received']) || 1,
+            unit:         row['Unit'] || 'pcs',
+            unit_price:   row['Unit Price'] ? parseFloat(row['Unit Price']) : null,
+            discount:     parseFloat(row['Discount %']) || 0,
+            gst_rate:     parseFloat(row['GST %']) || 18,
+            lot_no:       row['Lot No'] || '',
+            remarks:      '',
+          };
+        });
+        await grnApi.create({
+          vendor_id:     vendor.id,
+          warehouse_id:  wh.id,
+          received_date: first['Received Date'] || dayjs().format('YYYY-MM-DD'),
+          invoice_no:    first['Invoice No'] || '',
+          notes:         first['Notes'] || '',
+          items:         itemsPayload,
+        });
+        success += groupRows.length;
+      } catch (err) {
+        failed += groupRows.length;
+        errors.push(`GRN "${groupRows[0]['Vendor Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   // ── Line item helpers ──────────────────────────────────────────────────────
@@ -440,6 +509,7 @@ export default function GRNPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('g-r-n.csv', grns, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New GRN</Button>
@@ -824,6 +894,17 @@ export default function GRNPage() {
         identifier={qrRecord?.grn_no || ''}
         title="Goods Receipt Note"
         subtitle={qrRecord?.Vendor?.name || ''}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload GRNs"
+        entityName="GRN"
+        sampleHeaders={GRN_CSV_HEADERS}
+        sampleRows={GRN_CSV_SAMPLE}
+        validationRules={GRN_CSV_VALIDATION}
       />
     </AppLayout>
   );

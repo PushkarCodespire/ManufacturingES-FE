@@ -9,13 +9,27 @@ import {
   EditOutlined, DeleteOutlined, RightOutlined,
   LockOutlined, EyeOutlined, ExclamationCircleOutlined,
   DollarOutlined, CheckCircleOutlined, WarningOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout       from '../../../components/AppLayout';
 import usePermissions  from '../../../hooks/usePermissions';
 import { budgetApi }   from '../../../api/procurement.api';
 import { userApi }     from '../../../api/user.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const BUDGET_CSV_HEADERS = ['Category', 'Period Type', 'Department', 'Start Date', 'End Date', 'Allocated Amount', 'Notes'];
+const BUDGET_CSV_SAMPLE = [
+  { 'Category': 'raw_material', 'Period Type': 'quarterly', 'Department': 'Production', 'Start Date': '2025-04-01', 'End Date': '2025-06-30', 'Allocated Amount': '500000', 'Notes': 'Q1 raw material budget' },
+];
+const BUDGET_CSV_VALIDATION = [
+  { field: 'Category', required: true },
+  { field: 'Allocated Amount', required: true },
+  { field: 'Start Date', required: true },
+  { field: 'End Date', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -82,6 +96,7 @@ export default function BudgetManagementPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving,        setSaving]        = useState(false);
   const [form]                            = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen]   = useState(false);
 
   // ── Load ─────────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -128,6 +143,32 @@ export default function BudgetManagementPage() {
     const pct = (parseFloat(r.actual_spend || 0) / parseFloat(r.allocated_amount)) * 100;
     return pct >= 80 && pct < 100;
   }).length;
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const dept = row['Department'] ? departments.find((d) => d.name?.toLowerCase() === row['Department'].toLowerCase()) : null;
+        await budgetApi.create({
+          category:         row['Category'] || 'other',
+          period_type:      row['Period Type'] || 'monthly',
+          department_id:    dept?.id || null,
+          start_date:       row['Start Date'],
+          end_date:         row['End Date'],
+          allocated_amount: parseFloat(row['Allocated Amount']) || 0,
+          notes:            row['Notes'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Category'] || ''}": ${err?.message || 'Failed'}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
   const openCreate = () => {
@@ -370,6 +411,7 @@ export default function BudgetManagementPage() {
             />
             <div style={{ flex: 1 }} />
             <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('budget-management.csv', filtered, columns)}>Export CSV</Button>
+            {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
             {canWrite && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
@@ -600,6 +642,17 @@ export default function BudgetManagementPage() {
           );
         })()}
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Budgets"
+        entityName="Budget"
+        sampleHeaders={BUDGET_CSV_HEADERS}
+        sampleRows={BUDGET_CSV_SAMPLE}
+        validationRules={BUDGET_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

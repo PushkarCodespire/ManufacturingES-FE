@@ -6,13 +6,24 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   RightOutlined, SearchOutlined, FileTextOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { deliveryChallanApi } from '../../../api/deliveryChallan.api';
 import { dispatchOrderApi }   from '../../../api/dispatchOrder.api';
 import AppLayout              from '../../../components/AppLayout';
 import usePermissions         from '../../../hooks/usePermissions';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const DC_CSV_HEADERS = ['Dispatch Order No', 'Status', 'Issued Date', 'Receiver Name', 'Receiver Phone', 'Delivery Notes'];
+const DC_CSV_SAMPLE = [
+  { 'Dispatch Order No': 'DO-2025-001', 'Status': 'pending', 'Issued Date': '2025-06-15', 'Receiver Name': 'John Doe', 'Receiver Phone': '+91 98765 43210', 'Delivery Notes': 'Handle with care' },
+];
+const DC_CSV_VALIDATION = [
+  { field: 'Dispatch Order No', required: true },
+];
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -38,6 +49,7 @@ const DeliveryChallansPage = () => {
   const [filterStatus, setFilterStatus] = useState(null);
   const [search,       setSearch]       = useState('');
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -108,6 +120,31 @@ const DeliveryChallansPage = () => {
     } catch (err) {
       message.error(err?.message || 'Failed to delete');
     }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const order = row['Dispatch Order No'] ? orders.find((o) => o.order_number?.toLowerCase() === row['Dispatch Order No'].toLowerCase()) : null;
+        await deliveryChallanApi.create({
+          dispatch_order_id: order?.id || null,
+          status:            row['Status'] || 'pending',
+          issued_date:       row['Issued Date'] || null,
+          receiver_name:     row['Receiver Name'] || null,
+          receiver_phone:    row['Receiver Phone'] || null,
+          delivery_notes:    row['Delivery Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Dispatch Order No'] || ''}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchAll();
+    return { success, failed, errors };
   };
 
   const filtered = search
@@ -203,6 +240,7 @@ const DeliveryChallansPage = () => {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('delivery-challans.csv', filtered, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>
@@ -267,6 +305,17 @@ const DeliveryChallansPage = () => {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Delivery Challans"
+        entityName="Challan"
+        sampleHeaders={DC_CSV_HEADERS}
+        sampleRows={DC_CSV_SAMPLE}
+        validationRules={DC_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 };

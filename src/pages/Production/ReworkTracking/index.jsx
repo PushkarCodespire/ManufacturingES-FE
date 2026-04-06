@@ -14,6 +14,19 @@ import usePermissions from '../../../hooks/usePermissions';
 import { reworkApi }  from '../../../api/production.api';
 import api            from '../../../api/axios';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const REWORK_CSV_HEADERS = ['Item Code', 'Qty Rework', 'Work Order No', 'Machine Name', 'Rework Date', 'Reason'];
+const REWORK_CSV_SAMPLE = [
+  { 'Item Code': 'ITM-001', 'Qty Rework': '25', 'Work Order No': 'WO-001', 'Machine Name': 'CNC-01', 'Rework Date': '2026-04-01', 'Reason': 'Dimensional out-of-tolerance' },
+];
+const REWORK_CSV_VALIDATION = [
+  { field: 'Item Code', required: true },
+  { field: 'Qty Rework', required: true },
+];
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -51,6 +64,8 @@ export default function ReworkTrackingPage() {
   const [completeId,   setCompleteId]     = useState(null);
   const [completeForm] = Form.useForm();
 
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
+
   // Lookup data
   const [items,    setItems]    = useState([]);
   const [machines, setMachines] = useState([]);
@@ -85,6 +100,37 @@ export default function ReworkTrackingPage() {
     };
     fetchLookups();
   }, []);
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const itemCode = (row['Item Code'] || '').trim();
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        if (!item) throw new Error(`Item "${itemCode}" not found`);
+        const woNo = (row['Work Order No'] || '').trim();
+        const wo = woNo ? wos.find((w) => w.wo_no?.toLowerCase() === woNo.toLowerCase()) : null;
+        const machineName = (row['Machine Name'] || '').trim();
+        const machine = machineName ? machines.find((m) => m.name?.toLowerCase() === machineName.toLowerCase()) : null;
+        await reworkApi.create({
+          item_id:       item.id,
+          qty_rework:    parseFloat(row['Qty Rework']) || 1,
+          work_order_id: wo?.id || null,
+          machine_id:    machine?.id || null,
+          rework_date:   row['Rework Date'] || null,
+          reason:        row['Reason'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
 
   const handleCreate = async (values) => {
     setSaving(true);
@@ -237,6 +283,7 @@ export default function ReworkTrackingPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('rework-tracking.csv', vouchers, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
@@ -372,6 +419,17 @@ export default function ReworkTrackingPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Rework Vouchers"
+        entityName="Rework Voucher"
+        sampleHeaders={REWORK_CSV_HEADERS}
+        sampleRows={REWORK_CSV_SAMPLE}
+        validationRules={REWORK_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

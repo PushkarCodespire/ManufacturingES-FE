@@ -21,6 +21,20 @@ import { itemApi }     from '../../../api/item.api';
 import { machineApi }  from '../../../api/machine.api';
 import { shiftApi }    from '../../../api/shift.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const SCHED_CSV_HEADERS = ['Schedule Date', 'Machine Name', 'Shift Name', 'Item Code', 'Planned Qty', 'Work Order No', 'Notes'];
+const SCHED_CSV_SAMPLE = [
+  { 'Schedule Date': '2026-04-05', 'Machine Name': 'CNC-01', 'Shift Name': 'Day Shift', 'Item Code': 'ITM-001', 'Planned Qty': '500', 'Work Order No': 'WO-001', 'Notes': '' },
+];
+const SCHED_CSV_VALIDATION = [
+  { field: 'Schedule Date', required: true },
+  { field: 'Item Code', required: true },
+  { field: 'Planned Qty', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -178,6 +192,7 @@ export default function SchedulingPage() {
   const [saving,     setSaving]     = useState(false);
 
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // ── AI suggestions ────────────────────────────────────────────────────────
   const shortage   = useAiSuggestion(aiApi.getShortagePrediction);
@@ -285,6 +300,40 @@ export default function SchedulingPage() {
       if (err?.errorFields) return;
       message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const itemCode = (row['Item Code'] || '').trim();
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        if (!item) throw new Error(`Item "${itemCode}" not found`);
+        const machineName = (row['Machine Name'] || '').trim();
+        const machine = machineName ? machines.find((m) => m.name?.toLowerCase() === machineName.toLowerCase()) : null;
+        const shiftName = (row['Shift Name'] || '').trim();
+        const shift = shiftName ? shifts.find((s) => s.name?.toLowerCase() === shiftName.toLowerCase()) : null;
+        const woNo = (row['Work Order No'] || '').trim();
+        const wo = woNo ? workOrders.find((w) => w.wo_no?.toLowerCase() === woNo.toLowerCase()) : null;
+        await scheduleApi.create({
+          schedule_date: row['Schedule Date'],
+          machine_id:    machine?.id || null,
+          shift_id:      shift?.id || null,
+          item_id:       item.id,
+          planned_qty:   parseFloat(row['Planned Qty']) || 0,
+          work_order_id: wo?.id || null,
+          notes:         row['Notes'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   const onPublish = async (id) => {
@@ -479,6 +528,7 @@ export default function SchedulingPage() {
             </Button>
           </Tooltip>
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('scheduling.csv', schedules, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
@@ -705,6 +755,17 @@ export default function SchedulingPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Production Schedules"
+        entityName="Schedule"
+        sampleHeaders={SCHED_CSV_HEADERS}
+        sampleRows={SCHED_CSV_SAMPLE}
+        validationRules={SCHED_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

@@ -8,7 +8,7 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   RightOutlined, SearchOutlined,
   PlusCircleOutlined, MinusCircleOutlined, InboxOutlined, FileTextOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { dispatchOrderApi }  from '../../../api/dispatchOrder.api';
 import { transporterApi }    from '../../../api/transporter.api';
@@ -17,6 +17,17 @@ import AppLayout            from '../../../components/AppLayout';
 import usePermissions       from '../../../hooks/usePermissions';
 import api                  from '../../../api/axios';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const DO_CSV_HEADERS = ['Customer Name', 'Transporter Name', 'Vehicle Number', 'Dispatch Date', 'Expected Delivery', 'Driver Name', 'Driver Phone', 'Shipping Address', 'Notes'];
+const DO_CSV_SAMPLE = [
+  { 'Customer Name': 'XYZ Corp', 'Transporter Name': 'FastLogistics', 'Vehicle Number': 'MH 12 AB 1234', 'Dispatch Date': '2025-06-15', 'Expected Delivery': '2025-06-17', 'Driver Name': 'Rajesh Kumar', 'Driver Phone': '+91 98765 43210', 'Shipping Address': '123 Industrial Area', 'Notes': '' },
+];
+const DO_CSV_VALIDATION = [
+  { field: 'Customer Name', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -52,6 +63,7 @@ const DispatchOrdersPage = () => {
   const [filterStatus, setFilterStatus] = useState(null);
   const [search,       setSearch]       = useState('');
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -146,6 +158,37 @@ const DispatchOrdersPage = () => {
     } catch (err) {
       message.error(err?.message || 'Failed to delete');
     }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const cust = row['Customer Name'] ? customers.find((c) => c.name?.toLowerCase() === row['Customer Name'].toLowerCase()) : null;
+        const trans = row['Transporter Name'] ? transporters.find((t) => t.name?.toLowerCase() === row['Transporter Name'].toLowerCase()) : null;
+        await dispatchOrderApi.create({
+          customer_id:            cust?.id || null,
+          transporter_id:         trans?.id || null,
+          vehicle_number:         row['Vehicle Number'] || null,
+          dispatch_date:          row['Dispatch Date'] || null,
+          expected_delivery_date: row['Expected Delivery'] || null,
+          driver_name:            row['Driver Name'] || null,
+          driver_phone:           row['Driver Phone'] || null,
+          shipping_address:       row['Shipping Address'] || null,
+          notes:                  row['Notes'] || null,
+          status:                 'draft',
+          items:                  [],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Customer Name'] || ''}": ${err?.message || 'Failed'}`);
+      }
+    }
+    fetchAll();
+    return { success, failed, errors };
   };
 
   const filtered = search
@@ -250,6 +293,7 @@ const DispatchOrdersPage = () => {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('dispatch-orders.csv', filtered, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={fetchAll}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>
@@ -405,6 +449,17 @@ const DispatchOrdersPage = () => {
           )}
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Dispatch Orders"
+        entityName="Dispatch Order"
+        sampleHeaders={DO_CSV_HEADERS}
+        sampleRows={DO_CSV_SAMPLE}
+        validationRules={DO_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 };

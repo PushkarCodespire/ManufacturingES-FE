@@ -18,6 +18,19 @@ import aiApi              from '../../../api/ai.api';
 import useAiSuggestion    from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard   from '../../../components/AiSuggestion/AiSuggestionCard';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const SCAR_CSV_HEADERS = ['Vendor Code', 'Severity', 'Defect Description', 'Affected Qty', 'Source', 'Response Due Date', 'Notes'];
+const SCAR_CSV_SAMPLE = [
+  { 'Vendor Code': 'VND-001', 'Severity': 'major', 'Defect Description': 'Surface scratches on 20% of batch', 'Affected Qty': '50', 'Source': 'iqc', 'Response Due Date': '2025-07-15', 'Notes': '' },
+];
+const SCAR_CSV_VALIDATION = [
+  { field: 'Vendor Code', required: true },
+  { field: 'Defect Description', required: true },
+];
 
 // Strip markdown code fences and parse JSON
 const parseInsight = (raw) => {
@@ -74,6 +87,8 @@ export default function SCARPage() {
   const [form]        = Form.useForm();
   const [updateForm]  = Form.useForm();
   const [respondForm] = Form.useForm();
+
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // AI state
   const aiDraft = useAiSuggestion(aiApi.getScarAiDraft);
@@ -236,6 +251,34 @@ export default function SCARPage() {
       message.success('SCAR closed successfully');
       load();
     } catch (err) { message.error(err?.message || 'Close failed'); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const vendorCode = (row['Vendor Code'] || '').trim();
+        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase());
+        if (!vendor) throw new Error(`Vendor "${vendorCode}" not found`);
+        await scarApi.create({
+          vendor_id:             vendor.id,
+          severity:              row['Severity'] || 'major',
+          defect_desc:           row['Defect Description'] || '',
+          affected_qty:          parseFloat(row['Affected Qty']) || null,
+          source_type:           row['Source'] || null,
+          required_response_date: row['Response Due Date'] || null,
+          notes:                 row['Notes'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Vendor Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   const isOverdue = (scar) => {
@@ -435,6 +478,7 @@ export default function SCARPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('s-c-a-r.csv', scars, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
@@ -792,6 +836,16 @@ export default function SCARPage() {
           </>
         )}
       </Drawer>
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload SCARs"
+        entityName="SCAR"
+        sampleHeaders={SCAR_CSV_HEADERS}
+        sampleRows={SCAR_CSV_SAMPLE}
+        validationRules={SCAR_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

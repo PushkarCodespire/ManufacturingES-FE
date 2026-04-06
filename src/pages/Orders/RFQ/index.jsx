@@ -20,6 +20,9 @@ import aiApi            from '../../../api/ai.api';
 import useAiSuggestion  from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard from '../../../components/AiSuggestion/AiSuggestionCard';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -35,6 +38,17 @@ const STATUS_CONFIG = {
 };
 
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }));
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const CSV_HEADERS = ['Customer Code', 'RFQ Date', 'Subject', 'Item Code', 'Customer Part No', 'Description', 'Qty', 'Unit', 'Target Price', 'Notes'];
+const CSV_SAMPLE = [
+  { 'Customer Code': 'CUST-001', 'RFQ Date': '2025-06-15', 'Subject': 'Machined Parts', 'Item Code': 'ITM-001', 'Customer Part No': 'CP-100', 'Description': 'Shaft Assembly', 'Qty': '100', 'Unit': 'pcs', 'Target Price': '250', 'Notes': '' },
+];
+const CSV_VALIDATION = [
+  { field: 'Customer Code', required: true },
+  { field: 'Item Code', required: true },
+  { field: 'Qty', required: true },
+];
 
 // ── Empty item row ────────────────────────────────────────────────────────────
 const emptyItem = () => ({
@@ -67,6 +81,7 @@ export default function RFQPage() {
   const currentUploadKey  = useRef(null);
 
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [aiVisible, setAiVisible] = useState(false);
   const ai = useAiSuggestion(aiApi.suggestRfqFill);
 
@@ -200,6 +215,53 @@ export default function RFQPage() {
       message.success('RFQ deleted');
       load();
     } catch (err) { message.error(err?.message || 'Delete failed'); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    // Group rows by Customer Code + RFQ Date + Subject to create one RFQ per group
+    const groups = {};
+    for (const row of rows) {
+      const key = `${(row['Customer Code'] || '').trim()}||${(row['RFQ Date'] || '').trim()}||${(row['Subject'] || '').trim()}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(row);
+    }
+    for (const [, groupRows] of Object.entries(groups)) {
+      try {
+        const first = groupRows[0];
+        const custCode = (first['Customer Code'] || '').trim();
+        const cust = customers.find((c) => c.partner_code?.toLowerCase() === custCode.toLowerCase());
+        if (!cust) throw new Error(`Customer "${custCode}" not found`);
+        const lineItemsPayload = groupRows.map((row) => {
+          const itemCode = (row['Item Code'] || '').trim();
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          return {
+            item_id: item?.id || null,
+            customer_item_code: row['Customer Part No'] || '',
+            description: row['Description'] || item?.name || '',
+            qty: parseFloat(row['Qty']) || 1,
+            unit: row['Unit'] || 'pcs',
+            target_price: row['Target Price'] ? parseFloat(row['Target Price']) : null,
+            notes: row['Notes'] || '',
+          };
+        });
+        await rfqApi.create({
+          customer_id: cust.id,
+          rfq_date: first['RFQ Date'] || dayjs().format('YYYY-MM-DD'),
+          subject: first['Subject'] || '',
+          notes: '',
+          items: lineItemsPayload,
+        });
+        success += groupRows.length;
+      } catch (err) {
+        failed += groupRows.length;
+        errors.push(`Group "${groupRows[0]['Customer Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   // ── Line item helpers ─────────────────────────────────────────────────────────
@@ -405,6 +467,7 @@ export default function RFQPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('r-f-q.csv', rfqs, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New RFQ</Button>
@@ -678,6 +741,17 @@ export default function RFQPage() {
           </div>{/* /res-line-items */}
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload RFQs"
+        entityName="RFQ"
+        sampleHeaders={CSV_HEADERS}
+        sampleRows={CSV_SAMPLE}
+        validationRules={CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

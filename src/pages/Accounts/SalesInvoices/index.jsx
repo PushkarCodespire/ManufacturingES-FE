@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Button, Input, Table, Tag, Space, Drawer, Form, Select, DatePicker, InputNumber, Divider, message, Popconfirm, Row, Col } from 'antd';
-import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, RightOutlined, DownloadOutlined, } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, RightOutlined, DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import { salesInvoiceApi } from '../../../api/accounts.api';
@@ -8,6 +8,18 @@ import { vendorApi } from '../../../api/vendor.api';
 import { customerOrderApi } from '../../../api/orders.api';
 import { dispatchOrderApi } from '../../../api/dispatchOrder.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const INV_CSV_HEADERS = ['Customer Name', 'Invoice Date', 'Due Date', 'Subtotal', 'GST Amount', 'Total Amount', 'Notes'];
+const INV_CSV_SAMPLE = [
+  { 'Customer Name': 'XYZ Corp', 'Invoice Date': '2025-06-15', 'Due Date': '2025-07-15', 'Subtotal': '50000', 'GST Amount': '9000', 'Total Amount': '59000', 'Notes': '' },
+];
+const INV_CSV_VALIDATION = [
+  { field: 'Customer Name', required: true },
+  { field: 'Subtotal', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -33,6 +45,7 @@ const SalesInvoicesPage = () => {
   const [editing, setEditing]       = useState(null);
   const [saving, setSaving]         = useState(false);
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,6 +124,32 @@ const SalesInvoicesPage = () => {
     catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const cust = row['Customer Name'] ? customers.find((c) => c.name?.toLowerCase() === row['Customer Name'].toLowerCase()) : null;
+        await salesInvoiceApi.create({
+          customer_id:   cust?.id || null,
+          invoice_date:  row['Invoice Date'] || null,
+          due_date:      row['Due Date'] || null,
+          subtotal:      parseFloat(row['Subtotal']) || 0,
+          gst_amount:    parseFloat(row['GST Amount']) || 0,
+          total_amount:  parseFloat(row['Total Amount']) || 0,
+          notes:         row['Notes'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Customer Name'] || ''}": ${err?.message || 'Failed'}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
+
   const total    = rows.length;
   const drafts   = rows.filter((r) => r.status === 'draft').length;
   const approved = rows.filter((r) => r.status === 'approved').length;
@@ -182,6 +221,7 @@ const SalesInvoicesPage = () => {
           <Select placeholder="Status" allowClear value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} style={{ width: 140 }} />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('sales-invoices.csv', rows, columns)}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Invoice</Button>
         </div>
@@ -235,6 +275,17 @@ const SalesInvoicesPage = () => {
           <Form.Item name="notes" label="Notes"><Input.TextArea rows={3} placeholder="Any additional notes..." /></Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Sales Invoices"
+        entityName="Invoice"
+        sampleHeaders={INV_CSV_HEADERS}
+        sampleRows={INV_CSV_SAMPLE}
+        validationRules={INV_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 };

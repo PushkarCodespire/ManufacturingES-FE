@@ -8,12 +8,24 @@ import {
   PlusOutlined, ReloadOutlined, RightOutlined,
   BulbOutlined, CheckCircleOutlined, PlayCircleOutlined,
   FileDoneOutlined, AuditOutlined, TeamOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout      from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import { mrmApi }    from '../../../api/mrm.api';
 import { exportToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const MRM_CSV_HEADERS = ['Quarter', 'Meeting Date', 'Notes'];
+const MRM_CSV_SAMPLE = [
+  { 'Quarter': 'Q2-2025', 'Meeting Date': '2025-06-15', 'Notes': 'Quarterly quality review' },
+];
+const MRM_CSV_VALIDATION = [
+  { field: 'Quarter', required: true },
+  { field: 'Meeting Date', required: true },
+];
 
 const { Title, Text } = Typography;
 const { TextArea }    = Input;
@@ -88,6 +100,7 @@ export default function MRMDashboard() {
   const [compiling,     setCompiling]     = useState(false);
   const [compiled,      setCompiled]      = useState(null);
   const [activeTab,     setActiveTab]     = useState('meetings');
+  const [csvModalOpen, setCsvModalOpen]  = useState(false);
 
   const loadMeetings = useCallback(async () => {
     setMlLoading(true);
@@ -209,6 +222,27 @@ export default function MRMDashboard() {
     try { const data = await mrmApi.compile(quarter); setCompiled(data); }
     catch { message.error('Compilation failed'); }
     finally { setCompiling(false); }
+  };
+
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await mrmApi.create({
+          quarter:      row['Quarter'],
+          meeting_date: row['Meeting Date'],
+          notes:        row['Notes'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Quarter']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    loadMeetings();
+    return { success, failed, errors };
   };
 
   const meetingCols = [
@@ -441,6 +475,7 @@ export default function MRMDashboard() {
                 <Tag color="green">Signed: {meetings.filter(m=>m.status==='signed').length}</Tag>
                 <div style={{ flex:1 }} />
                 <Button icon={<ReloadOutlined />} onClick={loadMeetings}>Refresh</Button>
+                {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>}
                 {canWrite && (
                   <Button type="primary" icon={<PlusOutlined />} onClick={() => { createForm.resetFields(); setCreateOpen(true); }}>
                     Schedule MRM
@@ -555,6 +590,17 @@ export default function MRMDashboard() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload MRM Meetings"
+        entityName="Meeting"
+        sampleHeaders={MRM_CSV_HEADERS}
+        sampleRows={MRM_CSV_SAMPLE}
+        validationRules={MRM_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

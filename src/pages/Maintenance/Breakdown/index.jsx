@@ -8,11 +8,23 @@ import {
   PlusOutlined, ReloadOutlined, ToolOutlined, CheckCircleOutlined,
   ExclamationCircleOutlined, ThunderboltOutlined, ClockCircleOutlined,
   BulbOutlined, CheckOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import { breakdownApi, equipmentApi, maintenanceAiApi } from '../../../api/maintenance.api';
 import AppLayout from '../../../components/AppLayout';
 import ResponsiveTable from '../../../components/ResponsiveTable';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const BD_CSV_HEADERS = ['Equipment Code', 'Priority', 'Symptoms'];
+const BD_CSV_SAMPLE = [
+  { 'Equipment Code': 'EQ-001', 'Priority': 'High', 'Symptoms': 'Motor overheating, unusual vibration noise' },
+];
+const BD_CSV_VALIDATION = [
+  { field: 'Equipment Code', required: true },
+  { field: 'Symptoms', required: true },
+];
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -46,6 +58,8 @@ export default function BreakdownPage() {
   const [diagForm] = Form.useForm();
   const [taskForm] = Form.useForm();
   const [completeForm] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
+
   // MNT-007: AI root cause suggestion state
   const [aiSuggestions, setAiSuggestions] = useState(null); // { suggestions[], symptoms }
   const [aiLoading, setAiLoading]         = useState(false);
@@ -186,6 +200,29 @@ export default function BreakdownPage() {
     } catch (err) { message.error(err?.message ?? 'Failed to complete WO'); }
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const equip = row['Equipment Code'] ? equipment.find((e) => e.equipment_code?.toLowerCase() === row['Equipment Code'].toLowerCase() || e.name?.toLowerCase() === row['Equipment Code'].toLowerCase()) : null;
+        const prio = row['Priority'] ? priorities.find((p) => p.name?.toLowerCase() === row['Priority'].toLowerCase()) : null;
+        await breakdownApi.createBreakdown({
+          equipment_id: equip?.id || null,
+          priority_id:  prio?.id || null,
+          symptoms:     row['Symptoms'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Equipment Code'] || ''}": ${err?.message || 'Failed'}`);
+      }
+    }
+    loadBreakdowns();
+    return { success, failed, errors };
+  };
+
   const openCount      = breakdowns.filter((b) => b.status === 'open').length;
   const inProgressWOs  = workOrders.filter((w) => w.status === 'in_progress').length;
   const resolvedToday  = breakdowns.filter((b) => {
@@ -244,6 +281,7 @@ export default function BreakdownPage() {
         <Title level={4} style={{ margin: 0 }}><ThunderboltOutlined /> Breakdown & Corrective Maintenance</Title>
         <Space wrap>
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('breakdown.csv', breakdowns, bdColumns)}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={() => { loadBreakdowns(); loadWorkOrders(); }}>Refresh</Button>
           <Button type="primary" danger icon={<ExclamationCircleOutlined />} onClick={() => setReportModal(true)}>
             🚨 Machine Down
@@ -598,6 +636,17 @@ export default function BreakdownPage() {
           </Space>
         </Form>
       </Modal>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Breakdown Reports"
+        entityName="Breakdown"
+        sampleHeaders={BD_CSV_HEADERS}
+        sampleRows={BD_CSV_SAMPLE}
+        validationRules={BD_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

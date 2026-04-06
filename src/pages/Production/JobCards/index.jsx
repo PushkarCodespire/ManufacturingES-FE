@@ -23,6 +23,18 @@ import { userApi }      from '../../../api/user.api';
 import aiApi            from '../../../api/ai.api';
 import QrLabelPrint     from '../../../components/common/QrLabelPrint';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const JC_CSV_HEADERS = ['Work Order No', 'Machine Name', 'Operator Employee ID', 'Shift Name', 'Notes'];
+const JC_CSV_SAMPLE = [
+  { 'Work Order No': 'WO-001', 'Machine Name': 'CNC-01', 'Operator Employee ID': 'DT10002', 'Shift Name': 'Day Shift', 'Notes': '' },
+];
+const JC_CSV_VALIDATION = [
+  { field: 'Work Order No', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -88,6 +100,7 @@ export default function JobCardsPage() {
   const [qrRecord,   setQrRecord]   = useState(null);
   const [routingSteps, setRoutingSteps] = useState([]);
   const [saving,     setSaving]     = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // AI ETA
   const aiEta = useAiSuggestion(aiApi.getJobCardAiEta);
@@ -226,6 +239,38 @@ export default function JobCardsPage() {
       if (err?.errorFields) return;
       message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const woNo = (row['Work Order No'] || '').trim();
+        const wo = workOrders.find((w) => w.wo_no?.toLowerCase() === woNo.toLowerCase());
+        if (!wo) throw new Error(`Work Order "${woNo}" not found`);
+        const machineName = (row['Machine Name'] || '').trim();
+        const machine = machineName ? machines.find((m) => m.name?.toLowerCase() === machineName.toLowerCase()) : null;
+        const operatorEid = (row['Operator Employee ID'] || '').trim();
+        const operator = operatorEid ? users.find((u) => u.employee_id?.toLowerCase() === operatorEid.toLowerCase()) : null;
+        const shiftName = (row['Shift Name'] || '').trim();
+        const shift = shiftName ? shifts.find((s) => s.name?.toLowerCase() === shiftName.toLowerCase()) : null;
+        await jobCardApi.create({
+          work_order_id: wo.id,
+          machine_id:    machine?.id || null,
+          operator_id:   operator?.id || null,
+          shift_id:      shift?.id || null,
+          notes:         row['Notes'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Work Order No']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   const openCloseModal = async (record) => {
@@ -552,6 +597,7 @@ export default function JobCardsPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('job-cards.csv', jobCards, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
@@ -861,6 +907,17 @@ export default function JobCardsPage() {
         code={qrRecord?.job_no}
         title={qrRecord?.job_no}
         subtitle={qrRecord?.WorkOrder?.wo_no || qrRecord?.operation_name || ''}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Job Cards"
+        entityName="Job Card"
+        sampleHeaders={JC_CSV_HEADERS}
+        sampleRows={JC_CSV_SAMPLE}
+        validationRules={JC_CSV_VALIDATION}
       />
     </AppLayout>
   );

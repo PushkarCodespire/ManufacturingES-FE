@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Button, Input, Table, Tag, Space, Drawer, Form, Select, DatePicker, InputNumber, message, Popconfirm, Row, Col, Statistic, Divider } from 'antd';
-import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, RightOutlined, WarningOutlined, DollarOutlined, BulbOutlined, DownloadOutlined, } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, RightOutlined, WarningOutlined, DollarOutlined, BulbOutlined, DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import { copqEntryApi } from '../../../api/accounts.api';
@@ -10,6 +10,18 @@ import aiApi from '../../../api/ai.api';
 import useAiSuggestion from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard from '../../../components/AiSuggestion/AiSuggestionCard';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const COPQ_CSV_HEADERS = ['Category', 'Entry Date', 'Item', 'Department', 'Cost Amount', 'Qty', 'Ref Type', 'Ref No', 'Description'];
+const COPQ_CSV_SAMPLE = [
+  { 'Category': 'scrap', 'Entry Date': '2025-06-15', 'Item': 'ITM-001', 'Department': 'Production', 'Cost Amount': '5000', 'Qty': '10', 'Ref Type': 'scrap_voucher', 'Ref No': 'SV-001', 'Description': 'Defective parts' },
+];
+const COPQ_CSV_VALIDATION = [
+  { field: 'Category', required: true },
+  { field: 'Cost Amount', required: true },
+];
 
 const parseInsight = (raw) => {
   if (!raw) return null;
@@ -70,6 +82,7 @@ const COPQPage = () => {
   const [editing, setEditing]       = useState(null);
   const [saving, setSaving]         = useState(false);
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // AI narrative state
   const aiNarrative = useAiSuggestion(aiApi.getCopqAiNarrative);
@@ -167,6 +180,35 @@ const COPQPage = () => {
     catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const item = row['Item'] ? items.find((i) => i.name?.toLowerCase() === row['Item'].toLowerCase() || i.code?.toLowerCase() === row['Item'].toLowerCase()) : null;
+        const dept = row['Department'] ? departments.find((d) => d.name?.toLowerCase() === row['Department'].toLowerCase()) : null;
+        await copqEntryApi.create({
+          category:      row['Category'] || 'scrap',
+          entry_date:    row['Entry Date'] || null,
+          item_id:       item?.id || null,
+          department_id: dept?.id || null,
+          cost_amount:   parseFloat(row['Cost Amount']) || 0,
+          qty:           parseFloat(row['Qty']) || 0,
+          ref_type:      row['Ref Type'] || null,
+          ref_no:        row['Ref No'] || null,
+          description:   row['Description'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Category']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    load(); loadSummary();
+    return { success, failed, errors };
+  };
+
   // Summary stats
   const getCatTotal = (cat) => {
     const found = summary.byCategory?.find((s) => s.category === cat);
@@ -261,6 +303,7 @@ const COPQPage = () => {
             options={CATEGORIES.map((c) => ({ value: c.value, label: c.label }))} style={{ width: 160 }} />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('c-o-p-q.csv', rows, columns)}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={() => { load(); loadSummary(); }}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Entry</Button>
         </div>
@@ -478,6 +521,17 @@ const COPQPage = () => {
           <Form.Item name="description" label="Description"><Input.TextArea rows={3} placeholder="Describe the quality cost..." /></Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload COPQ Entries"
+        entityName="COPQ Entry"
+        sampleHeaders={COPQ_CSV_HEADERS}
+        sampleRows={COPQ_CSV_SAMPLE}
+        validationRules={COPQ_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 };

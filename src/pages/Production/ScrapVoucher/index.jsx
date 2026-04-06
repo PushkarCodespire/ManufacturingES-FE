@@ -16,6 +16,20 @@ import { scrapApi, workOrderApi } from '../../../api/production.api';
 import { itemApi }     from '../../../api/item.api';
 import { machineApi }  from '../../../api/machine.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const SCRAP_CSV_HEADERS = ['Scrap Date', 'Item Code', 'Machine Name', 'Work Order No', 'Qty Scrapped', 'Cost Per Unit', 'Reason', 'Notes'];
+const SCRAP_CSV_SAMPLE = [
+  { 'Scrap Date': '2026-04-01', 'Item Code': 'ITM-001', 'Machine Name': 'CNC-01', 'Work Order No': 'WO-001', 'Qty Scrapped': '10', 'Cost Per Unit': '50.00', 'Reason': 'Tool breakage', 'Notes': '' },
+];
+const SCRAP_CSV_VALIDATION = [
+  { field: 'Item Code', required: true },
+  { field: 'Qty Scrapped', required: true },
+  { field: 'Reason', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -47,6 +61,7 @@ export default function ScrapVoucherPage() {
   const [liveCost,    setLiveCost]    = useState(null);
 
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // ── Load vouchers ──────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -87,6 +102,39 @@ export default function ScrapVoucherPage() {
 
   const formatInr = (v) =>
     `₹${v.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const itemCode = (row['Item Code'] || '').trim();
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        if (!item) throw new Error(`Item "${itemCode}" not found`);
+        const machineName = (row['Machine Name'] || '').trim();
+        const machine = machineName ? machines.find((m) => m.name?.toLowerCase() === machineName.toLowerCase()) : null;
+        const woNo = (row['Work Order No'] || '').trim();
+        const wo = woNo ? workOrders.find((w) => w.wo_no?.toLowerCase() === woNo.toLowerCase()) : null;
+        await scrapApi.create({
+          scrap_date:    row['Scrap Date'] || dayjs().format('YYYY-MM-DD'),
+          item_id:       item.id,
+          machine_id:    machine?.id || null,
+          work_order_id: wo?.id || null,
+          qty_scrapped:  parseFloat(row['Qty Scrapped']) || 1,
+          cost_per_unit: parseFloat(row['Cost Per Unit']) || 0,
+          reason:        row['Reason'] || '',
+          notes:         row['Notes'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
 
   // ── Drawer helpers ─────────────────────────────────────────────────────────
   const openAdd = () => {
@@ -360,6 +408,7 @@ export default function ScrapVoucherPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('scrap-voucher.csv', vouchers, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
@@ -514,6 +563,17 @@ export default function ScrapVoucherPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Scrap Vouchers"
+        entityName="Scrap Voucher"
+        sampleHeaders={SCRAP_CSV_HEADERS}
+        sampleRows={SCRAP_CSV_SAMPLE}
+        validationRules={SCRAP_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

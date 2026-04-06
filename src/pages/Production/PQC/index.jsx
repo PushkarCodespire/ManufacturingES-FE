@@ -21,6 +21,19 @@ import aiApi          from '../../../api/ai.api';
 import useAiSuggestion from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard from '../../../components/AiSuggestion/AiSuggestionCard';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const PQC_CSV_HEADERS = ['Type', 'Item Code', 'Work Order No', 'Batch No', 'Inspection Date', 'Qty Inspected', 'Qty Rejected', 'Notes'];
+const PQC_CSV_SAMPLE = [
+  { 'Type': 'visual_dimensional', 'Item Code': 'ITM-001', 'Work Order No': 'WO-001', 'Batch No': 'LOT-001', 'Inspection Date': '2026-04-01', 'Qty Inspected': '100', 'Qty Rejected': '1', 'Notes': '' },
+];
+const PQC_CSV_VALIDATION = [
+  { field: 'Item Code', required: true },
+  { field: 'Type', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -62,6 +75,7 @@ export default function PQCPage() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [saving,     setSaving]     = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [params,     setParams]     = useState([emptyParam()]);
 
   const [form] = Form.useForm();
@@ -122,6 +136,38 @@ export default function PQCPage() {
     { parameter_name: 'Orientation / stacking', specification: 'As per instruction',  actual_value: '', result: 'pass' },
     { parameter_name: 'Desiccant / protection', specification: 'Present if required', actual_value: '', result: 'pass' },
   ];
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const itemCode = (row['Item Code'] || '').trim();
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        if (!item) throw new Error(`Item "${itemCode}" not found`);
+        const woNo = (row['Work Order No'] || '').trim();
+        const wo = woNo ? workOrders.find((w) => w.wo_no?.toLowerCase() === woNo.toLowerCase()) : null;
+        await pqcApi.create({
+          type:            row['Type'] || 'visual_dimensional',
+          item_id:         item.id,
+          work_order_id:   wo?.id || null,
+          batch_no:        row['Batch No'] || null,
+          inspection_date: row['Inspection Date'] || dayjs().format('YYYY-MM-DD'),
+          qty_inspected:   parseFloat(row['Qty Inspected']) || 0,
+          qty_rejected:    parseFloat(row['Qty Rejected']) || 0,
+          notes:           row['Notes'] || null,
+          results:         [],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
 
   // ── Drawer helpers ─────────────────────────────────────────────────────────
   const openAdd = () => {
@@ -396,6 +442,7 @@ export default function PQCPage() {
             <div style={{ flex: 1 }} />
             <Button icon={<BarChartOutlined />} onClick={() => { setDefectVisible(true); aiDefects.fetch(); }}>Defect Analytics</Button>
             <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('p-q-c.csv', inspections, columns)}>Export CSV</Button>
+            {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
             {canWrite && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New PQC Inspection</Button>
@@ -628,6 +675,17 @@ export default function PQCPage() {
           </Button>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload PQC Inspections"
+        entityName="PQC Inspection"
+        sampleHeaders={PQC_CSV_HEADERS}
+        sampleRows={PQC_CSV_SAMPLE}
+        validationRules={PQC_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

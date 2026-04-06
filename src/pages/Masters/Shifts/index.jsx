@@ -573,13 +573,13 @@ const ShiftsPage = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
           <Text style={{ color: '#9ca3af', fontSize: 12 }}>Masters</Text>
           <RightOutlined style={{ color: '#d1d5db', fontSize: 10 }} />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>Shifts &amp; Leaves</Text>
+          <Text style={{ color: '#6b7280', fontSize: 12 }}>Shifts</Text>
         </div>
         <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 700 }}>
-          Shifts &amp; Leaves
+          Shifts
         </Title>
         <Text style={{ color: '#6b7280', fontSize: 13 }}>
-          Manage shift schedules, break durations and leave policies
+          Manage shift schedules and break durations
         </Text>
       </div>
 

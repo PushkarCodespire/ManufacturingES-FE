@@ -17,6 +17,19 @@ import { userApi }      from '../../../api/user.api';
 import { vendorApi }    from '../../../api/vendor.api';
 import { grnApi }       from '../../../api/store.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const IQC_CSV_HEADERS = ['Item Code', 'Vendor Code', 'Batch No', 'Inspection Date', 'Qty Received', 'Qty Inspected', 'Qty Rejected', 'Notes'];
+const IQC_CSV_SAMPLE = [
+  { 'Item Code': 'ITM-001', 'Vendor Code': 'VND-001', 'Batch No': 'LOT-2026-001', 'Inspection Date': '2026-04-01', 'Qty Received': '500', 'Qty Inspected': '50', 'Qty Rejected': '2', 'Notes': '' },
+];
+const IQC_CSV_VALIDATION = [
+  { field: 'Item Code', required: true },
+  { field: 'Inspection Date', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -46,6 +59,7 @@ export default function IQCPage() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [saving,     setSaving]     = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [form]                      = Form.useForm();
 
   // ── Load ───────────────────────────────────────────────────────────────────
@@ -129,6 +143,37 @@ export default function IQCPage() {
       if (err?.errorFields) return;
       message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const itemCode = (row['Item Code'] || '').trim();
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        if (!item) throw new Error(`Item "${itemCode}" not found`);
+        const vendorCode = (row['Vendor Code'] || '').trim();
+        const vendor = vendorCode ? vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase()) : null;
+        await iqcApi.create({
+          item_id:         item.id,
+          vendor_id:       vendor?.id || null,
+          batch_no:        row['Batch No'] || null,
+          inspection_date: row['Inspection Date'] || dayjs().format('YYYY-MM-DD'),
+          qty_received:    parseFloat(row['Qty Received']) || 0,
+          qty_inspected:   parseFloat(row['Qty Inspected']) || 0,
+          qty_rejected:    parseFloat(row['Qty Rejected']) || 0,
+          notes:           row['Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   const onDelete = async (id) => {
@@ -296,6 +341,7 @@ export default function IQCPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('i-q-c.csv', inspections, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New IQC Inspection</Button>
@@ -403,6 +449,17 @@ export default function IQCPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload IQC Inspections"
+        entityName="IQC Inspection"
+        sampleHeaders={IQC_CSV_HEADERS}
+        sampleRows={IQC_CSV_SAMPLE}
+        validationRules={IQC_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

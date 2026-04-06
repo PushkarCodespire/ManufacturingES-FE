@@ -76,7 +76,7 @@ const NAV_ITEMS_DEF = [
         children: [
           { key: 'configuration', label: 'Configuration',      permission: 'sites-configuration-read' },
           { key: 'employees',     label: 'Employees & Access', permission: 'sites-employees___access-read' },
-          { key: 'shifts',        label: 'Shifts & Leaves',    permission: 'sites-shifts___leaves-read' },
+          { key: 'shifts',        label: 'Shifts',             permission: 'sites-shifts___leaves-read' },
           { key: 'integrations',  label: 'Integrations',       permission: 'sites-integrations-read' },
           { key: 'costing',       label: 'Costing',            permission: 'sites-costing-read' },
         ],
@@ -91,7 +91,7 @@ const NAV_ITEMS_DEF = [
           { key: 'm-cycle-time',       label: 'Cycle Time Rules',    permission: 'production-items-read' },
           { key: 'm-tools',            label: 'Tools',               permission: 'production-tools-read' },
           { key: 'm-downtime',         label: 'Downtime',            permission: 'production-downtime-read' },
-          { key: 'm-quality',          label: 'Quality',             permission: 'production-quality-read' },
+          { key: 'm-quality',          label: 'Quality Parameters',   permission: 'production-quality-read' },
           { key: 'm-production-forms', label: 'Production Forms',    permission: 'production-production_forms-read' },
           { key: 'm-work-centers',    label: 'Work Centers',        permission: 'production-work_centers-read'     },
           { key: 'm-routings',        label: 'Routings',            permission: 'production-routings-read'         },
@@ -113,7 +113,7 @@ const NAV_ITEMS_DEF = [
         key:   'grp-other',
         label: 'Other',
         children: [
-          { key: 'm-reports',        label: 'Reports',        permission: 'other-reports-read'        },
+          { key: 'm-reports',        label: 'Report Templates', permission: 'other-reports-read'        },
           { key: 'm-tag-management', label: 'Tag Management', permission: 'other-tag_management-read' },
           { key: 'm-templates',           label: 'Templates',         permission: 'other-templates-read'               },
           { key: 'm-sticker-templates', label: 'Sticker Templates', permission: 'planning-sticker_templates-read' },

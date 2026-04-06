@@ -21,6 +21,20 @@ import { vendorRfqApi } from '../../../api/procurement.api';
 import { itemApi }      from '../../../api/item.api';
 import { vendorApi }    from '../../../api/vendor.api';
 import { exportToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const VRFQ_CSV_HEADERS = ['Vendor Codes (comma-sep)', 'Response Deadline', 'Item Code', 'Qty Required', 'Unit', 'Notes'];
+const VRFQ_CSV_SAMPLE = [
+  { 'Vendor Codes (comma-sep)': 'VND-001,VND-002', 'Response Deadline': '2025-07-15', 'Item Code': 'ITM-001', 'Qty Required': '500', 'Unit': 'pcs', 'Notes': '' },
+];
+const VRFQ_CSV_VALIDATION = [
+  { field: 'Vendor Codes (comma-sep)', required: true },
+  { field: 'Item Code', required: true },
+  { field: 'Qty Required', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -89,6 +103,7 @@ export default function VendorRFQPage() {
   const [form]          = Form.useForm();
   const [lineItems,     setLineItems]   = useState([emptyItem()]);
   const [saving,        setSaving]      = useState(false);
+  const [csvModalOpen,  setCsvModalOpen] = useState(false);
 
   // ── Load data ────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -230,6 +245,51 @@ export default function VendorRFQPage() {
     } catch (e) {
       message.error(e?.response?.data?.message || 'Save failed');
     } finally { setSaving(false); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    const groups = {};
+    for (const row of rows) {
+      const key = `${(row['Vendor Codes (comma-sep)'] || '').trim()}||${(row['Response Deadline'] || '').trim()}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(row);
+    }
+    for (const [, groupRows] of Object.entries(groups)) {
+      try {
+        const first = groupRows[0];
+        const vendorCodes = (first['Vendor Codes (comma-sep)'] || '').split(',').map(c => c.trim()).filter(Boolean);
+        const vendorIds = vendorCodes.map(code => {
+          const v = vendors.find(v => v.partner_code?.toLowerCase() === code.toLowerCase());
+          if (!v) throw new Error(`Vendor "${code}" not found`);
+          return v.id;
+        });
+        const itemsPayload = groupRows.map((row) => {
+          const itemCode = (row['Item Code'] || '').trim();
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          if (!item) throw new Error(`Item "${itemCode}" not found`);
+          return {
+            item_id: item.id,
+            qty_required: parseFloat(row['Qty Required']) || 1,
+            unit: row['Unit'] || '',
+            notes: row['Notes'] || '',
+          };
+        });
+        await vendorRfqApi.create({
+          vendor_ids: vendorIds,
+          response_deadline: first['Response Deadline'] || null,
+          items: itemsPayload,
+        });
+        success += groupRows.length;
+      } catch (err) {
+        failed += groupRows.length;
+        errors.push(`RFQ "${groupRows[0]['Vendor Codes (comma-sep)']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   // ── Workflow actions ──────────────────────────────────────────────────────────
@@ -571,6 +631,7 @@ export default function VendorRFQPage() {
               ]}
             />
             <div style={{ flex: 1 }} />
+            {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
             <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
             {canWrite && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
@@ -890,6 +951,17 @@ export default function VendorRFQPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Vendor RFQs"
+        entityName="Vendor RFQ"
+        sampleHeaders={VRFQ_CSV_HEADERS}
+        sampleRows={VRFQ_CSV_SAMPLE}
+        validationRules={VRFQ_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

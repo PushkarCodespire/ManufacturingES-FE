@@ -22,6 +22,8 @@ import aiApi                from '../../../api/ai.api';
 import useAiSuggestion      from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionCard';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 
@@ -41,6 +43,18 @@ const STATUS_CONFIG = {
   cancelled:     { color: 'default', label: 'Cancelled'     },
 };
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }));
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const CSV_HEADERS = ['Customer Code', 'Customer PO No', 'Order Date', 'Delivery Date', 'Item Code', 'Description', 'Qty', 'Unit', 'Unit Price', 'Discount %', 'GST %', 'Notes'];
+const CSV_SAMPLE = [
+  { 'Customer Code': 'CUST-001', 'Customer PO No': 'PO-2025-001', 'Order Date': '2025-06-15', 'Delivery Date': '2025-07-15', 'Item Code': 'ITM-001', 'Description': 'Shaft Assembly', 'Qty': '100', 'Unit': 'pcs', 'Unit Price': '250', 'Discount %': '0', 'GST %': '18', 'Notes': '' },
+];
+const CSV_VALIDATION = [
+  { field: 'Customer Code', required: true },
+  { field: 'Customer PO No', required: true },
+  { field: 'Item Code', required: true },
+  { field: 'Qty', required: true },
+];
 
 const emptyItem = () => ({
   _key: Date.now() + Math.random(),
@@ -66,6 +80,7 @@ export default function CustomerPOPage() {
   const [lineItems,    setLineItems]    = useState([emptyItem()]);
 
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [poExtractVisible, setPoExtractVisible] = useState(false);
   const aiExtract = useAiSuggestion(aiApi.extractPo);
 
@@ -257,6 +272,55 @@ export default function CustomerPOPage() {
   const updateLine = (key, field, value) =>
     setLineItems((p) => p.map((r) => r._key === key ? { ...r, [field]: value } : r));
 
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    const groups = {};
+    for (const row of rows) {
+      const key = `${(row['Customer Code'] || '').trim()}||${(row['Customer PO No'] || '').trim()}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(row);
+    }
+    for (const [, groupRows] of Object.entries(groups)) {
+      try {
+        const first = groupRows[0];
+        const custCode = (first['Customer Code'] || '').trim();
+        const cust = customers.find((c) => c.partner_code?.toLowerCase() === custCode.toLowerCase());
+        if (!cust) throw new Error(`Customer "${custCode}" not found`);
+        const itemsPayload = groupRows.map((row) => {
+          const itemCode = (row['Item Code'] || '').trim();
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          return {
+            item_id: item?.id || null,
+            description: row['Description'] || item?.name || '',
+            qty_ordered: parseFloat(row['Qty']) || 1,
+            unit: row['Unit'] || 'pcs',
+            unit_price: parseFloat(row['Unit Price']) || 0,
+            discount: parseFloat(row['Discount %']) || 0,
+            gst_rate: parseFloat(row['GST %']) || 18,
+            total_price: calcTotal(parseFloat(row['Qty']) || 1, parseFloat(row['Unit Price']) || 0, parseFloat(row['Discount %']) || 0, parseFloat(row['GST %']) || 18),
+          };
+        });
+        await customerOrderApi.create({
+          customer_id: cust.id,
+          customer_po_no: first['Customer PO No'] || '',
+          order_date: first['Order Date'] || dayjs().format('YYYY-MM-DD'),
+          delivery_date: first['Delivery Date'] || null,
+          terms: '',
+          notes: first['Notes'] || '',
+          items: itemsPayload,
+        });
+        success += groupRows.length;
+      } catch (err) {
+        failed += groupRows.length;
+        errors.push(`PO "${groupRows[0]['Customer PO No']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
+
   const onItemSelect = (key, itemId) => {
     const found = items.find((i) => i.id === itemId);
     if (found) {
@@ -408,6 +472,7 @@ export default function CustomerPOPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('customer-p-o.csv', orders, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>Receive PO</Button>
@@ -593,6 +658,17 @@ export default function CustomerPOPage() {
           </div>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Customer POs"
+        entityName="Customer PO"
+        sampleHeaders={CSV_HEADERS}
+        sampleRows={CSV_SAMPLE}
+        validationRules={CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

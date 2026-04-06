@@ -21,6 +21,19 @@ import aiApi              from '../../../api/ai.api';
 import useAiSuggestion    from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard   from '../../../components/AiSuggestion/AiSuggestionCard';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const LQC_CSV_HEADERS = ['Type', 'Item Code', 'Work Order No', 'Machine Name', 'Inspection Date', 'Batch No', 'Qty Inspected', 'Qty Rejected', 'Notes'];
+const LQC_CSV_SAMPLE = [
+  { 'Type': 'hourly', 'Item Code': 'ITM-001', 'Work Order No': 'WO-001', 'Machine Name': 'CNC-01', 'Inspection Date': '2026-04-01', 'Batch No': 'LOT-001', 'Qty Inspected': '100', 'Qty Rejected': '2', 'Notes': '' },
+];
+const LQC_CSV_VALIDATION = [
+  { field: 'Item Code', required: true },
+  { field: 'Type', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -92,6 +105,7 @@ export default function LQCPage() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [saving,     setSaving]     = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [params,     setParams]     = useState([emptyParam()]);
 
   const [form] = Form.useForm();
@@ -164,6 +178,41 @@ export default function LQCPage() {
   const countPend   = inspections.filter((r) => r.result === 'pending').length;
   const countPass   = inspections.filter((r) => r.result === 'pass').length;
   const countFail   = inspections.filter((r) => r.result === 'fail').length;
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const itemCode = (row['Item Code'] || '').trim();
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        if (!item) throw new Error(`Item "${itemCode}" not found`);
+        const woNo = (row['Work Order No'] || '').trim();
+        const wo = woNo ? workOrders.find((w) => w.wo_no?.toLowerCase() === woNo.toLowerCase()) : null;
+        const machineName = (row['Machine Name'] || '').trim();
+        const machine = machineName ? machines.find((m) => m.name?.toLowerCase() === machineName.toLowerCase()) : null;
+        await lqcApi.create({
+          type:            row['Type'] || 'hourly',
+          item_id:         item.id,
+          work_order_id:   wo?.id || null,
+          machine_id:      machine?.id || null,
+          inspection_date: row['Inspection Date'] || dayjs().format('YYYY-MM-DD'),
+          batch_no:        row['Batch No'] || null,
+          qty_inspected:   parseFloat(row['Qty Inspected']) || 0,
+          qty_rejected:    parseFloat(row['Qty Rejected']) || 0,
+          notes:           row['Notes'] || null,
+          results:         [],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
 
   // ── Drawer helpers ─────────────────────────────────────────────────────────
   const openAdd = () => {
@@ -446,6 +495,7 @@ export default function LQCPage() {
             />
             <div style={{ flex: 1 }} />
             <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('l-q-c.csv', inspections, columns)}>Export CSV</Button>
+            {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
             {canWrite && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
@@ -964,6 +1014,17 @@ export default function LQCPage() {
           </Button>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload LQC Inspections"
+        entityName="LQC Inspection"
+        sampleHeaders={LQC_CSV_HEADERS}
+        sampleRows={LQC_CSV_SAMPLE}
+        validationRules={LQC_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

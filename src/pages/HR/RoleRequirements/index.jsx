@@ -4,11 +4,13 @@ import {
 } from 'antd';
 import {
   ReloadOutlined, SaveOutlined, TeamOutlined, RightOutlined, CheckCircleOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import { roleRequirementApi } from '../../../api/roleRequirement.api';
 import AppLayout        from '../../../components/AppLayout';
 import usePermissions   from '../../../hooks/usePermissions';
 import api              from '../../../api/axios';
+import { downloadSampleCsv } from '../../../utils/csvImport';
 
 const { Title, Text } = Typography;
 
@@ -86,6 +88,25 @@ const RoleRequirementsPage = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  // ── Export CSV (role → topics mapping) ──────────────────────────────────────
+  const handleExportCsv = () => {
+    if (!selected || checked.length === 0) {
+      message.warning('Select a role with assigned topics to export');
+      return;
+    }
+    const headers = ['Role', 'Category', 'Topic Name', 'Validity (months)'];
+    const exportRows = checked
+      .map((tid) => topics.find((t) => t.id === tid))
+      .filter(Boolean)
+      .map((t) => ({
+        'Role': selected.label || selected.name,
+        'Category': t.category || 'Other',
+        'Topic Name': t.name,
+        'Validity (months)': String(t.validity_months || ''),
+      }));
+    downloadSampleCsv(`role-requirements-${(selected.label || selected.name).replace(/\s+/g, '_')}.csv`, headers, exportRows);
   };
 
   // Group topics by category
@@ -180,17 +201,20 @@ const RoleRequirementsPage = () => {
                     {checked.length} topic{checked.length !== 1 ? 's' : ''} required
                   </Text>
                 </div>
-                {canWrite && (
-                  <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    loading={saving}
-                    onClick={handleSave}
-                    style={{ borderRadius: 8, fontWeight: 600 }}
-                  >
-                    Save Requirements
-                  </Button>
-                )}
+                <Space>
+                  <Button icon={<DownloadOutlined />} onClick={handleExportCsv} disabled={checked.length === 0}>Export CSV</Button>
+                  {canWrite && (
+                    <Button
+                      type="primary"
+                      icon={<SaveOutlined />}
+                      loading={saving}
+                      onClick={handleSave}
+                      style={{ borderRadius: 8, fontWeight: 600 }}
+                    >
+                      Save Requirements
+                    </Button>
+                  )}
+                </Space>
               </div>
 
               {loading ? (

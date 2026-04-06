@@ -1,11 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Button, Input, Table, Tag, Space, Drawer, Form, Select, DatePicker, InputNumber, Divider, message, Popconfirm, Row, Col } from 'antd';
-import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, RightOutlined, DownloadOutlined, } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, RightOutlined, DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import { debitCreditNoteApi } from '../../../api/accounts.api';
 import { vendorApi } from '../../../api/vendor.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ────────────────────────────────────────────────────────
+const DCN_CSV_HEADERS = ['Type', 'Note Date', 'Vendor/Customer Name', 'Ref Type', 'Amount', 'GST Amount', 'Total Amount', 'Reason'];
+const DCN_CSV_SAMPLE = [
+  { 'Type': 'debit', 'Note Date': '2025-06-15', 'Vendor/Customer Name': 'ABC Suppliers', 'Ref Type': 'iqc_rejection', 'Amount': '5000', 'GST Amount': '900', 'Total Amount': '5900', 'Reason': 'IQC rejection for batch B-123' },
+];
+const DCN_CSV_VALIDATION = [
+  { field: 'Type', required: true },
+  { field: 'Amount', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -29,6 +41,7 @@ const DebitCreditNotesPage = () => {
   const [saving, setSaving]         = useState(false);
   const [form] = Form.useForm();
   const noteType = Form.useWatch('type', form);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,6 +116,43 @@ const DebitCreditNotesPage = () => {
     catch (err) { message.error(err?.message || 'Delete failed'); }
   };
 
+  // ── CSV Import handler ───────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const type = (row['Type'] || 'debit').toLowerCase();
+        const partyName = row['Vendor/Customer Name'] || '';
+        let vendor_id = null, customer_id = null;
+        if (type === 'debit' && partyName) {
+          const v = vendors.find((x) => x.name?.toLowerCase() === partyName.toLowerCase());
+          vendor_id = v?.id || null;
+        } else if (type === 'credit' && partyName) {
+          const c = customers.find((x) => x.name?.toLowerCase() === partyName.toLowerCase());
+          customer_id = c?.id || null;
+        }
+        await debitCreditNoteApi.create({
+          type,
+          vendor_id,
+          customer_id,
+          ref_type:     row['Ref Type'] || null,
+          note_date:    row['Note Date'] || null,
+          amount:       parseFloat(row['Amount']) || 0,
+          gst_amount:   parseFloat(row['GST Amount']) || 0,
+          total_amount: parseFloat(row['Total Amount']) || 0,
+          reason:       row['Reason'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Type']}": ${err?.message || 'Failed'}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
+
   const columns = [
     { title: 'Note No', dataIndex: 'note_no', key: 'note_no', width: 150,
       render: (v, r) => <Text style={{ color: '#1d4ed8', fontWeight: 600, cursor: 'pointer' }} onClick={() => openEdit(r)}>{v}</Text>,
@@ -162,6 +212,7 @@ const DebitCreditNotesPage = () => {
           <Select placeholder="Status" allowClear value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} style={{ width: 130 }} />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('debit-credit-notes.csv', rows, columns)}>Export CSV</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)} style={{ borderRadius: 8 }}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Note</Button>
         </div>
@@ -211,6 +262,17 @@ const DebitCreditNotesPage = () => {
           <Form.Item name="reason" label="Reason"><Input.TextArea rows={3} placeholder="Reason for this note..." /></Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Debit/Credit Notes"
+        entityName="Note"
+        sampleHeaders={DCN_CSV_HEADERS}
+        sampleRows={DCN_CSV_SAMPLE}
+        validationRules={DCN_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 };

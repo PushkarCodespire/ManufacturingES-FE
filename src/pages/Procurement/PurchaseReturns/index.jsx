@@ -17,6 +17,20 @@ import { purchaseReturnApi } from '../../../api/procurement.api';
 import { purchaseOrderApi } from '../../../api/procurement.api';
 import { vendorApi } from '../../../api/procurement.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const RETURN_CSV_HEADERS = ['PO No', 'Vendor Code', 'Return Date', 'Reason', 'Item Code', 'Qty Returned', 'Unit Price', 'Notes'];
+const RETURN_CSV_SAMPLE = [
+  { 'PO No': 'PO-001', 'Vendor Code': 'VND-001', 'Return Date': '2025-06-20', 'Reason': 'defective', 'Item Code': 'ITM-001', 'Qty Returned': '10', 'Unit Price': '120', 'Notes': '' },
+];
+const RETURN_CSV_VALIDATION = [
+  { field: 'Vendor Code', required: true },
+  { field: 'Item Code', required: true },
+  { field: 'Qty Returned', required: true },
+];
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -59,6 +73,7 @@ export default function PurchaseReturnsPage() {
   const [poItems,  setPoItems]  = useState([]);  // items from selected PO (always available)
 
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   /* ─────────────────────── data fetch ─────────────────────── */
   const load = useCallback(async () => {
@@ -178,6 +193,43 @@ export default function PurchaseReturnsPage() {
     } catch (e) {
       message.error(e?.response?.data?.message || 'Failed to save');
     }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const vendorCode = (row['Vendor Code'] || '').trim();
+        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase());
+        if (!vendor) throw new Error(`Vendor "${vendorCode}" not found`);
+        const poNo = (row['PO No'] || '').trim();
+        const po = poNo ? pos.find(p => p.po_no?.toLowerCase() === poNo.toLowerCase()) : null;
+        const itemCode = (row['Item Code'] || '').trim();
+        // items not loaded separately in this page — use poItems or generic search
+        await purchaseReturnApi.create({
+          vendor_id: vendor.id,
+          po_id: po?.id || null,
+          return_date: row['Return Date'] || dayjs().format('YYYY-MM-DD'),
+          reason: row['Reason'] || 'other',
+          notes: row['Notes'] || '',
+          items: [{
+            item_id: null, // will be resolved by backend or user can set
+            qty_returned: parseFloat(row['Qty Returned']) || 1,
+            unit_price: parseFloat(row['Unit Price']) || 0,
+            reason: row['Reason'] || '',
+            amount: (parseFloat(row['Qty Returned']) || 0) * (parseFloat(row['Unit Price']) || 0),
+          }],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   const handleAction = async (action, id, label) => {
@@ -301,6 +353,7 @@ export default function PurchaseReturnsPage() {
           </Select>
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('purchase-returns.csv', rows, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditRec(null); form.resetFields(); setGrnItems([]); setPoItems([]); setCreateOpen(true); }}>
@@ -516,6 +569,16 @@ export default function PurchaseReturnsPage() {
           </>
         )}
       </Drawer>
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Purchase Returns"
+        entityName="Purchase Return"
+        sampleHeaders={RETURN_CSV_HEADERS}
+        sampleRows={RETURN_CSV_SAMPLE}
+        validationRules={RETURN_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

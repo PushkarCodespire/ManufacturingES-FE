@@ -20,6 +20,19 @@ import { prApi }        from '../../../api/procurement.api';
 import { itemApi }      from '../../../api/item.api';
 import { vendorApi }    from '../../../api/vendor.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const PR_CSV_HEADERS = ['Required Date', 'Priority', 'Item Code', 'Qty Requested', 'Unit', 'Estimated Price', 'Justification', 'Notes'];
+const PR_CSV_SAMPLE = [
+  { 'Required Date': '2025-07-15', 'Priority': 'medium', 'Item Code': 'ITM-001', 'Qty Requested': '100', 'Unit': 'pcs', 'Estimated Price': '120', 'Justification': 'Production requirement', 'Notes': '' },
+];
+const PR_CSV_VALIDATION = [
+  { field: 'Item Code', required: true },
+  { field: 'Qty Requested', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -79,6 +92,7 @@ export default function PurchaseRequisitionsPage() {
   const [saving,     setSaving]     = useState(false);
   const [lineItems,  setLineItems]  = useState([emptyLine()]);
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // Detail drawer
   const [detailOpen,    setDetailOpen]    = useState(false);
@@ -195,6 +209,37 @@ export default function PurchaseRequisitionsPage() {
       if (err?.errorFields) return;
       message.error(err?.message || 'Save failed');
     } finally { setSaving(false); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const itemCode = (row['Item Code'] || '').trim();
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        if (!item) throw new Error(`Item "${itemCode}" not found`);
+        await prApi.create({
+          required_date: row['Required Date'] || null,
+          priority: row['Priority'] || 'medium',
+          notes: row['Notes'] || '',
+          items: [{
+            item_id: item.id,
+            qty_requested: parseFloat(row['Qty Requested']) || 1,
+            unit: row['Unit'] || 'pcs',
+            estimated_price: row['Estimated Price'] ? parseFloat(row['Estimated Price']) : null,
+            justification: row['Justification'] || '',
+          }],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -475,6 +520,7 @@ export default function PurchaseRequisitionsPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('purchase-requisitions.csv', prs, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Requisition</Button>
         </div>
@@ -760,6 +806,17 @@ export default function PurchaseRequisitionsPage() {
           }}
         />
       </Modal>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Purchase Requisitions"
+        entityName="Purchase Requisition"
+        sampleHeaders={PR_CSV_HEADERS}
+        sampleRows={PR_CSV_SAMPLE}
+        validationRules={PR_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

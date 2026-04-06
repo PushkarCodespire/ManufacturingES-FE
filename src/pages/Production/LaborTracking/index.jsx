@@ -14,6 +14,20 @@ import ResponsiveTable from '../../../components/ResponsiveTable';
 import usePermissions from '../../../hooks/usePermissions';
 import api from '../../../api/axios';
 import { exportToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const LABOR_CSV_HEADERS = ['Job Card No', 'Operator Employee ID', 'Labor Type', 'Operation Name', 'Start Time', 'End Time', 'Notes'];
+const LABOR_CSV_SAMPLE = [
+  { 'Job Card No': 'JC-001', 'Operator Employee ID': 'DT10002', 'Labor Type': 'direct', 'Operation Name': 'Machining', 'Start Time': '2026-04-01 08:00', 'End Time': '2026-04-01 12:00', 'Notes': '' },
+];
+const LABOR_CSV_VALIDATION = [
+  { field: 'Job Card No', required: true },
+  { field: 'Operator Employee ID', required: true },
+  { field: 'Start Time', required: true },
+];
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -47,7 +61,39 @@ export default function LaborTrackingPage() {
   const [operators, setOperators] = useState([]);
   const [steps, setSteps]         = useState([]);
 
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [form] = Form.useForm();
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const jcNo = (row['Job Card No'] || '').trim();
+        const jc = jobCards.find((j) => j.job_no?.toLowerCase() === jcNo.toLowerCase());
+        if (!jc) throw new Error(`Job Card "${jcNo}" not found`);
+        const opEid = (row['Operator Employee ID'] || '').trim();
+        const op = operators.find((u) => u.employee_id?.toLowerCase() === opEid.toLowerCase());
+        if (!op) throw new Error(`Operator "${opEid}" not found`);
+        await api.post('/labor-logs', {
+          job_card_id:    jc.id,
+          operator_id:    op.id,
+          labor_type:     row['Labor Type'] || 'direct',
+          operation_name: row['Operation Name'] || null,
+          start_time:     row['Start Time'] ? dayjs(row['Start Time']).toISOString() : null,
+          end_time:       row['End Time'] ? dayjs(row['End Time']).toISOString() : null,
+          notes:          row['Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Job Card No']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -276,6 +322,8 @@ export default function LaborTrackingPage() {
               type={viewMode === 'summary' ? 'primary' : 'default'}
               onClick={() => setViewMode('summary')} size="small"
             >Summary</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => exportToCsv('labor-tracking.csv', records, logColumns)}>Export CSV</Button>
+            {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
             {canWrite && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                 Log Labor
@@ -374,6 +422,17 @@ export default function LaborTrackingPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Labor Logs"
+        entityName="Labor Log"
+        sampleHeaders={LABOR_CSV_HEADERS}
+        sampleRows={LABOR_CSV_SAMPLE}
+        validationRules={LABOR_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

@@ -7,7 +7,7 @@ import {
 import {
   PlusOutlined, ReloadOutlined, RightOutlined, BarChartOutlined,
   DeleteOutlined, ThunderboltOutlined, ExclamationCircleOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   Legend, ResponsiveContainer, ReferenceLine,
@@ -17,6 +17,18 @@ import usePermissions from '../../../hooks/usePermissions';
 import { spcApi } from '../../../api/quality.api';
 import { itemApi } from '../../../api/item.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal      from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const SPC_CSV_HEADERS = ['Item Code', 'Parameter Name', 'Chart Type', 'Data Source', 'Subgroup Size', 'USL', 'LSL'];
+const SPC_CSV_SAMPLE = [
+  { 'Item Code': 'ITM-001', 'Parameter Name': 'Diameter', 'Chart Type': 'xbar_r', 'Data Source': 'lqc', 'Subgroup Size': '5', 'USL': '10.05', 'LSL': '9.95' },
+];
+const SPC_CSV_VALIDATION = [
+  { field: 'Item Code', required: true },
+  { field: 'Parameter Name', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -47,6 +59,7 @@ export default function SPCControlChartsPage() {
   const [chartData, setChartData]   = useState(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [calcLoading, setCalcLoading]   = useState({});
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const loadConfigs = useCallback(async () => {
     setLoading(true);
@@ -88,6 +101,34 @@ export default function SPCControlChartsPage() {
       if (selectedId === id) { setSelectedId(null); setChartData(null); }
       loadConfigs();
     } catch { message.error('Failed to delete'); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const itemCode = (row['Item Code'] || '').trim();
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        if (!item) throw new Error(`Item "${itemCode}" not found`);
+        await spcApi.createConfig({
+          item_id:        item.id,
+          parameter_name: row['Parameter Name'] || '',
+          chart_type:     row['Chart Type'] || 'xbar_r',
+          data_source:    row['Data Source'] || 'lqc',
+          subgroup_size:  parseInt(row['Subgroup Size']) || 5,
+          usl:            row['USL'] ? parseFloat(row['USL']) : null,
+          lsl:            row['LSL'] ? parseFloat(row['LSL']) : null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Code']} - ${row['Parameter Name']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    loadConfigs();
+    return { success, failed, errors };
   };
 
   const handleCalculate = async (id) => {
@@ -205,6 +246,7 @@ export default function SPCControlChartsPage() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('s-p-c-control-charts.csv', configs, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={loadConfigs}>Refresh</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerOpen(true)}>
             Add SPC Chart
@@ -379,6 +421,17 @@ export default function SPCControlChartsPage() {
           </Row>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload SPC Configs"
+        entityName="SPC Config"
+        sampleHeaders={SPC_CSV_HEADERS}
+        sampleRows={SPC_CSV_SAMPLE}
+        validationRules={SPC_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

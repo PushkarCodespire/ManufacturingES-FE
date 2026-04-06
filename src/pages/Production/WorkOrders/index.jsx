@@ -9,7 +9,7 @@ import {
   EditOutlined, DeleteOutlined, RightOutlined,
   DownOutlined, BulbOutlined, ThunderboltOutlined,
   ApartmentOutlined, BranchesOutlined, QrcodeOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout           from '../../../components/AppLayout';
 import ResponsiveTable     from '../../../components/ResponsiveTable';
@@ -26,6 +26,18 @@ import api                 from '../../../api/axios';
 import aiApi               from '../../../api/ai.api';
 import QrLabelPrint        from '../../../components/common/QrLabelPrint';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal      from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const WO_CSV_HEADERS = ['Item Code', 'Planned Qty', 'Planned Start', 'Planned End', 'Priority', 'Machine Code', 'Notes'];
+const WO_CSV_SAMPLE = [
+  { 'Item Code': 'ITM-001', 'Planned Qty': '500', 'Planned Start': '2025-06-15', 'Planned End': '2025-06-30', 'Priority': 'normal', 'Machine Code': 'MC-01', 'Notes': '' },
+];
+const WO_CSV_VALIDATION = [
+  { field: 'Item Code', required: true },
+  { field: 'Planned Qty', required: true, validate: (v) => isNaN(parseFloat(v)) ? 'Qty must be a number' : null },
+];
 
 const { Title, Text } = Typography;
 
@@ -97,6 +109,7 @@ export default function WorkOrdersPage() {
   const [search,        setSearch]        = useState('');
   const [statusFilter,  setStatusFilter]  = useState(null);
   const [woTypeFilter,  setWoTypeFilter]  = useState(null);
+  const [csvModalOpen, setCsvModalOpen]  = useState(false);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing,    setEditing]    = useState(null);
@@ -247,6 +260,36 @@ export default function WorkOrdersPage() {
       message.success('Work order deleted');
       load();
     } catch (err) { message.error(err?.message || 'Delete failed'); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const itemCode = (row['Item Code'] || '').trim();
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        if (!item) throw new Error(`Item "${itemCode}" not found`);
+        const machCode = (row['Machine Code'] || '').trim();
+        const machine = machCode ? machines.find((m) => m.code?.toLowerCase() === machCode.toLowerCase()) : null;
+        await workOrderApi.create({
+          item_id:       item.id,
+          machine_id:    machine?.id || null,
+          planned_qty:   parseFloat(row['Planned Qty']) || 1,
+          planned_start: row['Planned Start'] || dayjs().format('YYYY-MM-DD'),
+          planned_end:   row['Planned End'] || null,
+          priority:      row['Priority'] || 'normal',
+          notes:         row['Notes'] || '',
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Item Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   const handleGenerateJC = async (record) => {
@@ -588,6 +631,7 @@ export default function WorkOrdersPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('work-orders.csv', workOrders, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
@@ -967,6 +1011,17 @@ export default function WorkOrdersPage() {
         identifier={qrRecord?.wo_no || ''}
         title="Work Order"
         subtitle={qrRecord?.Item?.name || ''}
+      />
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Work Orders"
+        entityName="Work Order"
+        sampleHeaders={WO_CSV_HEADERS}
+        sampleRows={WO_CSV_SAMPLE}
+        validationRules={WO_CSV_VALIDATION}
       />
     </AppLayout>
   );

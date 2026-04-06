@@ -25,6 +25,21 @@ import aiApi                from '../../../api/ai.api';
 import useAiSuggestion      from '../../../hooks/useAiSuggestion';
 import AiSuggestionCard     from '../../../components/AiSuggestion/AiSuggestionCard';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const PO_CSV_HEADERS = ['Vendor Code', 'Order Date', 'Expected Date', 'Item Code', 'Qty', 'Unit', 'Unit Price', 'GST %', 'Notes'];
+const PO_CSV_SAMPLE = [
+  { 'Vendor Code': 'VND-001', 'Order Date': '2025-06-15', 'Expected Date': '2025-07-15', 'Item Code': 'ITM-001', 'Qty': '500', 'Unit': 'pcs', 'Unit Price': '120', 'GST %': '18', 'Notes': '' },
+];
+const PO_CSV_VALIDATION = [
+  { field: 'Vendor Code', required: true },
+  { field: 'Item Code', required: true },
+  { field: 'Qty', required: true },
+  { field: 'Unit Price', required: true },
+];
 
 const parseInsight = (raw) => {
   if (!raw) return null;
@@ -199,6 +214,7 @@ export default function PurchaseOrdersPage() {
   const [saving,     setSaving]     = useState(false);
   const [lineItems,  setLineItems]  = useState([emptyLine()]);
   const [form] = Form.useForm();
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // Detail drawer
   const [detailOpen,    setDetailOpen]    = useState(false);
@@ -428,6 +444,51 @@ export default function PurchaseOrdersPage() {
       message.success('Purchase order deleted');
       load();
     } catch (err) { message.error(err?.message || 'Delete failed'); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    const groups = {};
+    for (const row of rows) {
+      const key = `${(row['Vendor Code'] || '').trim()}||${(row['Order Date'] || '').trim()}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(row);
+    }
+    for (const [, groupRows] of Object.entries(groups)) {
+      try {
+        const first = groupRows[0];
+        const vendorCode = (first['Vendor Code'] || '').trim();
+        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase());
+        if (!vendor) throw new Error(`Vendor "${vendorCode}" not found`);
+        const itemsPayload = groupRows.map((row) => {
+          const itemCode = (row['Item Code'] || '').trim();
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          if (!item) throw new Error(`Item "${itemCode}" not found`);
+          return {
+            item_id: item.id,
+            qty_ordered: parseFloat(row['Qty']) || 1,
+            unit: row['Unit'] || 'pcs',
+            unit_price: parseFloat(row['Unit Price']) || 0,
+            gst_rate: parseFloat(row['GST %']) || 0,
+          };
+        });
+        await purchaseOrderApi.create({
+          vendor_id: vendor.id,
+          order_date: first['Order Date'] || dayjs().format('YYYY-MM-DD'),
+          expected_date: first['Expected Date'] || null,
+          notes: first['Notes'] || '',
+          items: itemsPayload,
+        });
+        success += groupRows.length;
+      } catch (err) {
+        failed += groupRows.length;
+        errors.push(`PO "${groupRows[0]['Vendor Code']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   // ── Line item helpers ──────────────────────────────────────────────────────
@@ -701,6 +762,7 @@ export default function PurchaseOrdersPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('purchase-orders.csv', pos, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New PO</Button>
@@ -1192,6 +1254,17 @@ export default function PurchaseOrdersPage() {
           </>
         )}
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Purchase Orders"
+        entityName="Purchase Order"
+        sampleHeaders={PO_CSV_HEADERS}
+        sampleRows={PO_CSV_SAMPLE}
+        validationRules={PO_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

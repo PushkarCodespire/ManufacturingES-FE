@@ -8,7 +8,7 @@ import {
   PlusOutlined, SearchOutlined, ReloadOutlined,
   DeleteOutlined, RightOutlined,
   PlusCircleOutlined, MinusCircleOutlined,
-DownloadOutlined, } from '@ant-design/icons';
+DownloadOutlined, UploadOutlined, } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout             from '../../../components/AppLayout';
 import ResponsiveTable       from '../../../components/ResponsiveTable';
@@ -18,6 +18,19 @@ import { itemApi }           from '../../../api/item.api';
 import { warehouseApi }      from '../../../api/warehouse.api';
 import { userApi }           from '../../../api/user.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal        from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const IS_CSV_HEADERS = ['Warehouse', 'Issue Date', 'Issued To (Employee ID)', 'Item Code', 'Description', 'Qty', 'Unit', 'Lot No', 'Notes'];
+const IS_CSV_SAMPLE = [
+  { 'Warehouse': 'Main Store', 'Issue Date': '2025-06-15', 'Issued To (Employee ID)': 'DT10002', 'Item Code': 'ITM-001', 'Description': 'Shaft Assembly', 'Qty': '10', 'Unit': 'pcs', 'Lot No': 'LOT-001', 'Notes': '' },
+];
+const IS_CSV_VALIDATION = [
+  { field: 'Warehouse', required: true },
+  { field: 'Item Code', required: true },
+  { field: 'Qty', required: true, validate: (v) => isNaN(parseFloat(v)) ? 'Qty must be a number' : null },
+];
 
 const { Title, Text } = Typography;
 
@@ -49,6 +62,7 @@ export default function IssueSlipPage() {
   const [loading,        setLoading]         = useState(false);
   const [search,         setSearch]          = useState('');
   const [statusFilter,   setStatusFilter]    = useState(null);
+  const [csvModalOpen,   setCsvModalOpen]    = useState(false);
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -149,6 +163,53 @@ export default function IssueSlipPage() {
       message.success('Issue slip deleted');
       load();
     } catch (err) { message.error(err?.message || 'Delete failed'); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    // Group rows by Warehouse + Issue Date to create one slip per group
+    const groups = {};
+    for (const row of rows) {
+      const key = `${(row['Warehouse'] || '').trim()}||${(row['Issue Date'] || '').trim()}||${(row['Issued To (Employee ID)'] || '').trim()}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(row);
+    }
+    for (const [, groupRows] of Object.entries(groups)) {
+      try {
+        const first = groupRows[0];
+        const whName = (first['Warehouse'] || '').trim();
+        const wh = warehouses.find((w) => w.name?.toLowerCase() === whName.toLowerCase());
+        if (!wh) throw new Error(`Warehouse "${whName}" not found`);
+        const empId = (first['Issued To (Employee ID)'] || '').trim();
+        const user = empId ? users.find((u) => u.employee_id?.toLowerCase() === empId.toLowerCase()) : null;
+        const slipItems = groupRows.map((row) => {
+          const itemCode = (row['Item Code'] || '').trim();
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          return {
+            item_id:     item?.id || null,
+            description: row['Description'] || item?.name || '',
+            qty:         parseFloat(row['Qty']) || 1,
+            unit:        row['Unit'] || 'pcs',
+            lot_no:      row['Lot No'] || '',
+          };
+        });
+        await issueSlipApi.create({
+          warehouse_id: wh.id,
+          issued_date:  first['Issue Date'] || dayjs().format('YYYY-MM-DD'),
+          issued_to:    user?.id || null,
+          notes:        first['Notes'] || '',
+          items:        slipItems,
+        });
+        success += groupRows.length;
+      } catch (err) {
+        failed += groupRows.length;
+        errors.push(`Slip "${groupRows[0]['Warehouse']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   // ── Line item helpers ──────────────────────────────────────────────────────
@@ -287,6 +348,7 @@ export default function IssueSlipPage() {
           />
           <div style={{ flex: 1 }} />
           <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('issue-slip.csv', slips, columns)}>Export CSV</Button>
+          {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>New Issue Slip</Button>
@@ -481,6 +543,17 @@ export default function IssueSlipPage() {
           </div>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Issue Slips"
+        entityName="Issue Slip"
+        sampleHeaders={IS_CSV_HEADERS}
+        sampleRows={IS_CSV_SAMPLE}
+        validationRules={IS_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

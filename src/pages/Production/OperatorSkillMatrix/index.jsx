@@ -13,6 +13,20 @@ import AppLayout from '../../../components/AppLayout';
 import usePermissions from '../../../hooks/usePermissions';
 import api from '../../../api/axios';
 import { exportToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const SKILL_CSV_HEADERS = ['Operator Employee ID', 'Skill Name', 'Proficiency', 'Certified Date', 'Expiry Date', 'Notes'];
+const SKILL_CSV_SAMPLE = [
+  { 'Operator Employee ID': 'DT10002', 'Skill Name': 'MIG Welding', 'Proficiency': 'competent', 'Certified Date': '2026-01-15', 'Expiry Date': '2027-01-15', 'Notes': '' },
+];
+const SKILL_CSV_VALIDATION = [
+  { field: 'Operator Employee ID', required: true },
+  { field: 'Skill Name', required: true },
+  { field: 'Proficiency', required: true },
+];
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -44,6 +58,7 @@ export default function OperatorSkillMatrixPage() {
   const [activeTab, setActiveTab]   = useState('matrix');
 
   const [saving, setSaving]         = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [skillForm]  = Form.useForm();
   const [matrixForm] = Form.useForm();
 
@@ -153,6 +168,36 @@ export default function OperatorSkillMatrixPage() {
       message.success('Assignment removed');
       loadMatrix();
     } catch (err) { message.error(err?.response?.data?.message || 'Delete failed'); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const opEid = (row['Operator Employee ID'] || '').trim();
+        const op = users.find((u) => u.employee_id?.toLowerCase() === opEid.toLowerCase());
+        if (!op) throw new Error(`Operator "${opEid}" not found`);
+        const skillName = (row['Skill Name'] || '').trim();
+        const skill = skills.find((s) => s.name?.toLowerCase() === skillName.toLowerCase());
+        if (!skill) throw new Error(`Skill "${skillName}" not found`);
+        await api.post('/operator-skills/matrix', {
+          user_id:        op.id,
+          skill_id:       skill.id,
+          proficiency:    row['Proficiency'] || 'trainee',
+          certified_date: row['Certified Date'] || null,
+          expiry_date:    row['Expiry Date'] || null,
+          notes:          row['Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Operator Employee ID']}/${row['Skill Name']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    loadMatrix();
+    return { success, failed, errors };
   };
 
   // Expiry helpers
@@ -272,6 +317,8 @@ export default function OperatorSkillMatrixPage() {
                           <Option value={90}>Next 90 days</Option>
                         </Select>
                       </Space>
+                      <Button icon={<DownloadOutlined />} onClick={() => exportToCsv('skill-matrix.csv', matrix, matrixColumns)}>Export CSV</Button>
+                      {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
                       {canWrite && (
                         <Button type="primary" icon={<PlusOutlined />} onClick={openAssign}>
                           Assign Skill
@@ -439,6 +486,17 @@ export default function OperatorSkillMatrixPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Skill Assignments"
+        entityName="Skill Assignment"
+        sampleHeaders={SKILL_CSV_HEADERS}
+        sampleRows={SKILL_CSV_SAMPLE}
+        validationRules={SKILL_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

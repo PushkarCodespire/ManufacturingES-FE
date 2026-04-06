@@ -18,6 +18,20 @@ import usePermissions      from '../../../hooks/usePermissions';
 import { vendorInvoiceApi } from '../../../api/procurement.api';
 import { purchaseOrderApi } from '../../../api/procurement.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const VINV_CSV_HEADERS = ['Invoice No', 'PO No', 'Invoice Date', 'Due Date', 'Tax Amount', 'Item Description', 'Qty Invoiced', 'Unit Price', 'Notes'];
+const VINV_CSV_SAMPLE = [
+  { 'Invoice No': 'INV-2025-001', 'PO No': 'PO-001', 'Invoice Date': '2025-06-20', 'Due Date': '2025-07-20', 'Tax Amount': '500', 'Item Description': 'Steel Plate', 'Qty Invoiced': '100', 'Unit Price': '250', 'Notes': '' },
+];
+const VINV_CSV_VALIDATION = [
+  { field: 'Invoice No', required: true },
+  { field: 'PO No', required: true },
+  { field: 'Invoice Date', required: true },
+];
 
 const { Title, Text } = Typography;
 
@@ -74,6 +88,8 @@ export default function VendorInvoicesPage() {
   const [saving,        setSaving]        = useState(false);
   const [form]                            = Form.useForm();
   const [lineItems,     setLineItems]     = useState([emptyLine()]);
+
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   // Dispute modal
   const [disputeModal,  setDisputeModal]  = useState(false);
@@ -175,6 +191,38 @@ export default function VendorInvoicesPage() {
     } catch (e) {
       message.error(e?.response?.data?.message || 'Create failed');
     } finally { setSaving(false); }
+  };
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        const poNo = (row['PO No'] || '').trim();
+        const po = poOptions.find((p) => p.label?.toLowerCase().includes(poNo.toLowerCase()));
+        if (!po) throw new Error(`PO "${poNo}" not found`);
+        await vendorInvoiceApi.create({
+          invoice_no:   row['Invoice No'],
+          po_id:        po.value,
+          invoice_date: row['Invoice Date'],
+          due_date:     row['Due Date'] || null,
+          tax_amount:   parseFloat(row['Tax Amount']) || 0,
+          notes:        row['Notes'] || '',
+          items: [{
+            description:  row['Item Description'] || '',
+            qty_invoiced: parseFloat(row['Qty Invoiced']) || 1,
+            unit_price:   parseFloat(row['Unit Price']) || 0,
+          }],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Invoice No']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    load();
+    return { success, failed, errors };
   };
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -391,7 +439,8 @@ export default function VendorInvoicesPage() {
               options={Object.entries(MATCH_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))}
             />
             <div style={{ flex: 1 }} />
-            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('vendor-invoices.csv', detailRec.Items || [], matchColumns)}>Export CSV</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('vendor-invoices.csv', filtered, columns)}>Export CSV</Button>
+            {canWrite && <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>}
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
             {canWrite && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
@@ -649,6 +698,16 @@ export default function VendorInvoicesPage() {
           onChange={e => setDisputeReason(e.target.value)}
         />
       </Modal>
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Vendor Invoices"
+        entityName="Vendor Invoice"
+        sampleHeaders={VINV_CSV_HEADERS}
+        sampleRows={VINV_CSV_SAMPLE}
+        validationRules={VINV_CSV_VALIDATION}
+      />
     </AppLayout>
   );
 }

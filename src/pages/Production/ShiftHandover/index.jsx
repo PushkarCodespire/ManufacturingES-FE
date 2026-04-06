@@ -8,6 +8,18 @@ import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import { shiftHandoverApi } from '../../../api/production.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
+import CsvUploadModal       from '../../../components/common/CsvUploadModal';
+import { downloadSampleCsv } from '../../../utils/csvImport';
+import { UploadOutlined }   from '@ant-design/icons';
+
+// ── CSV Upload config ─────────────────────────────────────────────────────────
+const HANDOVER_CSV_HEADERS = ['Handover Date', 'Production Notes', 'Machine Notes'];
+const HANDOVER_CSV_SAMPLE = [
+  { 'Handover Date': '2026-04-01', 'Production Notes': 'All targets met', 'Machine Notes': 'CNC-01 needs coolant refill' },
+];
+const HANDOVER_CSV_VALIDATION = [
+  { field: 'Handover Date', required: true },
+];
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -21,7 +33,29 @@ export default function ShiftHandoverPage() {
   const [selectedHandover, setSelected]   = useState(null);
   const [createModalOpen, setCreateOpen]  = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [form] = Form.useForm();
+
+  // ── CSV Import handler ────────────────────────────────────────────────────────
+  const handleCsvImport = async (rows) => {
+    let success = 0, failed = 0;
+    const errors = [];
+    for (const row of rows) {
+      try {
+        await shiftHandoverApi.create({
+          handover_date:    row['Handover Date'] || dayjs().format('YYYY-MM-DD'),
+          production_notes: row['Production Notes'] || null,
+          machine_notes:    row['Machine Notes'] || null,
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        errors.push(`Row "${row['Handover Date']}": ${err?.response?.data?.message || err.message}`);
+      }
+    }
+    loadData();
+    return { success, failed, errors };
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -170,6 +204,7 @@ export default function ShiftHandoverPage() {
           </div>
           <Space wrap>
             <Button icon={<DownloadOutlined />} onClick={() => exportTableToCsv('shift-handover.csv', data, columns)}>Export CSV</Button>
+            <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>Upload CSV</Button>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>Refresh</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>New Handover</Button>
           </Space>
@@ -281,6 +316,17 @@ export default function ShiftHandoverPage() {
             </Text>
           </Form>
         </Modal>
+
+      <CsvUploadModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImport={handleCsvImport}
+        title="Upload Shift Handovers"
+        entityName="Shift Handover"
+        sampleHeaders={HANDOVER_CSV_HEADERS}
+        sampleRows={HANDOVER_CSV_SAMPLE}
+        validationRules={HANDOVER_CSV_VALIDATION}
+      />
       </div>
     </AppLayout>
   );
