@@ -771,12 +771,14 @@ const PackagesList = ({
 const PACKAGE_CSV_HEADERS = [
   'Name', 'Type of Package', 'Type of Input',
   'Tare Weight', 'Pack Length', 'Pack Width', 'Pack Height',
+  'Attributes',
 ];
 
 const PACKAGE_CSV_SAMPLE = [
   {
     'Name': 'Standard Box', 'Type of Package': 'Box', 'Type of Input': 'Manual',
     'Tare Weight': '0.5', 'Pack Length': '12', 'Pack Width': '10', 'Pack Height': '8',
+    'Attributes': 'Color:Text, Weight:Number',
   },
 ];
 
@@ -838,6 +840,11 @@ const PackagesPage = () => {
     const errors = [];
     for (const row of rows) {
       try {
+        const attrStr = row['Attributes'] || '';
+        const attributes = attrStr ? attrStr.split(',').map((a) => a.trim()).filter(Boolean).map((a) => {
+          const [name, type] = a.split(':').map((s) => s.trim());
+          return { id: `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`, name: name || a, type: type || 'Text' };
+        }) : [];
         await packageApi.create({
           name:            row['Name'] || '',
           type_of_package: row['Type of Package'] || null,
@@ -846,6 +853,7 @@ const PackagesPage = () => {
           pack_length:     row['Pack Length'] ? parseFloat(row['Pack Length']) : null,
           pack_width:      row['Pack Width'] ? parseFloat(row['Pack Width']) : null,
           pack_height:     row['Pack Height'] ? parseFloat(row['Pack Height']) : null,
+          attributes,
         });
         success++;
       } catch (err) {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, Typography, Alert, Divider } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { Form, Input, Button, Card, Typography, Alert, Divider, Segmented } from 'antd';
+import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AuthLayout from '../../components/AuthLayout';
 import BrandLogo from '../../components/BrandLogo';
@@ -9,27 +9,40 @@ import BrandLogo from '../../components/BrandLogo';
 const { Title, Text } = Typography;
 
 const LoginPage = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
-  const { login, user }       = useAuth();
-  const navigate              = useNavigate();
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
+  const [loginMode, setLoginMode] = useState('employee_id'); // 'employee_id' | 'email'
+  const { login, user }           = useAuth();
+  const navigate                  = useNavigate();
+  const [form]                    = Form.useForm();
 
   if (user && !user.is_first_login) {
     navigate('/dashboard');
     return null;
   }
 
-  const onFinish = async ({ employee_id, password }) => {
+  const onFinish = async (values) => {
     setLoading(true);
     setError('');
     try {
-      const { is_first_login } = await login(employee_id, password);
+      const credentials =
+        loginMode === 'employee_id'
+          ? { employee_id: values.employee_id, password: values.password }
+          : { email: values.email, password: values.password };
+
+      const { is_first_login } = await login(credentials);
       navigate(is_first_login ? '/change-password' : '/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleModeChange = (value) => {
+    setLoginMode(value);
+    setError('');
+    form.resetFields(['employee_id', 'email']);
   };
 
   return (
@@ -51,10 +64,26 @@ const LoginPage = () => {
           Sign In
         </Title>
         <Text style={{ color: '#6b7280', fontSize: 13 }}>
-          Use your Employee ID to access the platform
+          {loginMode === 'employee_id'
+            ? 'Use your Employee ID to access the platform'
+            : 'Use your email address to sign in'}
         </Text>
 
         <Divider style={{ borderColor: '#f3f4f6', margin: '20px 0' }} />
+
+        {/* Login mode toggle */}
+        <div style={{ marginBottom: 20 }}>
+          <Segmented
+            value={loginMode}
+            onChange={handleModeChange}
+            options={[
+              { label: 'Employee ID', value: 'employee_id' },
+              { label: 'Email', value: 'email' },
+            ]}
+            block
+            style={{ borderRadius: 8 }}
+          />
+        </div>
 
         {error && (
           <Alert
@@ -67,18 +96,35 @@ const LoginPage = () => {
           />
         )}
 
-        <Form layout="vertical" onFinish={onFinish} requiredMark={false} size="large">
-          <Form.Item
-            name="employee_id"
-            label={<span style={{ color: '#374151', fontSize: 13, fontWeight: 500 }}>Employee ID</span>}
-            rules={[{ required: true, message: 'Please enter your Employee ID' }]}
-          >
-            <Input
-              prefix={<UserOutlined style={{ color: '#9ca3af' }} />}
-              placeholder="e.g. DT10001"
-              autoComplete="username"
-            />
-          </Form.Item>
+        <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false} size="large">
+          {loginMode === 'employee_id' ? (
+            <Form.Item
+              name="employee_id"
+              label={<span style={{ color: '#374151', fontSize: 13, fontWeight: 500 }}>Employee ID</span>}
+              rules={[{ required: true, message: 'Please enter your Employee ID' }]}
+            >
+              <Input
+                prefix={<UserOutlined style={{ color: '#9ca3af' }} />}
+                placeholder="e.g. DT10001"
+                autoComplete="username"
+              />
+            </Form.Item>
+          ) : (
+            <Form.Item
+              name="email"
+              label={<span style={{ color: '#374151', fontSize: 13, fontWeight: 500 }}>Email</span>}
+              rules={[
+                { required: true, message: 'Please enter your email' },
+                { type: 'email', message: 'Please enter a valid email' },
+              ]}
+            >
+              <Input
+                prefix={<MailOutlined style={{ color: '#9ca3af' }} />}
+                placeholder="you@company.com"
+                autoComplete="email"
+              />
+            </Form.Item>
+          )}
 
           <Form.Item
             name="password"
@@ -104,27 +150,17 @@ const LoginPage = () => {
           </Button>
         </Form>
 
-        {/* Demo hint */}
-        <div
-          style={{
-            marginTop: 20,
-            padding: '12px 16px',
-            background: '#f8fafc',
-            borderRadius: 8,
-            border: '1px solid #e8eaed',
-          }}
-        >
-          <Text style={{ color: '#6b7280', fontSize: 12, display: 'block', marginBottom: 4, fontWeight: 500 }}>
-            Demo Credentials
-          </Text>
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>
-            Employee ID: <strong style={{ color: '#111827' }}>DT10001</strong> (Plant Head)
-          </Text>
-          <br />
-          <Text style={{ color: '#6b7280', fontSize: 12 }}>
-            Password: <strong style={{ color: '#111827' }}>Dynatech@123</strong>
+        {/* Register link */}
+        <div style={{ textAlign: 'center', marginTop: 16 }}>
+          <Text style={{ color: '#6b7280', fontSize: 13 }}>
+            New to the platform?{' '}
+            <Link to="/register" style={{ color: '#1d4ed8', fontWeight: 500 }}>
+              Register your company
+            </Link>
           </Text>
         </div>
+
+        {/* Demo hint */}
       </Card>
     </AuthLayout>
   );

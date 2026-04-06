@@ -30,9 +30,9 @@ import CsvUploadModal      from '../../../components/common/CsvUploadModal';
 import { downloadSampleCsv } from '../../../utils/csvImport';
 
 // ── CSV Upload config ─────────────────────────────────────────────────────────
-const WO_CSV_HEADERS = ['Item Code', 'Planned Qty', 'Planned Start', 'Planned End', 'Priority', 'Machine Code', 'Notes'];
+const WO_CSV_HEADERS = ['Item Code', 'Planned Qty', 'Planned Start', 'Planned End', 'Priority', 'Machine Code', 'Routing Name', 'Shift Name', 'Customer Order No', 'Notes'];
 const WO_CSV_SAMPLE = [
-  { 'Item Code': 'ITM-001', 'Planned Qty': '500', 'Planned Start': '2025-06-15', 'Planned End': '2025-06-30', 'Priority': 'normal', 'Machine Code': 'MC-01', 'Notes': '' },
+  { 'Item Code': 'ITM-001', 'Planned Qty': '500', 'Planned Start': '2025-06-15', 'Planned End': '2025-06-30', 'Priority': 'normal', 'Machine Code': 'MC-01', 'Routing Name': '', 'Shift Name': 'Day Shift', 'Customer Order No': '', 'Notes': '' },
 ];
 const WO_CSV_VALIDATION = [
   { field: 'Item Code', required: true },
@@ -269,18 +269,27 @@ export default function WorkOrdersPage() {
     for (const row of rows) {
       try {
         const itemCode = (row['Item Code'] || '').trim();
-        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
         if (!item) throw new Error(`Item "${itemCode}" not found`);
         const machCode = (row['Machine Code'] || '').trim();
-        const machine = machCode ? machines.find((m) => m.code?.toLowerCase() === machCode.toLowerCase()) : null;
+        const machine = machCode ? machines.find((m) => m.code?.toLowerCase() === machCode.toLowerCase() || m.name?.toLowerCase() === machCode.toLowerCase()) : null;
+        const routingName = (row['Routing Name'] || '').trim();
+        const routing = routingName ? routings.find((r) => r.name?.toLowerCase() === routingName.toLowerCase()) : null;
+        const shiftName = (row['Shift Name'] || '').trim();
+        const shift = shiftName ? shifts.find((s) => s.name?.toLowerCase() === shiftName.toLowerCase()) : null;
+        const coNo = (row['Customer Order No'] || '').trim();
+        const co = coNo ? customerOrders.find((c) => (c.order_no || c.co_no || '')?.toLowerCase() === coNo.toLowerCase()) : null;
         await workOrderApi.create({
-          item_id:       item.id,
-          machine_id:    machine?.id || null,
-          planned_qty:   parseFloat(row['Planned Qty']) || 1,
-          planned_start: row['Planned Start'] || dayjs().format('YYYY-MM-DD'),
-          planned_end:   row['Planned End'] || null,
-          priority:      row['Priority'] || 'normal',
-          notes:         row['Notes'] || '',
+          item_id:           item.id,
+          machine_id:        machine?.id || null,
+          routing_id:        routing?.id || null,
+          shift_id:          shift?.id || null,
+          customer_order_id: co?.id || null,
+          planned_qty:       parseFloat(row['Planned Qty']) || 1,
+          planned_start:     row['Planned Start'] || dayjs().format('YYYY-MM-DD'),
+          planned_end:       row['Planned End'] || null,
+          priority:          row['Priority'] || 'normal',
+          notes:             row['Notes'] || '',
         });
         success++;
       } catch (err) {

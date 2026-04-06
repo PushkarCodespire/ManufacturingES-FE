@@ -26,9 +26,9 @@ import { downloadSampleCsv } from '../../../utils/csvImport';
 import { UploadOutlined }   from '@ant-design/icons';
 
 // ── CSV Upload config ─────────────────────────────────────────────────────────
-const PQC_CSV_HEADERS = ['Type', 'Item Code', 'Work Order No', 'Batch No', 'Inspection Date', 'Qty Inspected', 'Qty Rejected', 'Notes'];
+const PQC_CSV_HEADERS = ['Type', 'Item Code', 'Work Order No', 'Batch No', 'Inspector Name', 'Package Name', 'Box Type', 'Inspection Date', 'Qty Inspected', 'Qty Rejected', 'Notes'];
 const PQC_CSV_SAMPLE = [
-  { 'Type': 'visual_dimensional', 'Item Code': 'ITM-001', 'Work Order No': 'WO-001', 'Batch No': 'LOT-001', 'Inspection Date': '2026-04-01', 'Qty Inspected': '100', 'Qty Rejected': '1', 'Notes': '' },
+  { 'Type': 'visual_dimensional', 'Item Code': 'ITM-001', 'Work Order No': 'WO-001', 'Batch No': 'LOT-001', 'Inspector Name': 'Amit Sharma', 'Package Name': '', 'Box Type': 'Box', 'Inspection Date': '2026-04-01', 'Qty Inspected': '100', 'Qty Rejected': '1', 'Notes': '' },
 ];
 const PQC_CSV_VALIDATION = [
   { field: 'Item Code', required: true },
@@ -144,15 +144,22 @@ export default function PQCPage() {
     for (const row of rows) {
       try {
         const itemCode = (row['Item Code'] || '').trim();
-        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
         if (!item) throw new Error(`Item "${itemCode}" not found`);
         const woNo = (row['Work Order No'] || '').trim();
         const wo = woNo ? workOrders.find((w) => w.wo_no?.toLowerCase() === woNo.toLowerCase()) : null;
+        const inspectorName = (row['Inspector Name'] || '').trim();
+        const inspector = inspectorName ? users.find((u) => u.name?.toLowerCase() === inspectorName.toLowerCase()) : null;
+        const pkgName = (row['Package Name'] || '').trim();
+        const pkg = pkgName ? packages.find((p) => p.name?.toLowerCase() === pkgName.toLowerCase()) : null;
         await pqcApi.create({
           type:            row['Type'] || 'visual_dimensional',
           item_id:         item.id,
           work_order_id:   wo?.id || null,
           batch_no:        row['Batch No'] || null,
+          inspector_id:    inspector?.id || null,
+          package_id:      pkg?.id || null,
+          box_type:        row['Box Type'] || null,
           inspection_date: row['Inspection Date'] || dayjs().format('YYYY-MM-DD'),
           qty_inspected:   parseFloat(row['Qty Inspected']) || 0,
           qty_rejected:    parseFloat(row['Qty Rejected']) || 0,

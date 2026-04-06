@@ -137,13 +137,16 @@ function RecipeTab() {
     const errors = [];
     for (const row of rows) {
       try {
-        const item = row['Item Code'] ? items.find((i) => i.code?.toLowerCase() === row['Item Code']?.toLowerCase()) : null;
-        const machine = row['Machine Code'] ? machines.find((m) => m.code?.toLowerCase() === row['Machine Code']?.toLowerCase()) : null;
+        const item = row['Item Code'] ? items.find((i) => i.code?.toLowerCase() === row['Item Code']?.toLowerCase() || i.name?.toLowerCase() === row['Item Code']?.toLowerCase()) : null;
+        const machine = row['Machine Code'] ? machines.find((m) => m.code?.toLowerCase() === row['Machine Code']?.toLowerCase() || m.name?.toLowerCase() === row['Machine Code']?.toLowerCase()) : null;
         const param = row['Parameter Name'] ? params.find((p) => p.name?.toLowerCase() === row['Parameter Name']?.toLowerCase()) : null;
+        if (!item) throw new Error(`Item "${row['Item Code']}" not found`);
+        if (!machine) throw new Error(`Machine "${row['Machine Code']}" not found`);
+        if (!param) throw new Error(`Parameter "${row['Parameter Name']}" not found. Create production parameters first in Masters > Machines.`);
         await processRecipeApi.create({
-          item_id: item?.id || null,
-          machine_id: machine?.id || null,
-          parameter_id: param?.id || null,
+          item_id: item.id,
+          machine_id: machine.id,
+          parameter_id: param.id,
           target_value: row['Target Value'] ? parseFloat(row['Target Value']) : null,
           min_value: row['Min Value'] ? parseFloat(row['Min Value']) : null,
           max_value: row['Max Value'] ? parseFloat(row['Max Value']) : null,

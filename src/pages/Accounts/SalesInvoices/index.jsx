@@ -12,9 +12,9 @@ import CsvUploadModal from '../../../components/common/CsvUploadModal';
 import { downloadSampleCsv } from '../../../utils/csvImport';
 
 // ── CSV Upload config ────────────────────────────────────────────────────────
-const INV_CSV_HEADERS = ['Customer Name', 'Invoice Date', 'Due Date', 'Subtotal', 'GST Amount', 'Total Amount', 'Notes'];
+const INV_CSV_HEADERS = ['Customer Name', 'Order No', 'Dispatch Order No', 'Invoice Date', 'Due Date', 'Subtotal', 'GST Amount', 'Total Amount', 'Notes'];
 const INV_CSV_SAMPLE = [
-  { 'Customer Name': 'XYZ Corp', 'Invoice Date': '2025-06-15', 'Due Date': '2025-07-15', 'Subtotal': '50000', 'GST Amount': '9000', 'Total Amount': '59000', 'Notes': '' },
+  { 'Customer Name': 'XYZ Corp', 'Order No': 'CO-2025-001', 'Dispatch Order No': '', 'Invoice Date': '2025-06-15', 'Due Date': '2025-07-15', 'Subtotal': '50000', 'GST Amount': '9000', 'Total Amount': '59000', 'Notes': '' },
 ];
 const INV_CSV_VALIDATION = [
   { field: 'Customer Name', required: true },
@@ -131,14 +131,20 @@ const SalesInvoicesPage = () => {
     for (const row of rows) {
       try {
         const cust = row['Customer Name'] ? customers.find((c) => c.name?.toLowerCase() === row['Customer Name'].toLowerCase()) : null;
+        const orderNo = (row['Order No'] || '').trim();
+        const order = orderNo ? orders.find((o) => o.order_no?.toLowerCase() === orderNo.toLowerCase()) : null;
+        const dispatchNo = (row['Dispatch Order No'] || '').trim();
+        const dispatch = dispatchNo ? dispatches.find((d) => (d.order_number || '').toLowerCase() === dispatchNo.toLowerCase()) : null;
         await salesInvoiceApi.create({
-          customer_id:   cust?.id || null,
-          invoice_date:  row['Invoice Date'] || null,
-          due_date:      row['Due Date'] || null,
-          subtotal:      parseFloat(row['Subtotal']) || 0,
-          gst_amount:    parseFloat(row['GST Amount']) || 0,
-          total_amount:  parseFloat(row['Total Amount']) || 0,
-          notes:         row['Notes'] || '',
+          customer_id:       cust?.id || null,
+          customer_order_id: order?.id || null,
+          dispatch_order_id: dispatch?.id || null,
+          invoice_date:      row['Invoice Date'] || null,
+          due_date:          row['Due Date'] || null,
+          subtotal:          parseFloat(row['Subtotal']) || 0,
+          gst_amount:        parseFloat(row['GST Amount']) || 0,
+          total_amount:      parseFloat(row['Total Amount']) || 0,
+          notes:             row['Notes'] || '',
         });
         success++;
       } catch (err) {

@@ -823,12 +823,13 @@ const PrintPreviewModal = ({ record, open, onClose }) => {
 //  MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
 // ── CSV Upload config ────────────────────────────────────────────────────────
-const STICKER_CSV_HEADERS = ['Name', 'Template For', 'Sticker Type', 'Primary Key', 'Secondary Key', 'Separator', 'Format'];
+const STICKER_CSV_HEADERS = ['Name', 'Template For', 'Sticker Type', 'Primary Key', 'Secondary Key', 'Separator', 'Format', 'Customers'];
 
 const STICKER_CSV_SAMPLE = [
   {
     'Name': 'Machine QR Label', 'Template For': 'Machine', 'Sticker Type': 'QR Code',
     'Primary Key': 'Machine Code', 'Secondary Key': 'Machine Name', 'Separator': '/', 'Format': 'Basic',
+    'Customers': 'Acme Corp, Beta Ltd',
   },
 ];
 
@@ -847,6 +848,12 @@ const StickerTemplatesPage = () => {
   const [modal,   setModal]   = useState({ open: false, record: null });
   const [preview, setPreview] = useState({ open: false, record: null });
   const [csvModalOpen, setCsvModalOpen] = useState(false);
+  const [customers, setCustomers] = useState([]);
+
+  // ── Load customers for CSV import ─────────────────────────────────────────
+  useEffect(() => {
+    vendorApi.getAll({ type: 'customer' }).then((d) => setCustomers(d ?? [])).catch(() => {});
+  }, []);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchTemplates = useCallback(async () => {
@@ -889,6 +896,10 @@ const StickerTemplatesPage = () => {
     const errors = [];
     for (const row of rows) {
       try {
+        const customerNames = row['Customers'] ? row['Customers'].split(',').map((s) => s.trim()).filter(Boolean) : [];
+        const customer_ids = customerNames.length
+          ? customerNames.map((cn) => customers.find((c) => c.name?.toLowerCase() === cn.toLowerCase())?.id).filter(Boolean)
+          : [];
         await stickerTemplateApi.create({
           name:          row['Name'] || '',
           template_for:  row['Template For'] || 'Machine',
@@ -897,6 +908,7 @@ const StickerTemplatesPage = () => {
           secondary_key: row['Secondary Key'] || null,
           separator:     row['Separator'] || '/',
           format:        row['Format'] || 'Basic',
+          customer_ids:  customer_ids.length ? customer_ids : [],
         });
         success++;
       } catch (err) {
@@ -1173,7 +1185,7 @@ const StickerTemplatesPage = () => {
       <PrintPreviewModal
         record={preview.record}
         open={preview.open}
-        onClose={() => setPreview({ open: false, record: null })}
+        onClose={() => setPreview((prev) => ({ ...prev, open: false }))}
       />
 
       <CsvUploadModal

@@ -26,9 +26,9 @@ import { downloadSampleCsv } from '../../../utils/csvImport';
 import { UploadOutlined }   from '@ant-design/icons';
 
 // ── CSV Upload config ─────────────────────────────────────────────────────────
-const LQC_CSV_HEADERS = ['Type', 'Item Code', 'Work Order No', 'Machine Name', 'Inspection Date', 'Batch No', 'Qty Inspected', 'Qty Rejected', 'Notes'];
+const LQC_CSV_HEADERS = ['Type', 'Item Code', 'Work Order No', 'Machine Name', 'Inspector Name', 'Inspection Date', 'Batch No', 'Qty Inspected', 'Qty Rejected', 'Notes'];
 const LQC_CSV_SAMPLE = [
-  { 'Type': 'hourly', 'Item Code': 'ITM-001', 'Work Order No': 'WO-001', 'Machine Name': 'CNC-01', 'Inspection Date': '2026-04-01', 'Batch No': 'LOT-001', 'Qty Inspected': '100', 'Qty Rejected': '2', 'Notes': '' },
+  { 'Type': 'hourly', 'Item Code': 'ITM-001', 'Work Order No': 'WO-001', 'Machine Name': 'CNC-01', 'Inspector Name': 'Amit Sharma', 'Inspection Date': '2026-04-01', 'Batch No': 'LOT-001', 'Qty Inspected': '100', 'Qty Rejected': '2', 'Notes': '' },
 ];
 const LQC_CSV_VALIDATION = [
   { field: 'Item Code', required: true },
@@ -186,17 +186,20 @@ export default function LQCPage() {
     for (const row of rows) {
       try {
         const itemCode = (row['Item Code'] || '').trim();
-        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
         if (!item) throw new Error(`Item "${itemCode}" not found`);
         const woNo = (row['Work Order No'] || '').trim();
         const wo = woNo ? workOrders.find((w) => w.wo_no?.toLowerCase() === woNo.toLowerCase()) : null;
         const machineName = (row['Machine Name'] || '').trim();
         const machine = machineName ? machines.find((m) => m.name?.toLowerCase() === machineName.toLowerCase()) : null;
+        const inspectorName = (row['Inspector Name'] || '').trim();
+        const inspector = inspectorName ? users.find((u) => u.name?.toLowerCase() === inspectorName.toLowerCase()) : null;
         await lqcApi.create({
           type:            row['Type'] || 'hourly',
           item_id:         item.id,
           work_order_id:   wo?.id || null,
           machine_id:      machine?.id || null,
+          inspector_id:    inspector?.id || null,
           inspection_date: row['Inspection Date'] || dayjs().format('YYYY-MM-DD'),
           batch_no:        row['Batch No'] || null,
           qty_inspected:   parseFloat(row['Qty Inspected']) || 0,

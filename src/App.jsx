@@ -164,6 +164,10 @@ import AndonPage           from './pages/Production/Andon';
 import ShiftHandoverPage   from './pages/Production/ShiftHandover';
 import OperatorPanelPage   from './pages/Operator';
 
+// Multi-tenant SaaS — Phase 1
+import RegisterPage        from './pages/Auth/Register';
+import OnboardingPage      from './pages/Auth/Onboarding';
+
 // Dynatech ONE — Enterprise White Theme (no linear gradients)
 const theme = {
   algorithm: antTheme.defaultAlgorithm,
@@ -219,6 +223,15 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route
+                path="/onboarding"
+                element={
+                  <ProtectedRoute>
+                    <OnboardingPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/change-password"

@@ -24,7 +24,7 @@ import { downloadSampleCsv } from '../../../utils/csvImport';
 // ── CSV Upload config ─────────────────────────────────────────────────────────
 const IC_CSV_HEADERS = ['Vendor Code', 'Challan Date', 'WO No', 'Item Code', 'Qty', 'Unit', 'Notes'];
 const IC_CSV_SAMPLE = [
-  { 'Vendor Code': 'VND-001', 'Challan Date': '2025-06-15', 'WO No': '', 'Item Code': 'ITM-001', 'Qty': '100', 'Unit': 'pcs', 'Notes': '' },
+  { 'Vendor Code': 'Reliance Polymers Ltd', 'Challan Date': '2025-06-15', 'WO No': '', 'Item Code': 'ITM-001', 'Qty': '100', 'Unit': 'pcs', 'Notes': '' },
 ];
 const IC_CSV_VALIDATION = [
   { field: 'Vendor Code', required: true },
@@ -180,13 +180,13 @@ export default function InwardChallanPage() {
       try {
         const first = groupRows[0];
         const vendorCode = (first['Vendor Code'] || '').trim();
-        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase());
+        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase() || v.name?.toLowerCase() === vendorCode.toLowerCase());
         if (!vendor) throw new Error(`Vendor "${vendorCode}" not found`);
         const woNo = (first['WO No'] || '').trim();
         const wo = woNo ? workOrders.find((w) => (w.wo_no || '')?.toLowerCase() === woNo.toLowerCase()) : null;
         const challanItems = groupRows.map((row) => {
           const itemCode = (row['Item Code'] || '').trim();
-          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
           return {
             item_id: item?.id || null,
             qty:     parseFloat(row['Qty']) || 1,

@@ -73,11 +73,11 @@ const makeDerivedField = () => ({
 });
 
 // ── CSV Upload config ────────────────────────────────────────────────────────
-const PF_CSV_HEADERS = ['Title', 'Group By'];
+const PF_CSV_HEADERS = ['Title', 'Group By', 'Fields'];
 
 const PF_CSV_SAMPLE = [
-  { 'Title': 'Daily Production Report', 'Group By': 'Item' },
-  { 'Title': 'Quality Check Form', 'Group By': 'None' },
+  { 'Title': 'Daily Production Report', 'Group By': 'Item', 'Fields': 'Production Count, Rejection Count' },
+  { 'Title': 'Quality Check Form', 'Group By': 'None', 'Fields': 'Length, Width, Height' },
 ];
 
 const PF_CSV_VALIDATION = [
@@ -649,10 +649,19 @@ const ProductionFormsPage = () => {
     for (const row of rows) {
       try {
         const groupBy = row['Group By']?.trim();
+        const fieldNames = row['Fields'] ? row['Fields'].split(',').map((f) => f.trim()).filter(Boolean) : [];
+        const fields = fieldNames.map((label) => ({
+          id:         `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+          label,
+          key:        label.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '').replace(/_+/g, '_').replace(/^_|_$/g, ''),
+          type:       'Number',
+          is_derived: false,
+          ctq:        false,
+        }));
         await productionFormApi.create({
           title: row['Title']?.trim(),
           group_by: (!groupBy || groupBy === 'None') ? null : groupBy,
-          fields: [],
+          fields,
         });
         success++;
       } catch (err) {

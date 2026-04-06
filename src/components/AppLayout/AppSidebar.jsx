@@ -681,10 +681,10 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/masters/other/tag-management')) return { selected: 'm-tag-management', open: ['masters', 'grp-other'] };
   if (pathname.startsWith('/masters/other/templates'))      return { selected: 'm-templates',      open: ['masters', 'grp-other'] };
   if (pathname.startsWith('/masters/inventory/custom-fields')) return { selected: 'm-custom-fields', open: ['masters', 'grp-inventory'] };
-  // Planning sub-group
-  if (pathname.startsWith('/masters/planning/sticker-templates')) return { selected: 'm-sticker-templates', open: ['masters', 'grp-planning'] };
-  if (pathname.startsWith('/masters/planning/customers'))         return { selected: 'm-customers',         open: ['masters', 'grp-planning'] };
-  if (pathname.startsWith('/masters/planning/vendors'))           return { selected: 'm-vendors',           open: ['masters', 'grp-planning'] };
+  // Moved items (sidebar reorganized)
+  if (pathname.startsWith('/masters/planning/sticker-templates')) return { selected: 'm-sticker-templates', open: ['masters', 'grp-other'] };
+  if (pathname.startsWith('/masters/planning/customers'))         return { selected: 'm-customers',         open: ['orders'] };
+  if (pathname.startsWith('/masters/planning/vendors'))           return { selected: 'm-vendors',           open: ['procurement', 'grp-proc-vendors'] };
   // Quality & NPD module
   if (pathname.startsWith('/quality/capa'))         return { selected: 'q-capa',         open: ['quality', 'grp-qms'] };
   if (pathname.startsWith('/quality/ncr'))          return { selected: 'q-ncr',          open: ['quality', 'grp-qms'] };
@@ -722,7 +722,7 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/production/lqc'))             return { selected: 'lqc', open: ['production', 'grp-prod-inspect'] };
   if (pathname.startsWith('/production/pqc'))             return { selected: 'pqc', open: ['production', 'grp-prod-inspect'] };
   if (pathname.startsWith('/production/oqc'))             return { selected: 'oqc', open: ['production', 'grp-prod-inspect'] };
-  if (pathname.startsWith('/production/ewi'))             return { selected: 'ewi', open: ['production', 'grp-prod-inspect'] };
+  if (pathname.startsWith('/production/ewi'))             return { selected: 'ewi', open: ['production', 'grp-prod-plan'] };
   // Production — Workforce sub-group
   if (pathname.startsWith('/production/shift-planning'))  return { selected: 'shift-planning', open: ['production', 'grp-prod-workforce'] };
   if (pathname.startsWith('/production/shift-handover'))  return { selected: 'shift-handover', open: ['production', 'grp-prod-workforce'] };
@@ -820,7 +820,7 @@ const getNavState = (pathname) => {
   if (pathname.startsWith('/dashboard/multi-plant')) return { selected: 'multi-plant', open: [] };
   // QR Scanner
   if (pathname.startsWith('/scan')) return { selected: 'qr-scanner', open: [] };
-  if (pathname.startsWith('/operator')) return { selected: 'operator-panel', open: [] };
+  if (pathname.startsWith('/operator')) return { selected: 'operator-panel', open: ['production', 'grp-prod-monitor'] };
   return { selected: 'dashboard', open: [] };
 };
 
@@ -1017,7 +1017,12 @@ const AppSidebar = ({ collapsed, onCollapse, mobileMode, mobileOpen, onMobileClo
           selectedKeys={[selected]}
           {...(effectiveCollapsed
             ? {}
-            : { openKeys, onOpenChange: (keys) => setOpenKeys(keys) }
+            : { openKeys, onOpenChange: (keys) => {
+                // Keep parent menus open when toggling sub-groups
+                // Ant Design sends the full list of keys that should be open
+                setOpenKeys(keys);
+              }
+            }
           )}
           items={menuItems}
           onClick={handleMenuClick}

@@ -25,16 +25,18 @@ const fmtDateTime = (iso) => (iso ? dayjs(iso).format('DD MMM YYYY HH:mm') : '�
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 // ── CSV Upload config ────────────────────────────────────────���───────────────
-const TOOL_CSV_HEADERS = ['Name', 'Code', 'Multiplier'];
+const TOOL_CSV_HEADERS = ['Name', 'Code', 'Multiplier', 'Lifetime Strokes', 'Maintenance Cycle Strokes'];
 
 const TOOL_CSV_SAMPLE = [
-  { 'Name': 'Drill Bit 10mm', 'Code': '', 'Multiplier': '1.5' },
-  { 'Name': 'End Mill 6mm', 'Code': '', 'Multiplier': '2' },
+  { 'Name': 'Drill Bit 10mm', 'Code': '', 'Multiplier': '1.5', 'Lifetime Strokes': '50000', 'Maintenance Cycle Strokes': '10000' },
+  { 'Name': 'End Mill 6mm', 'Code': '', 'Multiplier': '2', 'Lifetime Strokes': '', 'Maintenance Cycle Strokes': '' },
 ];
 
 const TOOL_CSV_VALIDATION = [
   { field: 'Name', required: true },
   { field: 'Multiplier', validate: (v) => (v && isNaN(parseFloat(v)) ? '"Multiplier" must be a number' : null) },
+  { field: 'Lifetime Strokes', validate: (v) => (v && isNaN(parseInt(v, 10)) ? '"Lifetime Strokes" must be a number' : null) },
+  { field: 'Maintenance Cycle Strokes', validate: (v) => (v && isNaN(parseInt(v, 10)) ? '"Maintenance Cycle Strokes" must be a number' : null) },
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -892,10 +894,16 @@ const ToolsPage = () => {
     const errors = [];
     for (const row of rows) {
       try {
+        const lifetimeStrokes = row['Lifetime Strokes'] ? parseInt(row['Lifetime Strokes'], 10) : null;
+        const maintenanceCycleStrokes = row['Maintenance Cycle Strokes'] ? parseInt(row['Maintenance Cycle Strokes'], 10) : null;
+        const lifetime_entries = (lifetimeStrokes != null || maintenanceCycleStrokes != null)
+          ? [{ tool_details: '', lifetime_strokes: lifetimeStrokes || 0, maintenance_cycle_strokes: maintenanceCycleStrokes || 0, is_parent: true }]
+          : [];
         await toolApi.create({
           name: row['Name']?.trim(),
           code: row['Code']?.trim() || undefined,
           multiplier: row['Multiplier'] ? parseFloat(row['Multiplier']) : undefined,
+          lifetime_entries,
         });
         success++;
       } catch (err) {

@@ -7,15 +7,16 @@ import { PlusOutlined, ReloadOutlined, RightOutlined, DownloadOutlined } from '@
 import dayjs from 'dayjs';
 import AppLayout from '../../../components/AppLayout';
 import { shiftHandoverApi } from '../../../api/production.api';
+import { userApi } from '../../../api/user.api';
 import { exportTableToCsv } from '../../../utils/exportCsv';
 import CsvUploadModal       from '../../../components/common/CsvUploadModal';
 import { downloadSampleCsv } from '../../../utils/csvImport';
 import { UploadOutlined }   from '@ant-design/icons';
 
 // ── CSV Upload config ─────────────────────────────────────────────────────────
-const HANDOVER_CSV_HEADERS = ['Handover Date', 'Production Notes', 'Machine Notes'];
+const HANDOVER_CSV_HEADERS = ['Handover Date', 'Incoming Supervisor', 'Production Notes', 'Machine Notes'];
 const HANDOVER_CSV_SAMPLE = [
-  { 'Handover Date': '2026-04-01', 'Production Notes': 'All targets met', 'Machine Notes': 'CNC-01 needs coolant refill' },
+  { 'Handover Date': '2026-04-01', 'Incoming Supervisor': 'Amit Sharma', 'Production Notes': 'All targets met', 'Machine Notes': 'CNC-01 needs coolant refill' },
 ];
 const HANDOVER_CSV_VALIDATION = [
   { field: 'Handover Date', required: true },
@@ -28,6 +29,7 @@ const STATUS_COLORS = { draft: 'default', submitted: 'processing', acknowledged:
 
 export default function ShiftHandoverPage() {
   const [data, setData]                   = useState([]);
+  const [users, setUsers]                 = useState([]);
   const [loading, setLoading]             = useState(false);
   const [drawerOpen, setDrawerOpen]       = useState(false);
   const [selectedHandover, setSelected]   = useState(null);
@@ -36,16 +38,25 @@ export default function ShiftHandoverPage() {
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [form] = Form.useForm();
 
+  // ── Load users for CSV lookup ─────────────────────────────────────────────────
+  useEffect(() => {
+    userApi.getAll({ limit: 500 }).catch(() => [])
+      .then((d) => setUsers(Array.isArray(d) ? d : (d?.data ?? [])));
+  }, []);
+
   // ── CSV Import handler ────────────────────────────────────────────────────────
   const handleCsvImport = async (rows) => {
     let success = 0, failed = 0;
     const errors = [];
     for (const row of rows) {
       try {
+        const incomingName = (row['Incoming Supervisor'] || '').trim();
+        const incomingSup = incomingName ? users.find((u) => u.name?.toLowerCase() === incomingName.toLowerCase()) : null;
         await shiftHandoverApi.create({
-          handover_date:    row['Handover Date'] || dayjs().format('YYYY-MM-DD'),
-          production_notes: row['Production Notes'] || null,
-          machine_notes:    row['Machine Notes'] || null,
+          handover_date:          row['Handover Date'] || dayjs().format('YYYY-MM-DD'),
+          incoming_supervisor_id: incomingSup?.id || null,
+          production_notes:       row['Production Notes'] || null,
+          machine_notes:          row['Machine Notes'] || null,
         });
         success++;
       } catch (err) {

@@ -25,7 +25,7 @@ import { UploadOutlined }   from '@ant-design/icons';
 // ── CSV Upload config ─────────────────────────────────────────────────────────
 const SCAR_CSV_HEADERS = ['Vendor Code', 'Severity', 'Defect Description', 'Affected Qty', 'Source', 'Response Due Date', 'Notes'];
 const SCAR_CSV_SAMPLE = [
-  { 'Vendor Code': 'VND-001', 'Severity': 'major', 'Defect Description': 'Surface scratches on 20% of batch', 'Affected Qty': '50', 'Source': 'iqc', 'Response Due Date': '2025-07-15', 'Notes': '' },
+  { 'Vendor Code': 'Reliance Polymers Ltd', 'Severity': 'major', 'Defect Description': 'Surface scratches on 20% of batch', 'Affected Qty': '50', 'Source': 'iqc', 'Response Due Date': '2025-07-15', 'Notes': '' },
 ];
 const SCAR_CSV_VALIDATION = [
   { field: 'Vendor Code', required: true },
@@ -260,7 +260,7 @@ export default function SCARPage() {
     for (const row of rows) {
       try {
         const vendorCode = (row['Vendor Code'] || '').trim();
-        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase());
+        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase() || v.name?.toLowerCase() === vendorCode.toLowerCase());
         if (!vendor) throw new Error(`Vendor "${vendorCode}" not found`);
         await scarApi.create({
           vendor_id:             vendor.id,

@@ -148,7 +148,7 @@ export default function LOTOPage() {
     for (const row of rows) {
       try {
         const eqCode = row['Equipment Code'] || '';
-        const eq = equipment.find((e) => e.equipment_code?.toLowerCase() === eqCode.toLowerCase());
+        const eq = equipment.find((e) => e.equipment_code?.toLowerCase() === eqCode.toLowerCase() || e.name?.toLowerCase() === eqCode.toLowerCase());
         if (!eq) throw new Error(`Equipment "${eqCode}" not found`);
         await lotoApi.createProcedure({
           equipment_id: eq.id,

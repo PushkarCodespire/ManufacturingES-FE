@@ -485,8 +485,8 @@ const CostingPage = () => {
       try {
         const vendorCode = row['Vendor Code'] || '';
         const itemCode = row['Item Code'] || '';
-        const vendor = vendors.find((v) => v.partner_code === vendorCode);
-        const item = items.find((i) => i.code === itemCode);
+        const vendor = vendors.find((v) => v.partner_code === vendorCode || v.name?.toLowerCase() === vendorCode.toLowerCase());
+        const item = items.find((i) => i.code === itemCode || i.name?.toLowerCase() === itemCode.toLowerCase());
         if (!vendor) throw new Error(`Vendor "${vendorCode}" not found`);
         if (!item) throw new Error(`Item "${itemCode}" not found`);
         await costingApi.create([{

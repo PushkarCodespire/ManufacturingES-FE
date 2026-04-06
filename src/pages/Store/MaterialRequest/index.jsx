@@ -205,7 +205,7 @@ export default function MaterialRequestPage() {
         if (!wh) throw new Error(`Warehouse "${whName}" not found`);
         const mrItems = groupRows.map((row) => {
           const itemCode = (row['Item Code'] || '').trim();
-          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
           return {
             item_id:     item?.id || null,
             description: row['Description'] || item?.name || '',

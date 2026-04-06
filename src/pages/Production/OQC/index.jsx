@@ -30,9 +30,9 @@ import { downloadSampleCsv } from '../../../utils/csvImport';
 import { UploadOutlined }   from '@ant-design/icons';
 
 // ── CSV Upload config ─────────────────────────────────────────────────────────
-const OQC_CSV_HEADERS = ['Item Code', 'Customer Code', 'Work Order No', 'Batch No', 'Inspection Date', 'Qty Inspected', 'Qty Rejected', 'Qty Accepted', 'Notes'];
+const OQC_CSV_HEADERS = ['Item Code', 'Customer Code', 'Work Order No', 'Batch No', 'Inspector Name', 'Inspection Date', 'Qty Inspected', 'Qty Rejected', 'Qty Accepted', 'Notes'];
 const OQC_CSV_SAMPLE = [
-  { 'Item Code': 'ITM-001', 'Customer Code': 'CUST-001', 'Work Order No': 'WO-001', 'Batch No': 'LOT-001', 'Inspection Date': '2026-04-01', 'Qty Inspected': '200', 'Qty Rejected': '3', 'Qty Accepted': '197', 'Notes': '' },
+  { 'Item Code': 'ITM-001', 'Customer Code': 'Maruti Suzuki India Ltd', 'Work Order No': 'WO-001', 'Batch No': 'LOT-001', 'Inspector Name': 'Amit Sharma', 'Inspection Date': '2026-04-01', 'Qty Inspected': '200', 'Qty Rejected': '3', 'Qty Accepted': '197', 'Notes': '' },
 ];
 const OQC_CSV_VALIDATION = [
   { field: 'Item Code', required: true },
@@ -221,17 +221,20 @@ export default function OQCPage() {
     for (const row of rows) {
       try {
         const itemCode = (row['Item Code'] || '').trim();
-        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
         if (!item) throw new Error(`Item "${itemCode}" not found`);
         const custCode = (row['Customer Code'] || '').trim();
-        const customer = custCode ? customers.find((c) => c.partner_code?.toLowerCase() === custCode.toLowerCase()) : null;
+        const customer = custCode ? customers.find((c) => c.partner_code?.toLowerCase() === custCode.toLowerCase() || c.name?.toLowerCase() === custCode.toLowerCase()) : null;
         const woNo = (row['Work Order No'] || '').trim();
         const wo = woNo ? workOrders.find((w) => w.wo_no?.toLowerCase() === woNo.toLowerCase()) : null;
+        const inspectorName = (row['Inspector Name'] || '').trim();
+        const inspector = inspectorName ? users.find((u) => u.name?.toLowerCase() === inspectorName.toLowerCase()) : null;
         await oqcApi.create({
           item_id:         item.id,
           customer_id:     customer?.id || null,
           work_order_id:   wo?.id || null,
           batch_no:        row['Batch No'] || null,
+          inspector_id:    inspector?.id || null,
           inspection_date: row['Inspection Date'] || dayjs().format('YYYY-MM-DD'),
           qty_inspected:   parseFloat(row['Qty Inspected']) || 0,
           qty_rejected:    parseFloat(row['Qty Rejected']) || 0,

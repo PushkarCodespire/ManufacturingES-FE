@@ -22,9 +22,9 @@ import CsvUploadModal        from '../../../components/common/CsvUploadModal';
 import { downloadSampleCsv } from '../../../utils/csvImport';
 
 // ── CSV Upload config ─────────────────────────────────────────────────────────
-const IS_CSV_HEADERS = ['Warehouse', 'Issue Date', 'Issued To (Employee ID)', 'Item Code', 'Description', 'Qty', 'Unit', 'Lot No', 'Notes'];
+const IS_CSV_HEADERS = ['Warehouse', 'Issue Date', 'Issued To (Employee ID)', 'Material Request No', 'Item Code', 'Description', 'Qty', 'Unit', 'Lot No', 'Notes'];
 const IS_CSV_SAMPLE = [
-  { 'Warehouse': 'Main Store', 'Issue Date': '2025-06-15', 'Issued To (Employee ID)': 'DT10002', 'Item Code': 'ITM-001', 'Description': 'Shaft Assembly', 'Qty': '10', 'Unit': 'pcs', 'Lot No': 'LOT-001', 'Notes': '' },
+  { 'Warehouse': 'Main Store', 'Issue Date': '2025-06-15', 'Issued To (Employee ID)': 'DT10002', 'Material Request No': 'MR-001', 'Item Code': 'ITM-001', 'Description': 'Shaft Assembly', 'Qty': '10', 'Unit': 'pcs', 'Lot No': 'LOT-001', 'Notes': '' },
 ];
 const IS_CSV_VALIDATION = [
   { field: 'Warehouse', required: true },
@@ -184,9 +184,11 @@ export default function IssueSlipPage() {
         if (!wh) throw new Error(`Warehouse "${whName}" not found`);
         const empId = (first['Issued To (Employee ID)'] || '').trim();
         const user = empId ? users.find((u) => u.employee_id?.toLowerCase() === empId.toLowerCase()) : null;
+        const mrNo = (first['Material Request No'] || '').trim();
+        const mr = mrNo ? materialReqs.find((m) => (m.request_no || '')?.toLowerCase() === mrNo.toLowerCase()) : null;
         const slipItems = groupRows.map((row) => {
           const itemCode = (row['Item Code'] || '').trim();
-          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
           return {
             item_id:     item?.id || null,
             description: row['Description'] || item?.name || '',
@@ -196,11 +198,12 @@ export default function IssueSlipPage() {
           };
         });
         await issueSlipApi.create({
-          warehouse_id: wh.id,
-          issued_date:  first['Issue Date'] || dayjs().format('YYYY-MM-DD'),
-          issued_to:    user?.id || null,
-          notes:        first['Notes'] || '',
-          items:        slipItems,
+          warehouse_id:        wh.id,
+          issued_date:         first['Issue Date'] || dayjs().format('YYYY-MM-DD'),
+          material_request_id: mr?.id || null,
+          issued_to:           user?.id || null,
+          notes:               first['Notes'] || '',
+          items:               slipItems,
         });
         success += groupRows.length;
       } catch (err) {

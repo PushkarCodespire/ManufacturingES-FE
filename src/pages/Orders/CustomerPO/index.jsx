@@ -47,7 +47,7 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v
 // ── CSV Upload config ─────────────────────────────────────────────────────────
 const CSV_HEADERS = ['Customer Code', 'Customer PO No', 'Order Date', 'Delivery Date', 'Item Code', 'Description', 'Qty', 'Unit', 'Unit Price', 'Discount %', 'GST %', 'Notes'];
 const CSV_SAMPLE = [
-  { 'Customer Code': 'CUST-001', 'Customer PO No': 'PO-2025-001', 'Order Date': '2025-06-15', 'Delivery Date': '2025-07-15', 'Item Code': 'ITM-001', 'Description': 'Shaft Assembly', 'Qty': '100', 'Unit': 'pcs', 'Unit Price': '250', 'Discount %': '0', 'GST %': '18', 'Notes': '' },
+  { 'Customer Code': 'Maruti Suzuki India Ltd', 'Customer PO No': 'PO-2025-001', 'Order Date': '2025-06-15', 'Delivery Date': '2025-07-15', 'Item Code': 'ITM-001', 'Description': 'Shaft Assembly', 'Qty': '100', 'Unit': 'pcs', 'Unit Price': '250', 'Discount %': '0', 'GST %': '18', 'Notes': '' },
 ];
 const CSV_VALIDATION = [
   { field: 'Customer Code', required: true },
@@ -286,11 +286,11 @@ export default function CustomerPOPage() {
       try {
         const first = groupRows[0];
         const custCode = (first['Customer Code'] || '').trim();
-        const cust = customers.find((c) => c.partner_code?.toLowerCase() === custCode.toLowerCase());
+        const cust = customers.find((c) => c.partner_code?.toLowerCase() === custCode.toLowerCase() || c.name?.toLowerCase() === custCode.toLowerCase());
         if (!cust) throw new Error(`Customer "${custCode}" not found`);
         const itemsPayload = groupRows.map((row) => {
           const itemCode = (row['Item Code'] || '').trim();
-          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
           return {
             item_id: item?.id || null,
             description: row['Description'] || item?.name || '',

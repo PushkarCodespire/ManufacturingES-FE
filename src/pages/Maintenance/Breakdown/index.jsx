@@ -19,7 +19,7 @@ import { downloadSampleCsv } from '../../../utils/csvImport';
 // ── CSV Upload config ────────────────────────────────────────────────────────
 const BD_CSV_HEADERS = ['Equipment Code', 'Priority', 'Symptoms'];
 const BD_CSV_SAMPLE = [
-  { 'Equipment Code': 'EQ-001', 'Priority': 'High', 'Symptoms': 'Motor overheating, unusual vibration noise' },
+  { 'Equipment Code': 'EQ-001', 'Priority': 'P1 — Critical', 'Symptoms': 'Motor overheating, unusual vibration noise' },
 ];
 const BD_CSV_VALIDATION = [
   { field: 'Equipment Code', required: true },
@@ -206,17 +206,27 @@ export default function BreakdownPage() {
     const errors = [];
     for (const row of rows) {
       try {
-        const equip = row['Equipment Code'] ? equipment.find((e) => e.equipment_code?.toLowerCase() === row['Equipment Code'].toLowerCase() || e.name?.toLowerCase() === row['Equipment Code'].toLowerCase()) : null;
-        const prio = row['Priority'] ? priorities.find((p) => p.name?.toLowerCase() === row['Priority'].toLowerCase()) : null;
+        const equipCode = (row['Equipment Code'] || '').trim();
+        const equip = equipCode ? equipment.find((e) => e.equipment_code?.toLowerCase() === equipCode.toLowerCase() || e.name?.toLowerCase() === equipCode.toLowerCase()) : null;
+        if (!equip) throw new Error(`Equipment "${equipCode}" not found`);
+        const prioName = (row['Priority'] || '').trim();
+        // Normalise dashes (em dash, en dash, hyphen) for matching priorities like "P1 — Critical"
+        const normDash = (s) => s?.toLowerCase().replace(/[\u2014\u2013\u2012\u2015—–-]/g, '-') || '';
+        const prio = prioName ? priorities.find((p) => {
+          const pn = normDash(p.name);
+          const input = normDash(prioName);
+          return pn === input || pn.includes(input) || input.includes(pn);
+        }) : null;
         await breakdownApi.createBreakdown({
-          equipment_id: equip?.id || null,
-          priority_id:  prio?.id || null,
+          equipment_id: equip.id,
+          priority_id:  prio?.id || undefined,
           symptoms:     row['Symptoms'] || '',
         });
         success++;
       } catch (err) {
+        const detail = err?.response?.data?.errors?.join(', ') || err?.response?.data?.message || err?.message || 'Failed';
         failed++;
-        errors.push(`Row "${row['Equipment Code'] || ''}": ${err?.message || 'Failed'}`);
+        errors.push(`Row "${row['Equipment Code'] || ''}": ${detail}`);
       }
     }
     loadBreakdowns();

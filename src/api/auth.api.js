@@ -7,4 +7,5 @@ export const authApi = {
   resetPassword:  (data) => api.post('/auth/reset-password',  data), // SYS-003 (IT Admin / Plant Head)
   getMe:          ()     => api.get ('/auth/me'),
   logout:         (data) => api.post('/auth/logout',          data),
+  register:       (data) => api.post('/auth/register',        data),
 };

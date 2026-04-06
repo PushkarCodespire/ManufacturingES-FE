@@ -110,7 +110,7 @@ export default function ScrapVoucherPage() {
     for (const row of rows) {
       try {
         const itemCode = (row['Item Code'] || '').trim();
-        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
         if (!item) throw new Error(`Item "${itemCode}" not found`);
         const machineName = (row['Machine Name'] || '').trim();
         const machine = machineName ? machines.find((m) => m.name?.toLowerCase() === machineName.toLowerCase()) : null;

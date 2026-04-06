@@ -16,6 +16,7 @@ const SESSION_MS   = 8 * 60 * 60 * 1000; // 8 hours — SYS-004
 
 export const AuthProvider = ({ children }) => {
   const [user,          setUser]          = useState(null);
+  const [organization,  setOrganization]  = useState(null);
   const [loading,       setLoading]       = useState(true);
   const [currentSiteId, setCurrentSiteId] = useState(() => {
     const stored = localStorage.getItem(STORAGE_SITE);
@@ -38,6 +39,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem(STORAGE_TIME);
 
     setUser(null);
+    setOrganization(null);
   }, []);
 
   // ─── Bootstrap on page refresh ────────────────────────────────────────────────
@@ -84,6 +86,8 @@ export const AuthProvider = ({ children }) => {
         // Store new token in memory only — never in localStorage
         setToken(newToken);
         setUser(parsedUser);
+        // Restore organization data from stored user metadata
+        if (parsedUser.Organization) setOrganization(parsedUser.Organization);
 
         // Schedule auto-logout for remaining session time
         const remaining = SESSION_MS - elapsed;
@@ -101,25 +105,49 @@ export const AuthProvider = ({ children }) => {
   }, [logout]);
 
   // ─── Login ────────────────────────────────────────────────────────────────────
-  const login = async (employee_id, password) => {
-    const res = await authApi.login({ employee_id, password });
+  // Accepts an object: { employee_id?, email?, password }
+  const login = async (credentials) => {
+    const res = await authApi.login(credentials);
     // H-06: refresh_token is delivered via httpOnly cookie — not in the response body
-    const { token, user: userData } = res.data;
+    const { token, user: userData, organization: orgData } = res.data;
 
     // Security fix #2: access token stored in memory only — NOT in localStorage.
     // This prevents any XSS script from stealing it via localStorage.getItem().
     setToken(token);
 
+    // Persist org data within user metadata for bootstrap restoration
+    const userToStore = orgData ? { ...userData, Organization: orgData } : userData;
+
     // Only non-sensitive metadata is persisted (user profile + login timestamp)
-    localStorage.setItem(STORAGE_USER, JSON.stringify(userData));
+    localStorage.setItem(STORAGE_USER, JSON.stringify(userToStore));
     localStorage.setItem(STORAGE_TIME, Date.now().toString());
 
     setUser(userData);
+    if (orgData) setOrganization(orgData);
 
     // Schedule auto-logout at 8h wall-clock limit
     setTimeout(() => logout(true), SESSION_MS);
 
     return { is_first_login: userData.is_first_login };
+  };
+
+  // ─── Register ─────────────────────────────────────────────────────────────────
+  const register = async (data) => {
+    const res = await authApi.register(data);
+    const { token, user: userData, organization: orgData } = res.data;
+
+    setToken(token);
+
+    const userToStore = orgData ? { ...userData, Organization: orgData } : userData;
+    localStorage.setItem(STORAGE_USER, JSON.stringify(userToStore));
+    localStorage.setItem(STORAGE_TIME, Date.now().toString());
+
+    setUser(userData);
+    if (orgData) setOrganization(orgData);
+
+    setTimeout(() => logout(true), SESSION_MS);
+
+    return { onboarding_completed: orgData?.onboarding_completed ?? true };
   };
 
   // ─── Update local user state (e.g. after password change) ────────────────────
@@ -140,7 +168,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, currentSiteId, switchSite }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register, updateUser, organization, currentSiteId, switchSite }}>
       {children}
     </AuthContext.Provider>
   );

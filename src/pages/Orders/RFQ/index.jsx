@@ -42,7 +42,7 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v
 // ── CSV Upload config ─────────────────────────────────────────────────────────
 const CSV_HEADERS = ['Customer Code', 'RFQ Date', 'Subject', 'Item Code', 'Customer Part No', 'Description', 'Qty', 'Unit', 'Target Price', 'Notes'];
 const CSV_SAMPLE = [
-  { 'Customer Code': 'CUST-001', 'RFQ Date': '2025-06-15', 'Subject': 'Machined Parts', 'Item Code': 'ITM-001', 'Customer Part No': 'CP-100', 'Description': 'Shaft Assembly', 'Qty': '100', 'Unit': 'pcs', 'Target Price': '250', 'Notes': '' },
+  { 'Customer Code': 'Maruti Suzuki India Ltd', 'RFQ Date': '2025-06-15', 'Subject': 'Machined Parts', 'Item Code': 'ITM-001', 'Customer Part No': 'CP-100', 'Description': 'Shaft Assembly', 'Qty': '100', 'Unit': 'pcs', 'Target Price': '250', 'Notes': '' },
 ];
 const CSV_VALIDATION = [
   { field: 'Customer Code', required: true },
@@ -232,11 +232,11 @@ export default function RFQPage() {
       try {
         const first = groupRows[0];
         const custCode = (first['Customer Code'] || '').trim();
-        const cust = customers.find((c) => c.partner_code?.toLowerCase() === custCode.toLowerCase());
+        const cust = customers.find((c) => c.partner_code?.toLowerCase() === custCode.toLowerCase() || c.name?.toLowerCase() === custCode.toLowerCase());
         if (!cust) throw new Error(`Customer "${custCode}" not found`);
         const lineItemsPayload = groupRows.map((row) => {
           const itemCode = (row['Item Code'] || '').trim();
-          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
           return {
             item_id: item?.id || null,
             customer_item_code: row['Customer Part No'] || '',

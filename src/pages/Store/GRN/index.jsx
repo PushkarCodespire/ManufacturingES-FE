@@ -28,9 +28,9 @@ import CsvUploadModal       from '../../../components/common/CsvUploadModal';
 import { downloadSampleCsv } from '../../../utils/csvImport';
 
 // ── CSV Upload config ─────────────────────────────────────────────────────────
-const GRN_CSV_HEADERS = ['Vendor Code', 'Warehouse', 'Received Date', 'Invoice No', 'Item Code', 'Qty Received', 'Unit', 'Unit Price', 'Discount %', 'GST %', 'Lot No', 'Notes'];
+const GRN_CSV_HEADERS = ['Vendor Code', 'Warehouse', 'Received Date', 'PO Number', 'Invoice No', 'Item Code', 'Qty Received', 'Unit', 'Unit Price', 'Discount %', 'GST %', 'Lot No', 'Notes'];
 const GRN_CSV_SAMPLE = [
-  { 'Vendor Code': 'VND-001', 'Warehouse': 'Main Store', 'Received Date': '2025-06-15', 'Invoice No': 'INV-001', 'Item Code': 'ITM-001', 'Qty Received': '100', 'Unit': 'pcs', 'Unit Price': '50', 'Discount %': '0', 'GST %': '18', 'Lot No': 'LOT-001', 'Notes': '' },
+  { 'Vendor Code': 'Reliance Polymers Ltd', 'Warehouse': 'Main Store', 'Received Date': '2025-06-15', 'PO Number': 'PO-001', 'Invoice No': 'INV-001', 'Item Code': 'ITM-001', 'Qty Received': '100', 'Unit': 'pcs', 'Unit Price': '50', 'Discount %': '0', 'GST %': '18', 'Lot No': 'LOT-001', 'Notes': '' },
 ];
 const GRN_CSV_VALIDATION = [
   { field: 'Vendor Code', required: true },
@@ -268,14 +268,14 @@ export default function GRNPage() {
       try {
         const first = groupRows[0];
         const vendorCode = (first['Vendor Code'] || '').trim();
-        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase());
+        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase() || v.name?.toLowerCase() === vendorCode.toLowerCase());
         if (!vendor) throw new Error(`Vendor "${vendorCode}" not found`);
         const whName = (first['Warehouse'] || '').trim();
         const wh = warehouses.find((w) => w.name?.toLowerCase() === whName.toLowerCase());
         if (!wh) throw new Error(`Warehouse "${whName}" not found`);
         const itemsPayload = groupRows.map((row) => {
           const itemCode = (row['Item Code'] || '').trim();
-          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
           return {
             item_id:      item?.id || null,
             item_code:    itemCode,
@@ -289,10 +289,14 @@ export default function GRNPage() {
             remarks:      '',
           };
         });
+        const poNo = (first['PO Number'] || '').trim();
+        const po = poNo ? pos.find((p) => (p.po_no || '')?.toLowerCase() === poNo.toLowerCase()) : null;
         await grnApi.create({
           vendor_id:     vendor.id,
           warehouse_id:  wh.id,
           received_date: first['Received Date'] || dayjs().format('YYYY-MM-DD'),
+          po_id:         po?.id || null,
+          po_reference:  poNo || '',
           invoice_no:    first['Invoice No'] || '',
           notes:         first['Notes'] || '',
           items:         itemsPayload,

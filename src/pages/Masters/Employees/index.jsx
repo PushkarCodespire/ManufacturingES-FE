@@ -29,9 +29,9 @@ import CsvUploadModal from '../../../components/common/CsvUploadModal';
 import { downloadSampleCsv } from '../../../utils/csvImport';
 
 // ── CSV Upload config ────────────────────────────────────────────────────────
-const EMP_CSV_HEADERS = ['Name', 'Email', 'Phone', 'Department', 'Role'];
+const EMP_CSV_HEADERS = ['Name', 'Email', 'Phone', 'Department', 'Role', 'Sites'];
 const EMP_CSV_SAMPLE = [
-  { 'Name': 'Priya Sharma', 'Email': 'priya@dynatech.com', 'Phone': '9876543210', 'Department': 'Quality', 'Role': 'QA Inspector' },
+  { 'Name': 'Priya Sharma', 'Email': 'priya@dynatech.com', 'Phone': '9876543210', 'Department': 'Quality', 'Role': 'QA Inspector', 'Sites': 'Site A, Site B' },
 ];
 const EMP_CSV_VALIDATION = [
   { field: 'Name', required: true },
@@ -348,12 +348,17 @@ const EmployeesPage = () => {
       try {
         const dept = row['Department'] ? departments.find((d) => d.name?.toLowerCase() === row['Department'].toLowerCase()) : null;
         const role = row['Role'] ? roles.find((r) => r.label?.toLowerCase() === row['Role'].toLowerCase() && (!dept || r.department_id === dept?.id)) : null;
+        const siteNames = row['Sites'] ? row['Sites'].split(',').map((s) => s.trim()).filter(Boolean) : [];
+        const site_ids = siteNames.length
+          ? siteNames.map((sn) => sites.find((s) => s.name?.toLowerCase() === sn.toLowerCase())?.id).filter(Boolean)
+          : [];
         await userApi.create({
           name:          row['Name'],
           email:         row['Email'],
           phone:         row['Phone'] || null,
           department_id: dept?.id || null,
           role_id:       role?.id || null,
+          site_ids:      site_ids.length ? site_ids : undefined,
         });
         success++;
       } catch (err) {

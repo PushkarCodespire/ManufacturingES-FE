@@ -28,7 +28,7 @@ import { UploadOutlined }   from '@ant-design/icons';
 // ── CSV Upload config ─────────────────────────────────────────────────────────
 const VRFQ_CSV_HEADERS = ['Vendor Codes (comma-sep)', 'Response Deadline', 'Item Code', 'Qty Required', 'Unit', 'Notes'];
 const VRFQ_CSV_SAMPLE = [
-  { 'Vendor Codes (comma-sep)': 'VND-001,VND-002', 'Response Deadline': '2025-07-15', 'Item Code': 'ITM-001', 'Qty Required': '500', 'Unit': 'pcs', 'Notes': '' },
+  { 'Vendor Codes (comma-sep)': 'Reliance Polymers Ltd,Supreme Petrochemicals Ltd', 'Response Deadline': '2025-07-15', 'Item Code': 'ITM-001', 'Qty Required': '500', 'Unit': 'pcs', 'Notes': '' },
 ];
 const VRFQ_CSV_VALIDATION = [
   { field: 'Vendor Codes (comma-sep)', required: true },
@@ -262,13 +262,13 @@ export default function VendorRFQPage() {
         const first = groupRows[0];
         const vendorCodes = (first['Vendor Codes (comma-sep)'] || '').split(',').map(c => c.trim()).filter(Boolean);
         const vendorIds = vendorCodes.map(code => {
-          const v = vendors.find(v => v.partner_code?.toLowerCase() === code.toLowerCase());
+          const v = vendors.find(v => v.partner_code?.toLowerCase() === code.toLowerCase() || v.name?.toLowerCase() === code.toLowerCase());
           if (!v) throw new Error(`Vendor "${code}" not found`);
           return v.id;
         });
         const itemsPayload = groupRows.map((row) => {
           const itemCode = (row['Item Code'] || '').trim();
-          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
           if (!item) throw new Error(`Item "${itemCode}" not found`);
           return {
             item_id: item.id,

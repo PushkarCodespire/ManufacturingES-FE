@@ -16,6 +16,7 @@ import usePermissions from '../../../hooks/usePermissions';
 import { purchaseReturnApi } from '../../../api/procurement.api';
 import { purchaseOrderApi } from '../../../api/procurement.api';
 import { vendorApi } from '../../../api/procurement.api';
+import api from '../../../api/axios';
 import { exportTableToCsv } from '../../../utils/exportCsv';
 import CsvUploadModal       from '../../../components/common/CsvUploadModal';
 import { downloadSampleCsv } from '../../../utils/csvImport';
@@ -24,7 +25,7 @@ import { UploadOutlined }   from '@ant-design/icons';
 // ── CSV Upload config ─────────────────────────────────────────────────────────
 const RETURN_CSV_HEADERS = ['PO No', 'Vendor Code', 'Return Date', 'Reason', 'Item Code', 'Qty Returned', 'Unit Price', 'Notes'];
 const RETURN_CSV_SAMPLE = [
-  { 'PO No': 'PO-001', 'Vendor Code': 'VND-001', 'Return Date': '2025-06-20', 'Reason': 'defective', 'Item Code': 'ITM-001', 'Qty Returned': '10', 'Unit Price': '120', 'Notes': '' },
+  { 'PO No': 'PO-001', 'Vendor Code': 'Reliance Polymers Ltd', 'Return Date': '2025-06-20', 'Reason': 'defective', 'Item Code': 'ITM-001', 'Qty Returned': '10', 'Unit Price': '120', 'Notes': '' },
 ];
 const RETURN_CSV_VALIDATION = [
   { field: 'Vendor Code', required: true },
@@ -69,6 +70,7 @@ export default function PurchaseReturnsPage() {
   /* ── Vendors + POs for selects ── */
   const [vendors,  setVendors]  = useState([]);
   const [pos,      setPos]      = useState([]);
+  const [allItems, setAllItems] = useState([]);
   const [grnItems, setGrnItems] = useState([]);  // items from selected PO's GRN
   const [poItems,  setPoItems]  = useState([]);  // items from selected PO (always available)
 
@@ -92,10 +94,15 @@ export default function PurchaseReturnsPage() {
 
   useEffect(() => {
     vendorApi.getAll({ limit: 500 }).then(d => setVendors(d?.data || [])).catch(() => {});
-    // Load POs that have been sent to vendor (sent/partial/received) — these can have returns
+    // Load all POs (CSV needs all, UI can filter in dropdown)
     purchaseOrderApi.getAll({ limit: 500 }).then(d => {
       const all = d?.data || [];
-      setPos(all.filter(p => ['sent', 'partial', 'received'].includes(p.status)));
+      setPos(all);
+    }).catch(() => {});
+    // Load all items for CSV import lookup
+    api.get('/items', { params: { limit: 1000 } }).then(d => {
+      const items = Array.isArray(d) ? d : (d?.data || d?.rows || []);
+      setAllItems(items);
     }).catch(() => {});
   }, []);
 
@@ -197,25 +204,36 @@ export default function PurchaseReturnsPage() {
 
   // ── CSV Import handler ────────────────────────────────────────────────────────
   const handleCsvImport = async (rows) => {
+    // Ensure items are loaded for lookup
+    let itemsList = allItems;
+    if (!itemsList.length) {
+      try {
+        const res = await api.get('/items', { params: { limit: 1000 } });
+        itemsList = Array.isArray(res) ? res : (res?.data || res?.rows || []);
+      } catch { /* ignore */ }
+    }
     let success = 0, failed = 0;
     const errors = [];
     for (const row of rows) {
       try {
         const vendorCode = (row['Vendor Code'] || '').trim();
-        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase());
+        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase() || v.name?.toLowerCase() === vendorCode.toLowerCase());
         if (!vendor) throw new Error(`Vendor "${vendorCode}" not found`);
         const poNo = (row['PO No'] || '').trim();
         const po = poNo ? pos.find(p => p.po_no?.toLowerCase() === poNo.toLowerCase()) : null;
+        if (!po) throw new Error(`PO "${poNo}" not found`);
         const itemCode = (row['Item Code'] || '').trim();
-        // items not loaded separately in this page — use poItems or generic search
+        const item = itemsList.find(i => i.name?.toLowerCase() === itemCode.toLowerCase() || i.code?.toLowerCase() === itemCode.toLowerCase());
+        if (!item) throw new Error(`Item "${itemCode}" not found (${itemsList.length} items loaded)`);
+        const itemId = item.id;
         await purchaseReturnApi.create({
           vendor_id: vendor.id,
-          po_id: po?.id || null,
+          po_id: po.id,
           return_date: row['Return Date'] || dayjs().format('YYYY-MM-DD'),
           reason: row['Reason'] || 'other',
           notes: row['Notes'] || '',
           items: [{
-            item_id: null, // will be resolved by backend or user can set
+            item_id: itemId,
             qty_returned: parseFloat(row['Qty Returned']) || 1,
             unit_price: parseFloat(row['Unit Price']) || 0,
             reason: row['Reason'] || '',

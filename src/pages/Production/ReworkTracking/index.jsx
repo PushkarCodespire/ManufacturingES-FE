@@ -108,7 +108,7 @@ export default function ReworkTrackingPage() {
     for (const row of rows) {
       try {
         const itemCode = (row['Item Code'] || '').trim();
-        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
         if (!item) throw new Error(`Item "${itemCode}" not found`);
         const woNo = (row['Work Order No'] || '').trim();
         const wo = woNo ? wos.find((w) => w.wo_no?.toLowerCase() === woNo.toLowerCase()) : null;

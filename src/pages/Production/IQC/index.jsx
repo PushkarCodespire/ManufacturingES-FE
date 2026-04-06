@@ -22,9 +22,9 @@ import { downloadSampleCsv } from '../../../utils/csvImport';
 import { UploadOutlined }   from '@ant-design/icons';
 
 // ── CSV Upload config ─────────────────────────────────────────────────────────
-const IQC_CSV_HEADERS = ['Item Code', 'Vendor Code', 'Batch No', 'Inspection Date', 'Qty Received', 'Qty Inspected', 'Qty Rejected', 'Notes'];
+const IQC_CSV_HEADERS = ['Item Code', 'Vendor Code', 'GRN No', 'Batch No', 'Inspector Name', 'Inspection Date', 'Qty Received', 'Qty Inspected', 'Qty Rejected', 'Notes'];
 const IQC_CSV_SAMPLE = [
-  { 'Item Code': 'ITM-001', 'Vendor Code': 'VND-001', 'Batch No': 'LOT-2026-001', 'Inspection Date': '2026-04-01', 'Qty Received': '500', 'Qty Inspected': '50', 'Qty Rejected': '2', 'Notes': '' },
+  { 'Item Code': 'ITM-001', 'Vendor Code': 'Reliance Polymers Ltd', 'GRN No': 'GRN-2026-001', 'Batch No': 'LOT-2026-001', 'Inspector Name': 'Amit Sharma', 'Inspection Date': '2026-04-01', 'Qty Received': '500', 'Qty Inspected': '50', 'Qty Rejected': '2', 'Notes': '' },
 ];
 const IQC_CSV_VALIDATION = [
   { field: 'Item Code', required: true },
@@ -152,14 +152,20 @@ export default function IQCPage() {
     for (const row of rows) {
       try {
         const itemCode = (row['Item Code'] || '').trim();
-        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+        const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
         if (!item) throw new Error(`Item "${itemCode}" not found`);
         const vendorCode = (row['Vendor Code'] || '').trim();
-        const vendor = vendorCode ? vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase()) : null;
+        const vendor = vendorCode ? vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase() || v.name?.toLowerCase() === vendorCode.toLowerCase()) : null;
+        const grnNo = (row['GRN No'] || '').trim();
+        const grn = grnNo ? grns.find((g) => g.grn_no?.toLowerCase() === grnNo.toLowerCase()) : null;
+        const inspectorName = (row['Inspector Name'] || '').trim();
+        const inspector = inspectorName ? users.find((u) => u.name?.toLowerCase() === inspectorName.toLowerCase()) : null;
         await iqcApi.create({
           item_id:         item.id,
           vendor_id:       vendor?.id || null,
+          grn_id:          grn?.id || null,
           batch_no:        row['Batch No'] || null,
+          inspector_id:    inspector?.id || null,
           inspection_date: row['Inspection Date'] || dayjs().format('YYYY-MM-DD'),
           qty_received:    parseFloat(row['Qty Received']) || 0,
           qty_inspected:   parseFloat(row['Qty Inspected']) || 0,

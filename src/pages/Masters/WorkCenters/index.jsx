@@ -170,7 +170,6 @@ export default function WorkCentersPage() {
       try {
         await workCenterApi.create({
           name: row['Name']?.trim(),
-          code: row['Code']?.trim() || undefined,
           type: row['Type']?.trim()?.toLowerCase() || undefined,
           department: row['Department']?.trim() || undefined,
           capacity_per_shift: row['Capacity Per Shift'] ? parseFloat(row['Capacity Per Shift']) : undefined,

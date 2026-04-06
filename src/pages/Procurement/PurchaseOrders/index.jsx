@@ -32,7 +32,7 @@ import { UploadOutlined }   from '@ant-design/icons';
 // ── CSV Upload config ─────────────────────────────────────────────────────────
 const PO_CSV_HEADERS = ['Vendor Code', 'Order Date', 'Expected Date', 'Item Code', 'Qty', 'Unit', 'Unit Price', 'GST %', 'Notes'];
 const PO_CSV_SAMPLE = [
-  { 'Vendor Code': 'VND-001', 'Order Date': '2025-06-15', 'Expected Date': '2025-07-15', 'Item Code': 'ITM-001', 'Qty': '500', 'Unit': 'pcs', 'Unit Price': '120', 'GST %': '18', 'Notes': '' },
+  { 'Vendor Code': 'Reliance Polymers Ltd', 'Order Date': '2025-06-15', 'Expected Date': '2025-07-15', 'Item Code': 'ITM-001', 'Qty': '500', 'Unit': 'pcs', 'Unit Price': '120', 'GST %': '18', 'Notes': '' },
 ];
 const PO_CSV_VALIDATION = [
   { field: 'Vendor Code', required: true },
@@ -460,11 +460,11 @@ export default function PurchaseOrdersPage() {
       try {
         const first = groupRows[0];
         const vendorCode = (first['Vendor Code'] || '').trim();
-        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase());
+        const vendor = vendors.find((v) => v.partner_code?.toLowerCase() === vendorCode.toLowerCase() || v.name?.toLowerCase() === vendorCode.toLowerCase());
         if (!vendor) throw new Error(`Vendor "${vendorCode}" not found`);
         const itemsPayload = groupRows.map((row) => {
           const itemCode = (row['Item Code'] || '').trim();
-          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase());
+          const item = items.find((i) => i.code?.toLowerCase() === itemCode.toLowerCase() || i.name?.toLowerCase() === itemCode.toLowerCase());
           if (!item) throw new Error(`Item "${itemCode}" not found`);
           return {
             item_id: item.id,

@@ -277,8 +277,16 @@ export default function InstrumentsPage() {
     const errors = [];
     for (const row of rows) {
       try {
+        // Auto-generate instrument_code from name: first 3 chars + random 4-digit + row index
+        const nameStr = (row['Name'] || '').trim();
+        const prefix = nameStr.replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase() || 'INS';
+        const rand = Math.floor(1000 + Math.random() * 9000);
+        const idx = (success + failed + 1).toString().padStart(2, '0');
+        const autoCode = `${prefix}-${rand}-${idx}`;
+
         await instrumentApi.create({
-          name: row['Name'],
+          instrument_code: autoCode,
+          name: nameStr,
           category: row['Category'] || null,
           manufacturer: row['Manufacturer'] || null,
           model_no: row['Model No'] || null,
@@ -292,7 +300,8 @@ export default function InstrumentsPage() {
         success++;
       } catch (err) {
         failed++;
-        errors.push(`Row "${row['Name']}": ${err?.message || 'Failed'}`);
+        const detail = err?.response?.data?.message || err?.response?.data?.errors?.join(', ') || err?.message || 'Failed';
+        errors.push(`Row "${row['Name']}": ${detail}`);
       }
     }
     load();
